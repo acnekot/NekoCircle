@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb, getUserByUsername } from "@/lib/db";
-import { verifyPassword, createToken, USER_COOKIE_NAME, USER_COOKIE_MAX_AGE } from "@/lib/auth";
+import { verifyPassword, createUserToken, USER_COOKIE_NAME, USER_COOKIE_MAX_AGE } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "用户名或密码错误" }, { status: 401 });
 
     const subscribed = user.subscription === 1;
-    const token = await createToken(user.id, user.username, user.role || "user", user.subscription ?? 0);
+    const token = await createUserToken(user.id, user.username, user.subscription ?? 0);
     const res = NextResponse.json({ ok: true, subscribed });
     res.cookies.set(USER_COOKIE_NAME, token, {
       httpOnly: true,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb, getUserByUsername, createUser } from "@/lib/db";
-import { hashPassword, createToken, USER_COOKIE_NAME, USER_COOKIE_MAX_AGE } from "@/lib/auth";
+import { hashPassword, createUserToken, USER_COOKIE_NAME, USER_COOKIE_MAX_AGE } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const hash = await hashPassword(String(password));
     const id = createUser(String(username), hash, String(email), "user");
 
-    const token = await createToken(id, String(username), "user", 0);
+    const token = await createUserToken(id, String(username), 0);
     const res = NextResponse.json({ ok: true });
     res.cookies.set(USER_COOKIE_NAME, token, {
       httpOnly: true,

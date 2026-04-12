@@ -4,8 +4,7 @@ import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [mode, setMode]       = useState<"login" | "register" | "loading">("loading");
-  const [username, setUsername] = useState("");
+  const [mode, setMode]       = useState<"login" | "setup" | "loading">("loading");
   const [password, setPassword] = useState("");
   const [error, setError]     = useState("");
   const [busy, setBusy]       = useState(false);
@@ -13,7 +12,7 @@ export default function AdminLoginPage() {
   useEffect(() => {
     fetch("/api/auth/status")
       .then((r) => r.json())
-      .then((d) => setMode(d.hasUsers ? "login" : "register"))
+      .then((d) => setMode(d.hasAdmin ? "login" : "setup"))
       .catch(() => setMode("login"));
   }, []);
 
@@ -22,11 +21,10 @@ export default function AdminLoginPage() {
     setError("");
     setBusy(true);
     try {
-      const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
-      const res  = await fetch(endpoint, {
+      const res  = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ password }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "操作失败"); return; }
@@ -59,36 +57,25 @@ export default function AdminLoginPage() {
             <span className="text-xl font-bold text-white">NekoCircle</span>
           </div>
           <p className="text-gray-500 text-sm">
-            {mode === "register" ? "首次使用，创建管理员账户" : "管理后台"}
+            {mode === "setup" ? "首次使用，设置管理员密码" : "管理后台"}
           </p>
         </div>
 
         <div className="card rounded-2xl p-6">
           <h2 className="text-base font-semibold text-white mb-5">
-            {mode === "register" ? "🔑 初始化设置" : "🔐 登录"}
+            {mode === "setup" ? "🔑 初始化设置" : "🔐 管理员登录"}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs text-gray-400 mb-1.5">用户名</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                autoComplete="username"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
-                disabled={busy}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1.5">密码</label>
+              <label className="block text-xs text-gray-400 mb-1.5">
+                {mode === "setup" ? "设置管理员密码" : "管理员密码"}
+              </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={mode === "register" ? "至少 6 位" : "••••••••"}
-                autoComplete={mode === "register" ? "new-password" : "current-password"}
+                placeholder={mode === "setup" ? "至少 6 位" : "••••••••"}
+                autoComplete={mode === "setup" ? "new-password" : "current-password"}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
                 disabled={busy}
                 required
@@ -103,7 +90,7 @@ export default function AdminLoginPage() {
 
             <button
               type="submit"
-              disabled={busy || !username || !password}
+              disabled={busy || !password}
               className="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {busy ? (
@@ -114,9 +101,15 @@ export default function AdminLoginPage() {
                   </svg>
                   处理中...
                 </span>
-              ) : mode === "register" ? "创建账户" : "登录"}
+              ) : mode === "setup" ? "设置密码并进入" : "登录"}
             </button>
           </form>
+
+          {mode === "login" && (
+            <p className="text-xs text-gray-700 text-center mt-4">
+              管理后台使用独立密码，与用户账号无关
+            </p>
+          )}
         </div>
 
         <div className="mt-4 text-center">
