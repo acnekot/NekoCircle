@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { initDb, getSetting, createAnalysis, updateAnalysis, getAnalysis, findRecentAnalysis, getUserById } from "@/lib/db";
+import { initDb, getSetting, createAnalysis, updateAnalysis, getAnalysis, findRecentAnalysis, getUserById, logGeneration } from "@/lib/db";
 import { getUserInfo, setMockMode, setApiKeys, setManualSlowMode } from "@/lib/twitter";
 import { analyzeUser, type ProgressInfo, type LogEntry } from "@/lib/analyze";
 import { verifyToken, USER_COOKIE_NAME } from "@/lib/auth";
@@ -59,6 +59,9 @@ export async function POST(req: Request) {
     const id = randomUUID();
     createAnalysis(id, username, topCount);
     if (userId) updateAnalysis(id, { user_id: userId } as Parameters<typeof updateAnalysis>[1]);
+
+    // Log this generation
+    try { logGeneration("twitter", username); } catch { /* non-critical */ }
 
     (async () => {
       try {

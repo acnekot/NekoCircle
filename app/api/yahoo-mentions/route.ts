@@ -10,6 +10,7 @@ import {
 } from "@/lib/yahoo-realtime-fetch";
 import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
 import { resolveCircleAvatarUrl } from "@/lib/x-profile-image";
+import { initDb, logGeneration } from "@/lib/db";
 
 const YAHOO_PAYLOAD_REVALIDATE_SEC = 300;
 
@@ -102,6 +103,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const payload = await getCachedYahooPayload(name, buildCircle);
+    // Log generation when building a circle
+    if (buildCircle) {
+      try { initDb(); logGeneration("yahoo", name); } catch { /* non-critical */ }
+    }
     return NextResponse.json(payload, {
       headers: {
         "Cache-Control":
@@ -144,6 +149,10 @@ export async function POST(req: Request) {
 
   try {
     const payload = await getCachedYahooPayload(name, body.buildCircle === true);
+    // Log generation when building a circle
+    if (body.buildCircle === true) {
+      try { initDb(); logGeneration("yahoo", name); } catch { /* non-critical */ }
+    }
     return NextResponse.json(payload);
   } catch {
     return NextResponse.json(

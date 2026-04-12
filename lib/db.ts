@@ -117,6 +117,14 @@ export function initDb() {
       'integration_rate_limit_per_hour',
       COALESCE((SELECT value FROM settings WHERE key = 'integration_rate_limit_per_min'), '0')
     );
+    -- ── Generation log (tracks every circle generation) ────
+    CREATE TABLE IF NOT EXISTS generation_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      source      TEXT NOT NULL,          -- 'yahoo' | 'twitter'
+      username    TEXT NOT NULL,
+      created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_generation_log_source ON generation_log(source);
   `);
   for (const col of [
     "ALTER TABLE analyses ADD COLUMN progress INTEGER DEFAULT 0",
@@ -268,6 +276,32 @@ export function findRecentAnalysis(username: string, ttlMs: number): AnalysisRow
   } finally {
     db.close();
   }
+}
+
+// ─────────────────────────────────────────────────────────
+// Generation log
+// ─────────────────────────────────────────────────────────
+
+export function logGeneration(source: "yahoo" | "twitter", username: string): void {
+  const db = getDb();
+  try {
+    db.prepare("INSERT INTO generation_log (source, username, created_at) VALUES (?, ?, ?)").run(source, username, Date.now());
+  } finally { db.close(); }
+}
+
+export type GenerationCounts = {
+  yahoo: number;
+  twitter: number;
+  total: number;
+};
+
+export function getGenerationCounts(): GenerationCounts {
+  const db = getDb();
+  try {
+    const yahoo = (db.prepare("SELECT COUNT(*) as n FROM generation_log WHERE source = 'yahoo'").get() as { n: number }).n;
+    const twitter = (db.prepare("SELECT COUNT(*) as n FROM generation_log WHERE source = 'twitter'").get() as { n: number }).n;
+    return { yahoo, twitter, total: yahoo + twitter };
+  } finally { db.close(); }
 }
 
 // ─────────────────────────────────────────────────────────

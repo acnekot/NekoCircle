@@ -5,6 +5,7 @@ import DemoCircle from "@/components/DemoCircle";
 
 type UserInfo = { ok: boolean; username?: string; subscribed?: boolean };
 type DataSource = "twitter" | "yahoo";
+type GenerationCounts = { yahoo: number; twitter: number; total: number };
 
 export default function HomePage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function HomePage() {
   const [userLoading, setUserLoading] = useState(true);
   const [showLoginHint, setShowLoginHint] = useState(false);
   const [dataSource, setDataSource] = useState<DataSource>("twitter");
+  const [genCounts, setGenCounts] = useState<GenerationCounts | null>(null);
 
   // Check session on mount
   useEffect(() => {
@@ -23,6 +25,14 @@ export default function HomePage() {
       .then((d: UserInfo) => setUser(d))
       .catch(() => setUser({ ok: false }))
       .finally(() => setUserLoading(false));
+  }, []);
+
+  // Fetch generation counts
+  useEffect(() => {
+    fetch("/api/generation-stats")
+      .then((r) => r.json())
+      .then((d: GenerationCounts) => setGenCounts(d))
+      .catch(() => {});
   }, []);
 
   const isLoggedIn = user?.ok === true;
@@ -178,6 +188,31 @@ export default function HomePage() {
                     )}
                   </button>
                 </div>
+
+                {/* Generation count stats - shown based on selected data source */}
+                {genCounts && genCounts.total > 0 && (
+                  <div className="flex items-center justify-center gap-3 py-2 px-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-gray-500">
+                        {dataSource === "yahoo" ? "🟢" : "📊"}
+                      </span>
+                      <span className="text-gray-400">
+                        {dataSource === "yahoo" ? "Yahoo 模式" : "Twitter API 模式"}已生成
+                      </span>
+                      <span className="font-bold text-white tabular-nums">
+                        {dataSource === "yahoo" ? genCounts.yahoo : genCounts.twitter}
+                      </span>
+                      <span className="text-gray-400">次</span>
+                    </div>
+                    <span className="text-gray-700">·</span>
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-gray-500">🌐</span>
+                      <span className="text-gray-400">总计</span>
+                      <span className="font-bold text-white tabular-nums">{genCounts.total}</span>
+                      <span className="text-gray-400">次</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Login hint when not logged in (only for twitter mode) */}
                 {dataSource === "twitter" && showLoginHint && !isLoggedIn && (
