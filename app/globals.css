@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-twitter: #1d9bf0;
+  --color-twitter-dark: #0f6ab4;
+}
+
+body {
+  background: #0a0f1e;
+}
+
+.gradient-bg {
+  background: radial-gradient(ellipse at top, #1a2744 0%, #0a0f1e 60%);
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #1d9bf0, #7b6cf6);
+  transition: all 0.2s;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #0f6ab4, #5a4fd4);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(29, 155, 240, 0.4);
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #1d9bf0, #7b6cf6);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Animated gradient username */
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.username-gradient {
+  background: linear-gradient(90deg, #1d9bf0, #7b6cf6, #f471b5, #38bdf8, #1d9bf0);
+  background-size: 300% 300%;
+  animation: gradient-shift 3s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Log entry typewriter effect */
+@keyframes log-appear {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.log-entry {
+  animation: log-appear 0.25s cubic-bezier(0.16,1,0.3,1) forwards;
+}
