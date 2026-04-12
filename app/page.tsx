@@ -51,7 +51,7 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (res.status === 401 && data.requireLogin) { setShowLoginHint(true); setLoading(false); return; }
-      if (res.status === 403 && data.requireSubscription) { setError("需要订阅才能生成互动圈，请联系管理员开通"); setLoading(false); return; }
+      if (res.status === 403 && data.requireSubscription) { setError("Twitter API 模式权重尚未调好，暂不开放，请先使用 Yahoo 免费模式"); setLoading(false); return; }
       if (!res.ok) throw new Error(data.error ?? "分析失败");
       router.push(`/result/${data.id}`);
     } catch (err: unknown) {
@@ -183,7 +183,7 @@ export default function HomePage() {
                 {dataSource === "twitter" && showLoginHint && !isLoggedIn && (
                   <div className="bg-[#1d9bf0]/10 border border-[#1d9bf0]/30 rounded-xl px-4 py-3 text-sm">
                     <p className="text-[#1d9bf0] font-medium mb-1">需要登录才能生成互动圈</p>
-                    <p className="text-gray-400 text-xs mb-2">登录后可保存记录，订阅用户可查看历史分析</p>
+                    <p className="text-gray-400 text-xs mb-2">Twitter API 模式暂不开放，推荐使用 Yahoo 免费模式</p>
                     <a href="/login" className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#1d9bf0] hover:bg-[#1a8cd8] px-3 py-1.5 rounded-lg transition-colors">
                       立即登录 →
                     </a>
@@ -229,7 +229,7 @@ export default function HomePage() {
                 {dataSource === "twitter" && !userLoading && !isLoggedIn && !showLoginHint && (
                   <p className="text-center text-xs text-gray-600">
                     <a href="/login" className="text-gray-500 hover:text-gray-300 transition-colors underline underline-offset-2">登录</a>
-                    {" "}后才能生成 · 订阅用户可查看历史记录
+                    {" "}后才能生成 · Twitter API 模式暂不开放
                   </p>
                 )}
 
@@ -244,8 +244,8 @@ export default function HomePage() {
                 {/* Logged in: subscribed status (twitter mode only) */}
                 {dataSource === "twitter" && isLoggedIn && !user?.subscribed && (
                   <p className="text-center text-xs text-gray-600">
-                    <a href="/my" className="text-gray-500 hover:text-gray-300 transition-colors underline underline-offset-2">升级订阅</a>
-                    {" "}可保存并查看历史分析
+                    <a href="/my" className="text-gray-500 hover:text-gray-300 transition-colors underline underline-offset-2">我的页面</a>
+                    {" "}· Twitter API 模式权重调试中，暂不开放
                   </p>
                 )}
               </form>
@@ -347,9 +347,9 @@ export default function HomePage() {
               },
               {
                 n: "02", color: "text-purple-400", border: "border-purple-400/20", bg: "bg-purple-400/5",
-                title: "联系管理员开通订阅",
-                desc: "注册后需要管理员手动开通订阅权限才能生成互动圈。开通后刷新页面即可使用，无需重新登录。",
-                tips: ["免费账号可以查看他人生成的结果", "订阅账号可生成并保存自己的互动圈", "历史记录在「我的」页面查看"],
+                title: "Twitter API 暂不开放",
+                desc: "Twitter API 模式的权重参数尚未调好，暂不开放使用。目前推荐使用 Yahoo 免费模式体验互动圈功能。",
+                tips: ["权重调试完成后会重新开放", "Yahoo 模式完全免费且无需登录", "两种模式生成的互动圈样式相同"],
               },
               {
                 n: "03", color: "text-emerald-400", border: "border-emerald-400/20", bg: "bg-emerald-400/5",
@@ -420,8 +420,8 @@ export default function HomePage() {
               {(dataSource === "twitter" ? [
                 { q: "为什么有些头像加载不出来？", a: "X 头像需要通过代理加载，偶尔因网络波动失败属于正常现象，稍后刷新重试即可。" },
                 { q: "分析结果和实际差距大怎么办？", a: "系统只抓取最近 75 条推文的互动，长期互动历史不在分析范围内。若账号互动频繁，数据会更准确。" },
-                { q: "生成失败怎么办？", a: "可能是 API 额度暂时耗尽或目标账号受限。等待几分钟后重试，或联系管理员检查 API 配置。" },
-                { q: "历史记录保存多久？", a: "历史记录默认永久保存，管理员可在后台手动清理。结果页链接可随时分享给他人查看。" },
+                { q: "生成失败怎么办？", a: "Twitter API 模式目前权重未调好暂不开放。请切换到 Yahoo 搜索模式使用，完全免费且无需登录。" },
+                { q: "历史记录保存多久？", a: "历史记录默认永久保存。结果页链接可随时分享给他人查看。" },
                 { q: "支持分析私密账号吗？", a: "不支持。系统只能分析公开账号，私密账号的推文和互动无法通过 API 获取。" },
                 { q: "为什么 Mention 数量是 0？", a: "Mention 数据来自独立的 API 搜索，部分账号可能因 API 限制导致数据为空，不影响其他互动类型统计。" },
                 { q: "什么是 Shadowban（影子封禁）？", a: "Shadowban 是 X 平台的一种限流手段，被限制的账号发的推文、回复不会出现在其他用户的时间线或搜索结果中，但账号本身不会收到任何通知。" },
@@ -429,9 +429,9 @@ export default function HomePage() {
                 { q: "Shadowban 有哪些类型？", a: "常见的有：搜索 Shadowban（推文不出现在搜索结果）、回复 Shadowban（回复被折叠隐藏）、推荐流 Shadowban（不推送给非关注者）。互动圈中回复者减少通常与回复 Shadowban 相关。" },
                 { q: "如何判断自己是否被 Shadowban？", a: "可以退出登录后搜索自己的用户名和推文，若搜不到则可能被搜索 Shadowban。也可观察互动圈中近期 Reply 数量是否异常减少。第三方工具如 hisubway.com 也可辅助检测。" },
               ] : [
-                { q: "Yahoo 模式和 Twitter API 模式有什么区别？", a: "Yahoo 模式只统计 @提及 数据，免费无需登录；Twitter API 模式分析回复、引用、提及、转推四种互动，数据更全面但需要登录和订阅。" },
+                { q: "Yahoo 模式和 Twitter API 模式有什么区别？", a: "Yahoo 模式只统计 @提及 数据，免费无需登录；Twitter API 模式分析回复、引用、提及、转推四种互动，数据更全面但权重尚在调试中暂不开放。" },
                 { q: "为什么只有 30 天的数据？", a: "Yahoo 实时搜索只索引过去约 30 天的推文，更早的数据无法获取。如需更深度的分析，建议使用 Twitter API 模式。" },
-                { q: "Yahoo 模式需要注册吗？", a: "不需要。Yahoo 模式完全免费，无需注册、登录或订阅，输入用户名即可直接生成。" },
+                { q: "Yahoo 模式需要注册吗？", a: "不需要。Yahoo 模式完全免费，无需注册、登录，输入用户名即可直接生成。" },
                 { q: "搜索结果不准确怎么办？", a: "Yahoo 搜索依赖公开推文索引，如果目标账号是私密账号或推文被删除，可能导致数据不完整。" },
                 { q: "为什么有些用户没出现在结果中？", a: "Yahoo 模式只统计 @提及，不包含回复、引用和转推。如果互动主要通过回复进行，可能不会被统计到。" },
                 { q: "Yahoo 模式的结果会保存吗？", a: "不会。Yahoo 模式的结果仅在当前页面显示，刷新页面后需要重新搜索。如需保存历史记录，请使用 Twitter API 模式。" },
