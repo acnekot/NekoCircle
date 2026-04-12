@@ -51,6 +51,7 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (res.status === 401 && data.requireLogin) { setShowLoginHint(true); setLoading(false); return; }
+      if (res.status === 403 && data.requireSubscription) { setError("需要订阅才能生成互动圈，请前往个人中心升级"); setLoading(false); return; }
       if (!res.ok) throw new Error(data.error ?? "分析失败");
       router.push(`/result/${data.id}`);
     } catch (err: unknown) {

@@ -134,18 +134,30 @@ export function renderToCanvas(
 
   // Watermark
   if (s.showWatermark) {
-    const wm = "NekoCircle";
+    const wm1 = "NekoCircle";
+    const wm2 = "circle.catsuki.cc";
     const fs = Math.round(13 * sc);
+    const fs2 = Math.round(10 * sc);
     ctx.font = `bold ${fs}px ${font}`;
-    const tw = ctx.measureText(wm).width;
+    const tw1 = ctx.measureText(wm1).width;
+    ctx.font = `${fs2}px ${font}`;
+    const tw2 = ctx.measureText(wm2).width;
+    const tw = Math.max(tw1, tw2);
     const padX = 10 * sc, padY = 5 * sc;
-    const rx = 14 * sc, ry = W - 14 * sc - fs - padY * 2;
-    const rw = tw + padX * 2, rh = fs + padY * 2;
+    const lineGap = 3 * sc;
+    const rh = fs + lineGap + fs2 + padY * 2;
+    const rx = 14 * sc, ry = W - 14 * sc - rh;
+    const rw = tw + padX * 2;
     ctx.fillStyle = isLight ? "rgba(0,0,0,0.72)" : "rgba(255,255,255,0.82)";
     pill(ctx, rx, ry, rw, rh, 4 * sc); ctx.fill();
-    ctx.fillStyle = isLight ? "#fff" : "#111";
     ctx.textAlign = "left"; ctx.textBaseline = "top";
-    ctx.fillText(wm, rx + padX, ry + padY);
+    ctx.fillStyle = isLight ? "#fff" : "#111";
+    ctx.font = `bold ${fs}px ${font}`;
+    ctx.fillText(wm1, rx + padX, ry + padY);
+    ctx.font = `${fs2}px ${font}`;
+    ctx.globalAlpha = 0.7;
+    ctx.fillText(wm2, rx + padX, ry + padY + fs + lineGap);
+    ctx.globalAlpha = 1.0;
   }
 
   (canvas as HTMLCanvasElement & { _nodes?: typeof nodeData })._nodes = nodeData;

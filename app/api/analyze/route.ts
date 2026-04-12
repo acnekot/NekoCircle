@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { initDb, getSetting, createAnalysis, updateAnalysis, getAnalysis, findRecentAnalysis } from "@/lib/db";
+import { initDb, getSetting, createAnalysis, updateAnalysis, getAnalysis, findRecentAnalysis, getUserById } from "@/lib/db";
 import { getUserInfo, setMockMode, setApiKeys, setManualSlowMode } from "@/lib/twitter";
 import { analyzeUser, type ProgressInfo, type LogEntry } from "@/lib/analyze";
 import { verifyToken, USER_COOKIE_NAME } from "@/lib/auth";
@@ -23,6 +23,16 @@ export async function POST(req: Request) {
     }
     if (!userId) {
       return NextResponse.json({ error: "请先登录后再生成互动圈", requireLogin: true }, { status: 401 });
+    }
+
+    // Check subscription requirement
+    const subRequired = getSetting("subscription_required");
+    const isSubRequired = subRequired !== "0"; // default to required
+    if (isSubRequired) {
+      const dbUser = getUserById(userId);
+      if (!dbUser || dbUser.subscription !== 1) {
+        return NextResponse.json({ error: "需要订阅才能使用 API 生成功能", requireSubscription: true }, { status: 403 });
+      }
     }
 
     const config = getAnalysisRuntimeConfig();

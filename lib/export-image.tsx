@@ -407,14 +407,15 @@ export function CircleExportImage({
             left: 24,
             bottom: 24,
             padding: "10px 18px",
-            borderRadius: 9999,
+            borderRadius: 16,
             background: isLight ? "rgba(0,0,0,0.72)" : "rgba(255,255,255,0.82)",
             color: isLight ? "#ffffff" : "#111111",
-            fontSize: 24,
-            fontWeight: 700,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          NekoCircle
+          <span style={{ fontSize: 24, fontWeight: 700 }}>NekoCircle</span>
+          <span style={{ fontSize: 18, opacity: 0.7, marginTop: 2 }}>circle.catsuki.cc</span>
         </div>
       ) : null}
     </div>
