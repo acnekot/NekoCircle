@@ -3,8 +3,6 @@ import { useState, useEffect, useCallback } from "react";
 
 type Settings = {
   api_key_set: boolean;
-  integration_api_token_set: boolean;
-  integration_rate_limit_per_hour: string;
   top_count: string;
   tweet_limit: string;
   affinity_weight_reply_by_me: string;
@@ -57,7 +55,6 @@ export default function AdminPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [form, setForm] = useState({
     api_key: "",
-    integration_api_token: "",
     admin_password: "",
     top_count: "30",
     tweet_limit: "20",
@@ -74,7 +71,6 @@ export default function AdminPage() {
     subscription_name: "NekoCircle Pro",
     subscription_desc: "生成并保存互动圈，查看历史记录",
     mock_mode: "0",
-    integration_rate_limit_per_hour: "0",
     cache_ttl_tweets: "60",
     cache_ttl_interactions: "360",
     cache_ttl_mentions: "120",
@@ -117,7 +113,6 @@ export default function AdminPage() {
       subscription_name: data.subscription_name ?? "NekoCircle Pro",
       subscription_desc: data.subscription_desc ?? "生成并保存互动圈，查看历史记录",
       mock_mode: data.mock_mode ?? "0",
-      integration_rate_limit_per_hour: data.integration_rate_limit_per_hour ?? data.integration_rate_limit_per_min ?? "0",
       cache_ttl_tweets: data.cache_ttl_tweets ?? "60",
       cache_ttl_interactions: data.cache_ttl_interactions ?? "360",
       cache_ttl_mentions: data.cache_ttl_mentions ?? "120",
@@ -243,23 +238,6 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-400 mb-1">
-                  对外集成 Token
-                  {settings?.integration_api_token_set && <span className="ml-2 text-green-400 text-xs">✅ 已配置</span>}
-                </label>
-                <input
-                  type="password"
-                  value={form.integration_api_token}
-                  onChange={(e) => setForm({ ...form, integration_api_token: e.target.value })}
-                  placeholder="用于 /api/integrations/circle 的 Bearer Token（留空则不修改）"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#1d9bf0] transition-colors text-sm"
-                />
-                <p className="text-xs text-gray-600 mt-1">
-                  也可使用环境变量 <code>EXTERNAL_API_TOKEN</code> 覆盖数据库配置。
-                </p>
-              </div>
-
               <div>
                 <label className="block text-sm text-gray-400 mb-1">推文抓取数量</label>
                 <input
@@ -284,20 +262,6 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-400 mb-1">对外 API 每小时请求上限</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min={0}
-                    max={10000}
-                    value={form.integration_rate_limit_per_hour}
-                    onChange={(e) => setForm({ ...form, integration_rate_limit_per_hour: e.target.value })}
-                    className="w-36 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#1d9bf0] transition-colors text-sm"
-                  />
-                  <span className="text-xs text-gray-600">填 `0` 表示不限流；超限后接口返回 `429`。</span>
-                </div>
-              </div>
             </div>
 
             <div className="space-y-3">

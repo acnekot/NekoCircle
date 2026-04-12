@@ -51,7 +51,7 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (res.status === 401 && data.requireLogin) { setShowLoginHint(true); setLoading(false); return; }
-      if (res.status === 403 && data.requireSubscription) { setError("需要订阅才能生成互动圈，请前往个人中心升级"); setLoading(false); return; }
+      if (res.status === 403 && data.requireSubscription) { setError("需要订阅才能生成互动圈，请联系管理员开通"); setLoading(false); return; }
       if (!res.ok) throw new Error(data.error ?? "分析失败");
       router.push(`/result/${data.id}`);
     } catch (err: unknown) {
@@ -412,6 +412,8 @@ export default function HomePage() {
         NekoCircle · by 好奇猫a · 基于 twitterapi.io
         <span className="mx-2">·</span>
         Yahoo 搜索灵感来自 <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors underline underline-offset-2">nareaitter</a>
+        <span className="mx-2">·</span>
+        <a href="https://github.com/acnekot/NekoCircle" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors underline underline-offset-2">GitHub</a>
         <span className="mx-2">·</span>
         <a href="/admin/login" className="hover:text-gray-600 transition-colors">·</a>
       </footer>

@@ -17,10 +17,9 @@ export async function GET() {
   }
   initDb();
   const settings = getAllSettings();
-  const { admin_password: _1, admin_password_hash: _2, api_key, integration_api_token, ...rest } = settings;
+  const { admin_password: _1, admin_password_hash: _2, api_key, ...rest } = settings;
   void _1; void _2;
-  void integration_api_token;
-  return NextResponse.json({ ...rest, api_key_set: !!api_key, integration_api_token_set: !!integration_api_token });
+  return NextResponse.json({ ...rest, api_key_set: !!api_key });
 }
 
 export async function POST(req: Request) {
