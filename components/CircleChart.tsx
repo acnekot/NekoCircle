@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { AnalysisResult } from "@/lib/analyze";
-import { DEFAULT_STYLE, NODE_PALETTES, hexBrightness, type StyleConfig } from "@/lib/style";
+import { DEFAULT_STYLE, NODE_PALETTES, hexBrightness, sanitizeHex, type StyleConfig } from "@/lib/style";
 
 type Props = { result: AnalysisResult; style?: StyleConfig; onAccentColor?: (hex: string) => void };
 
@@ -38,13 +38,15 @@ export function renderToCanvas(
 
   // Background
   {
-    let fill: CanvasGradient | string = s.bgColor1;
+    const bg1 = sanitizeHex(s.bgColor1, "#b2b2b4");
+    const bg2 = sanitizeHex(s.bgColor2, "#b2b2b4");
+    let fill: CanvasGradient | string = bg1;
     if (s.bgGradient !== "solid") {
       let g: CanvasGradient;
       if (s.bgGradient === "radial")         g = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.65);
       else if (s.bgGradient === "linear-tb") g = ctx.createLinearGradient(0, 0, 0, W);
       else                                   g = ctx.createLinearGradient(0, 0, W, 0);
-      g.addColorStop(0, s.bgColor1); g.addColorStop(1, s.bgColor2);
+      g.addColorStop(0, bg1); g.addColorStop(1, bg2);
       fill = g;
     }
     ctx.fillStyle = fill;
@@ -52,8 +54,9 @@ export function renderToCanvas(
   }
 
   // Title
+  const accent = sanitizeHex(s.accentColor, "#1d9bf0");
   if (s.showTitle && s.title) {
-    ctx.fillStyle    = s.accentColor;
+    ctx.fillStyle    = accent;
     ctx.font         = `bold ${Math.round(18 * sc)}px ${font}`;
     ctx.textAlign    = "center";
     ctx.textBaseline = "top";
@@ -65,15 +68,15 @@ export function renderToCanvas(
   const centerBW    = 4 * sc;
   const centerOuter = centerR + centerBW;
 
-  if (s.glowEffect && !isLight) { ctx.shadowColor = s.accentColor; ctx.shadowBlur = 22 * sc; }
+  if (s.glowEffect && !isLight) { ctx.shadowColor = accent; ctx.shadowBlur = 22 * sc; }
   ctx.beginPath(); ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
-  ctx.strokeStyle = s.accentColor + "44"; ctx.lineWidth = 2 * sc; ctx.stroke();
+  ctx.strokeStyle = accent + "44"; ctx.lineWidth = 2 * sc; ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
   ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
-  drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, s.accentColor, s.showAvatars, font, result.targetUser.userName);
+  drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName);
   ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
-  ctx.strokeStyle = s.accentColor; ctx.lineWidth = 2 * sc; ctx.stroke();
+  ctx.strokeStyle = accent; ctx.lineWidth = 2 * sc; ctx.stroke();
 
   // Ring nodes
   const users = result.topUsers.slice(0, displayN);
@@ -95,7 +98,7 @@ export function renderToCanvas(
       const x = cx + Math.cos(angle) * R;
       const y = cy + Math.sin(angle) * R;
       nodeData.push({ x, y, r: nodeR, idx });
-      const color = NODE_PALETTES[s.nodeScheme](s.accentColor, idx, tier);
+      const color = sanitizeHex(NODE_PALETTES[s.nodeScheme](accent, idx, tier));
       if (s.glowEffect && !isLight) { ctx.shadowColor = color; ctx.shadowBlur = 8 * sc; }
       ctx.beginPath(); ctx.arc(x, y, nodeR, 0, Math.PI * 2);
       ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
@@ -449,7 +452,8 @@ function drawCircleAvatar(
     ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
   } else {
     const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
-    g.addColorStop(0, color + "dd"); g.addColorStop(1, color + "66");
+    const safeColor = sanitizeHex(color);
+    g.addColorStop(0, safeColor + "dd"); g.addColorStop(1, safeColor + "66");
     ctx.fillStyle = g; ctx.fill();
     ctx.fillStyle    = "#fff";
     ctx.font         = `bold ${Math.floor(r * 0.55)}px ${font}`;

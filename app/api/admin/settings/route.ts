@@ -12,6 +12,9 @@ async function requireAdmin() {
 }
 
 export async function GET() {
+  if (!(await requireAdmin())) {
+    return NextResponse.json({ error: "未登录或无权限" }, { status: 401 });
+  }
   initDb();
   const settings = getAllSettings();
   const { admin_password: _, api_key, integration_api_token, ...rest } = settings;

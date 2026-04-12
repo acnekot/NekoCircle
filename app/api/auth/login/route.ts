@@ -16,7 +16,11 @@ export async function POST(req: Request) {
     if (!ok)
       return NextResponse.json({ error: "用户名或密码错误" }, { status: 401 });
 
-    const token = await createToken(user.id, user.username, "admin");
+    // 仅允许 admin 角色通过管理后台登录
+    if (user.role !== "admin")
+      return NextResponse.json({ error: "该账号无管理员权限" }, { status: 403 });
+
+    const token = await createToken(user.id, user.username, user.role);
     const res = NextResponse.json({ ok: true });
     res.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,

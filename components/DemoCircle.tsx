@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useEffect } from "react";
+import { sanitizeHex } from "@/lib/style";
 
 // 22 mock users for the demo
 const MOCK_USERS = [
@@ -59,8 +60,9 @@ function drawAvatar(
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.clip();
   const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
-  g.addColorStop(0, color + "dd");
-  g.addColorStop(1, color + "66");
+  const safeColor = sanitizeHex(color);
+  g.addColorStop(0, safeColor + "dd");
+  g.addColorStop(1, safeColor + "66");
   ctx.fillStyle = g;
   ctx.fill();
   ctx.fillStyle = "#fff";

@@ -79,10 +79,23 @@ export const NODE_PALETTES: Record<NodeScheme, (accent: string, idx: number, tie
   mono:    ()         => "#888888",
 };
 
+/** 校验并修正 hex 颜色值，确保是合法的 #RRGGBB 格式 */
+export function sanitizeHex(hex: string | undefined | null, fallback = "#888888"): string {
+  if (!hex || typeof hex !== "string") return fallback;
+  const h = hex.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(h)) return h;
+  if (/^#[0-9a-fA-F]{3}$/.test(h)) {
+    // 扩展 #RGB → #RRGGBB
+    return `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
+  }
+  return fallback;
+}
+
 export function hexBrightness(hex: string): number {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
+  const h = sanitizeHex(hex, "#888888");
+  const r = parseInt(h.slice(1, 3), 16);
+  const g = parseInt(h.slice(3, 5), 16);
+  const b = parseInt(h.slice(5, 7), 16);
   return (r * 299 + g * 587 + b * 114) / 1000;
 }
 

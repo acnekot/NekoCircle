@@ -16,8 +16,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "注册已关闭，请直接登录" }, { status: 403 });
 
     const hash = await hashPassword(String(password));
-    const id   = createUser(String(username), hash);
-    const token = await createToken(id, String(username));
+    const id   = createUser(String(username), hash, "", "admin");
+    const token = await createToken(id, String(username), "admin");
 
     const res = NextResponse.json({ ok: true });
     res.cookies.set(COOKIE_NAME, token, {
