@@ -15,7 +15,7 @@ export default function HomePage() {
   const [user, setUser]           = useState<UserInfo | null>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [showLoginHint, setShowLoginHint] = useState(false);
-  const [dataSource, setDataSource] = useState<DataSource>("twitter");
+  const [dataSource, setDataSource] = useState<DataSource>("yahoo");
   const [genCounts, setGenCounts] = useState<GenerationCounts | null>(null);
 
   // Check session on mount
@@ -151,6 +151,24 @@ export default function HomePage() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    onClick={() => { setDataSource("yahoo"); setShowLoginHint(false); setError(""); }}
+                    className={`relative flex flex-col gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                      dataSource === "yahoo"
+                        ? "border-green-500/60 bg-green-500/10 text-white"
+                        : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/8"
+                    }`}
+                  >
+                    <span className="text-xs font-semibold flex items-center gap-1.5">
+                      <span className="text-[11px]">🟢</span>
+                      Yahoo 搜索
+                    </span>
+                    <span className="text-[10px] text-gray-500 leading-tight">免费 · 无需登录 · 基于 <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-300 transition-colors" onClick={(e) => e.stopPropagation()}>nareaitter</a></span>
+                    {dataSource === "yahoo" && (
+                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-green-400" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => { setDataSource("twitter"); setShowLoginHint(false); }}
                     className={`relative flex flex-col gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
                       dataSource === "twitter"
@@ -167,24 +185,6 @@ export default function HomePage() {
                     <span className="text-[10px] text-gray-500 leading-tight">深度分析 · 需要登录</span>
                     {dataSource === "twitter" && (
                       <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#1d9bf0]" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setDataSource("yahoo"); setShowLoginHint(false); setError(""); }}
-                    className={`relative flex flex-col gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                      dataSource === "yahoo"
-                        ? "border-green-500/60 bg-green-500/10 text-white"
-                        : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/8"
-                    }`}
-                  >
-                    <span className="text-xs font-semibold flex items-center gap-1.5">
-                      <span className="text-[11px]">🟢</span>
-                      Yahoo 搜索
-                    </span>
-                    <span className="text-[10px] text-gray-500 leading-tight">免费 · 无需登录 · 基于 <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-300 transition-colors" onClick={(e) => e.stopPropagation()}>nareaitter</a></span>
-                    {dataSource === "yahoo" && (
-                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-green-400" />
                     )}
                   </button>
                 </div>
