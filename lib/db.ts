@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { DEFAULT_SCORING_WEIGHTS } from "./scoring";
 
-const DB_PATH = path.join(process.cwd(), "data", "circle.db");
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), "data", "circle.db");
 
 function getDb() {
   const dir = path.dirname(DB_PATH);
