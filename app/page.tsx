@@ -78,9 +78,6 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <a href="/api-test" className="text-sm text-gray-300 hover:text-white transition-colors">
-            API 测试
-          </a>
           {userLoading ? (
             <div className="w-4 h-4 rounded-full border border-white/10 border-t-white/40 animate-spin" />
           ) : isLoggedIn ? (
@@ -255,17 +252,30 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mt-5">
-              {[
-                { label: "Reply", weight: "×10", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-                { label: "Quote", weight: "×8", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
-                { label: "Mention", weight: "×5", color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20" },
-                { label: "Retweet", weight: "×3", color: "text-green-400", bg: "bg-green-500/10 border-green-500/20" },
-              ].map(({ label, weight, color, bg }) => (
-                <div key={label} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${bg}`}>
-                  <span className="text-gray-400">{label}</span>
-                  <span className={`font-bold ${color}`}>{weight}</span>
-                </div>
-              ))}
+              {dataSource === "twitter" ? (
+                [
+                  { label: "Reply", weight: "×10", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+                  { label: "Quote", weight: "×8", color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
+                  { label: "Mention", weight: "×5", color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20" },
+                  { label: "Retweet", weight: "×3", color: "text-green-400", bg: "bg-green-500/10 border-green-500/20" },
+                ].map(({ label, weight, color, bg }) => (
+                  <div key={label} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${bg}`}>
+                    <span className="text-gray-400">{label}</span>
+                    <span className={`font-bold ${color}`}>{weight}</span>
+                  </div>
+                ))
+              ) : (
+                [
+                  { label: "Mention", weight: "计数", color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20" },
+                  { label: "免登录", weight: "✓", color: "text-green-400", bg: "bg-green-500/10 border-green-500/20" },
+                  { label: "30 天内", weight: "⏱", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+                ].map(({ label, weight, color, bg }) => (
+                  <div key={label} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${bg}`}>
+                    <span className="text-gray-400">{label}</span>
+                    <span className={`font-bold ${color}`}>{weight}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -279,21 +289,39 @@ export default function HomePage() {
         {/* How it works */}
         <div className="mt-16 w-full max-w-5xl">
           <h2 className="text-center text-xs font-semibold text-gray-600 uppercase tracking-widest mb-6">工作原理</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { step: "01", icon: "📥", title: "抓取推文",  desc: "获取最近 75 条推文" },
+          {dataSource === "twitter" ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { step: "01", icon: "📥", title: "抓取推文",  desc: "获取最近 75 条推文" },
                 { step: "02", icon: "🔍", title: "分析互动",  desc: "提取回复、引用、提及与转推信号" },
                 { step: "03", icon: "⚖️", title: "权重计算",  desc: "按四类互动和时间衰减综合排名" },
-              { step: "04", icon: "🎨", title: "生成图谱",  desc: "渲染可下载的互动圈图" },
-            ].map(({ step, icon, title, desc }) => (
-              <div key={step} className="card rounded-2xl p-4 text-center relative overflow-hidden">
-                <div className="absolute top-2 right-3 text-white/4 font-black text-3xl select-none">{step}</div>
-                <div className="text-2xl mb-2">{icon}</div>
-                <div className="text-sm font-semibold text-white mb-1">{title}</div>
-                <div className="text-xs text-gray-500 leading-snug">{desc}</div>
-              </div>
-            ))}
-          </div>
+                { step: "04", icon: "🎨", title: "生成图谱",  desc: "渲染可下载的互动圈图" },
+              ].map(({ step, icon, title, desc }) => (
+                <div key={step} className="card rounded-2xl p-4 text-center relative overflow-hidden">
+                  <div className="absolute top-2 right-3 text-white/4 font-black text-3xl select-none">{step}</div>
+                  <div className="text-2xl mb-2">{icon}</div>
+                  <div className="text-sm font-semibold text-white mb-1">{title}</div>
+                  <div className="text-xs text-gray-500 leading-snug">{desc}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { step: "01", icon: "🔎", title: "Yahoo 搜索", desc: "通过 Yahoo 日本实时搜索公开 Mention" },
+                { step: "02", icon: "📊", title: "统计次数",   desc: "统计每个用户的 @提及 次数" },
+                { step: "03", icon: "🏆", title: "排名排序",   desc: "按提及次数从高到低排序" },
+                { step: "04", icon: "🎨", title: "生成图谱",   desc: "渲染可下载的互动圈图" },
+              ].map(({ step, icon, title, desc }) => (
+                <div key={step} className="card rounded-2xl p-4 text-center relative overflow-hidden">
+                  <div className="absolute top-2 right-3 text-white/4 font-black text-3xl select-none">{step}</div>
+                  <div className="text-2xl mb-2">{icon}</div>
+                  <div className="text-sm font-semibold text-white mb-1">{title}</div>
+                  <div className="text-xs text-gray-500 leading-snug">{desc}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
@@ -303,12 +331,14 @@ export default function HomePage() {
 
           <div className="text-center">
             <h2 className="text-xl font-bold mb-2">📖 使用说明</h2>
-            <p className="text-gray-500 text-sm">从注册到生成，5 分钟上手 NekoCircle</p>
+            <p className="text-gray-500 text-sm">
+              {dataSource === "twitter" ? "从注册到生成，5 分钟上手 NekoCircle" : "无需注册，输入用户名即可免费生成"}
+            </p>
           </div>
 
           {/* Step by step */}
           <div className="space-y-6">
-            {[
+            {(dataSource === "twitter" ? [
               {
                 n: "01", color: "text-[#1d9bf0]", border: "border-[#1d9bf0]/20", bg: "bg-[#1d9bf0]/5",
                 title: "注册 / 登录账号",
@@ -339,7 +369,32 @@ export default function HomePage() {
                 desc: "点击结果页顶部「下载图片」按钮，将互动圈以 PNG 格式保存到本地。图片分辨率与当前预览尺寸一致，建议在大屏设备上生成以获得更高清的图片。",
                 tips: ["图片包含水印「NekoCircle」", "历史生成记录可在「我的」页面重新查看和下载", "可分享结果页链接给他人查看"],
               },
-            ].map(({ n, color, border, bg, title, desc, tips }) => (
+            ] : [
+              {
+                n: "01", color: "text-green-400", border: "border-green-400/20", bg: "bg-green-400/5",
+                title: "输入 X (Twitter) 用户名",
+                desc: "在首页输入框填入想分析的 X 用户名（@ 符号可加可不加），选择「Yahoo 搜索」模式，点击按钮即可开始。无需注册或登录。",
+                tips: ["用户名不区分大小写", "完全免费，无需 API Key", "数据来自 Yahoo 日本实时搜索"],
+              },
+              {
+                n: "02", color: "text-pink-400", border: "border-pink-400/20", bg: "bg-pink-400/5",
+                title: "等待搜索完成",
+                desc: "系统会通过 Yahoo 日本搜索引擎获取过去 30 天内公开的 @提及 数据，统计每个用户提及目标账号的次数。",
+                tips: ["仅统计 Mention（@提及）数据", "仅含过去 30 天内的公开推文", "搜索耗时约 10 ~ 30 秒"],
+              },
+              {
+                n: "03", color: "text-amber-400", border: "border-amber-400/20", bg: "bg-amber-400/5",
+                title: "查看互动圈 & 自定义样式",
+                desc: "搜索完成后可查看互动圈图谱，支持调整背景色、节点大小、显示人数等样式，实时预览效果。",
+                tips: ["按 Mention 次数排名", "支持与 Twitter API 模式相同的样式自定义", "鼠标悬停可查看互动详情"],
+              },
+              {
+                n: "04", color: "text-cyan-400", border: "border-cyan-400/20", bg: "bg-cyan-400/5",
+                title: "下载图片",
+                desc: "点击「下载图片」按钮，将互动圈以 PNG 格式保存到本地。",
+                tips: ["图片包含水印「NekoCircle」", "Yahoo 模式结果不保存历史记录", "可直接分享图片给朋友"],
+              },
+            ]).map(({ n, color, border, bg, title, desc, tips }) => (
               <div key={n} className={`rounded-2xl border ${border} ${bg} p-6 flex gap-5`}>
                 <div className={`text-3xl font-black ${color} opacity-40 select-none shrink-0 w-8 text-right leading-tight`}>{n}</div>
                 <div className="flex-1 min-w-0">
@@ -362,7 +417,7 @@ export default function HomePage() {
           <div>
             <h3 className="text-base font-semibold mb-5 text-center text-gray-400">常见问题</h3>
             <div className="grid md:grid-cols-2 gap-4">
-              {[
+              {(dataSource === "twitter" ? [
                 { q: "为什么有些头像加载不出来？", a: "X 头像需要通过代理加载，偶尔因网络波动失败属于正常现象，稍后刷新重试即可。" },
                 { q: "分析结果和实际差距大怎么办？", a: "系统只抓取最近 75 条推文的互动，长期互动历史不在分析范围内。若账号互动频繁，数据会更准确。" },
                 { q: "生成失败怎么办？", a: "可能是 API 额度暂时耗尽或目标账号受限。等待几分钟后重试，或联系管理员检查 API 配置。" },
@@ -373,7 +428,14 @@ export default function HomePage() {
                 { q: "互动圈能检测 Shadowban 吗？", a: "可以间接反映。如果某个账号的互动分数突然大幅下降，或者活跃互动用户明显减少，可能是遭到了不同程度的 Shadowban 限制。" },
                 { q: "Shadowban 有哪些类型？", a: "常见的有：搜索 Shadowban（推文不出现在搜索结果）、回复 Shadowban（回复被折叠隐藏）、推荐流 Shadowban（不推送给非关注者）。互动圈中回复者减少通常与回复 Shadowban 相关。" },
                 { q: "如何判断自己是否被 Shadowban？", a: "可以退出登录后搜索自己的用户名和推文，若搜不到则可能被搜索 Shadowban。也可观察互动圈中近期 Reply 数量是否异常减少。第三方工具如 hisubway.com 也可辅助检测。" },
-              ].map(({ q, a }) => (
+              ] : [
+                { q: "Yahoo 模式和 Twitter API 模式有什么区别？", a: "Yahoo 模式只统计 @提及 数据，免费无需登录；Twitter API 模式分析回复、引用、提及、转推四种互动，数据更全面但需要登录和订阅。" },
+                { q: "为什么只有 30 天的数据？", a: "Yahoo 实时搜索只索引过去约 30 天的推文，更早的数据无法获取。如需更深度的分析，建议使用 Twitter API 模式。" },
+                { q: "Yahoo 模式需要注册吗？", a: "不需要。Yahoo 模式完全免费，无需注册、登录或订阅，输入用户名即可直接生成。" },
+                { q: "搜索结果不准确怎么办？", a: "Yahoo 搜索依赖公开推文索引，如果目标账号是私密账号或推文被删除，可能导致数据不完整。" },
+                { q: "为什么有些用户没出现在结果中？", a: "Yahoo 模式只统计 @提及，不包含回复、引用和转推。如果互动主要通过回复进行，可能不会被统计到。" },
+                { q: "Yahoo 模式的结果会保存吗？", a: "不会。Yahoo 模式的结果仅在当前页面显示，刷新页面后需要重新搜索。如需保存历史记录，请使用 Twitter API 模式。" },
+              ]).map(({ q, a }) => (
                 <div key={q} className="card rounded-xl p-4">
                   <div className="text-sm font-medium text-white mb-1.5">Q: {q}</div>
                   <div className="text-xs text-gray-500 leading-relaxed">A: {a}</div>
@@ -384,24 +446,53 @@ export default function HomePage() {
 
           {/* Weight table */}
           <div className="card rounded-2xl p-6">
-            <h3 className="text-sm font-semibold mb-4 text-gray-400">⚖️ 互动权重说明</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                { type: "Reply", weight: "×10", color: "text-blue-400", border: "border-blue-400/20", desc: "回复是最强的基础交流信号" },
-                { type: "Quote", weight: "×8", color: "text-purple-400", border: "border-purple-400/20", desc: "带观点的引用转发，属于深度互动" },
-                { type: "Mention", weight: "×5", color: "text-pink-400", border: "border-pink-400/20", desc: "主动点名对方，代表显式话题连接" },
-                { type: "Retweet", weight: "×3", color: "text-green-400", border: "border-green-400/20", desc: "普通扩散行为，成本最低" },
-              ].map(({ type, weight, color, border, desc }) => (
-                <div key={type} className={`rounded-xl border ${border} p-4 text-center`}>
-                  <div className={`text-2xl font-black ${color} mb-1`}>{weight}</div>
-                  <div className={`text-sm font-semibold ${color} mb-1`}>{type}</div>
-                  <div className="text-xs text-gray-600 leading-snug">{desc}</div>
+            <h3 className="text-sm font-semibold mb-4 text-gray-400">
+              {dataSource === "twitter" ? "⚖️ 互动权重说明" : "📊 计分规则"}
+            </h3>
+            {dataSource === "twitter" ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { type: "Reply", weight: "×10", color: "text-blue-400", border: "border-blue-400/20", desc: "回复是最强的基础交流信号" },
+                    { type: "Quote", weight: "×8", color: "text-purple-400", border: "border-purple-400/20", desc: "带观点的引用转发，属于深度互动" },
+                    { type: "Mention", weight: "×5", color: "text-pink-400", border: "border-pink-400/20", desc: "主动点名对方，代表显式话题连接" },
+                    { type: "Retweet", weight: "×3", color: "text-green-400", border: "border-green-400/20", desc: "普通扩散行为，成本最低" },
+                  ].map(({ type, weight, color, border, desc }) => (
+                    <div key={type} className={`rounded-xl border ${border} p-4 text-center`}>
+                      <div className={`text-2xl font-black ${color} mb-1`}>{weight}</div>
+                      <div className={`text-sm font-semibold ${color} mb-1`}>{type}</div>
+                      <div className="text-xs text-gray-600 leading-snug">{desc}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <p className="text-xs text-gray-700 text-center mt-4">
-              当前自动计分 = (主动互动得分 × 0.6) + (被动互动得分 × 0.4)，其中每次互动都会按时间衰减；基础权重为 Reply×10、Quote×8、Mention×5、Retweet×3。
-            </p>
+                <p className="text-xs text-gray-700 text-center mt-4">
+                  当前自动计分 = (主动互动得分 × 0.6) + (被动互动得分 × 0.4)，其中每次互动都会按时间衰减；基础权重为 Reply×10、Quote×8、Mention×5、Retweet×3。
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-pink-400/20 p-4 text-center">
+                    <div className="text-2xl font-black text-pink-400 mb-1">@提及</div>
+                    <div className="text-sm font-semibold text-pink-400 mb-1">Mention 次数</div>
+                    <div className="text-xs text-gray-600 leading-snug">唯一计分维度，按提及次数直接排名</div>
+                  </div>
+                  <div className="rounded-xl border border-green-400/20 p-4 text-center">
+                    <div className="text-2xl font-black text-green-400 mb-1">30 天</div>
+                    <div className="text-sm font-semibold text-green-400 mb-1">时间范围</div>
+                    <div className="text-xs text-gray-600 leading-snug">仅统计过去 30 天内的公开推文</div>
+                  </div>
+                  <div className="rounded-xl border border-cyan-400/20 p-4 text-center">
+                    <div className="text-2xl font-black text-cyan-400 mb-1">免费</div>
+                    <div className="text-sm font-semibold text-cyan-400 mb-1">无需 API Key</div>
+                    <div className="text-xs text-gray-600 leading-snug">通过 Yahoo 日本搜索，无需任何密钥</div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-700 text-center mt-4">
+                  Yahoo 模式仅统计 @提及 次数，不区分互动方向，不含时间衰减。适合快速了解谁在近期频繁提及你。
+                </p>
+              </>
+            )}
           </div>
 
         </div>
