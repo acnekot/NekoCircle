@@ -11,8 +11,8 @@ export async function POST(req: Request) {
 
     const stored = getSetting("admin_password_hash");
 
-    // 首次设置：还没有管理员密码
-    if (!stored) {
+    // 首次设置：还没有管理员密码（bcrypt 哈希以 $2 开头）
+    if (!stored || !stored.startsWith("$2")) {
       if (String(password).length < 6)
         return NextResponse.json({ error: "密码至少 6 位" }, { status: 400 });
       const hash = await hashPassword(String(password));
