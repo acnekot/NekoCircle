@@ -555,10 +555,22 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                 </div>
               </div>
               <button
-                onClick={() => {
-                  const url = `${window.location.origin}/result/${id}`;
+                onClick={async () => {
+                  const canvas = document.querySelector("canvas");
+                  if (!canvas) return;
+                  const pageUrl = `${window.location.origin}/result/${id}`;
+                  const shareText = `我的互动圈\n${pageUrl}`;
+                  try {
+                    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
+                    if (blob && navigator.canShare?.({ files: [new File([blob], "circle.png", { type: "image/png" })] })) {
+                      await navigator.share({ text: shareText, files: [new File([blob], `circle-${analysis?.username}.png`, { type: "image/png" })] });
+                      return;
+                    }
+                  } catch (e) { if ((e as DOMException)?.name === "AbortError") return; }
+                  // Fallback: download image + open tweet intent
+                  downloadCanvas();
                   const text = encodeURIComponent("我的互动圈");
-                  window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`, "_blank");
+                  window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(pageUrl)}`, "_blank");
                 }}
                 className="shrink-0 px-4 py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all whitespace-nowrap">
                 <span className="flex items-center gap-1.5">

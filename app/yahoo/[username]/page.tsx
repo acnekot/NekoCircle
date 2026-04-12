@@ -138,12 +138,10 @@ export default function YahooCirclePage() {
   // CircleChart 自己根据 displayCount 截取，这里直接传完整结果
   const displayedResult = analysisResult;
 
-  const downloadCanvas = () => {
-    if (!displayedResult) return;
-    // 导出用 4x 分辨率，保证放大后每个头像都清晰
+  const getCanvasBlob = (): Promise<Blob | null> => {
+    if (!displayedResult) return Promise.resolve(null);
     const EXPORT_SCALE = 4;
     const offscreen = document.createElement("canvas");
-    // 加载图片缓存（从屏幕 canvas 复制缓存）
     const screenCanvas = document.querySelector<HTMLCanvasElement>("canvas[data-circle]");
     const imgCache: Map<string, HTMLImageElement> = new Map();
     if (screenCanvas) {
@@ -151,10 +149,18 @@ export default function YahooCirclePage() {
       if (cached) cached.forEach((v, k) => imgCache.set(k, v));
     }
     renderToCanvas(offscreen, displayedResult, styleConfig, imgCache, { exportScale: EXPORT_SCALE });
+    return new Promise((res) => offscreen.toBlob(res, "image/png"));
+  };
+
+  const downloadCanvas = async () => {
+    const blob = await getCanvasBlob();
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.download = `yahoo-circle-${username}.png`;
-    a.href = offscreen.toDataURL("image/png");
+    a.href = url;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -224,10 +230,20 @@ export default function YahooCirclePage() {
               />
               <div className="card rounded-2xl p-4 space-y-2">
                 <button
-                  onClick={() => {
-                    const url = `${window.location.origin}/yahoo/${encodeURIComponent(username)}`;
+                  onClick={async () => {
+                    const pageUrl = `${window.location.origin}/yahoo/${encodeURIComponent(username)}`;
+                    const shareText = `我的互动圈\n${pageUrl}`;
+                    try {
+                      const blob = await getCanvasBlob();
+                      if (blob && navigator.canShare?.({ files: [new File([blob], "circle.png", { type: "image/png" })] })) {
+                        await navigator.share({ text: shareText, files: [new File([blob], `yahoo-circle-${username}.png`, { type: "image/png" })] });
+                        return;
+                      }
+                    } catch (e) { if ((e as DOMException)?.name === "AbortError") return; }
+                    // Fallback: download image + open tweet intent
+                    await downloadCanvas();
                     const text = encodeURIComponent("我的互动圈");
-                    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(url)}`, "_blank");
+                    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(pageUrl)}`, "_blank");
                   }}
                   className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
                 >
