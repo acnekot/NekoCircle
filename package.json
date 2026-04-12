@@ -14,6 +14,7 @@
     "@types/node": "^25.4.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vercel/og": "^0.11.1",
     "autoprefixer": "^10.4.27",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
