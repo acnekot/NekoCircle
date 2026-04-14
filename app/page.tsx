@@ -300,8 +300,6 @@ export default function HomePage() {
         <span className="mx-2">·</span>
         Yahoo 搜索灵感来自 <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors underline underline-offset-2">nareaitter</a>
         <span className="mx-2">·</span>
-        <a href="https://github.com/acnekot/NekoCircle" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors underline underline-offset-2">GitHub</a>
-        <span className="mx-2">·</span>
         <a href="/admin/login" className="hover:text-gray-600 transition-colors">·</a>
       </footer>
 
