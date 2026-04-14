@@ -16,45 +16,52 @@ export async function GET() {
   if (!db) return NextResponse.json({ error: "db not ready" }, { status: 503 });
 
   try {
-    const totalUsers     = (db.prepare("SELECT COUNT(*) as n FROM users").get() as { n: number }).n;
-    const activeUsers    = (db.prepare("SELECT COUNT(*) as n FROM users WHERE subscription = 1").get() as { n: number }).n;
-    const totalAnalyses  = (db.prepare("SELECT COUNT(*) as n FROM analyses").get() as { n: number }).n;
-    const doneAnalyses   = (db.prepare("SELECT COUNT(*) as n FROM analyses WHERE status = 'done'").get() as { n: number }).n;
-    const totalRequests  = (db.prepare("SELECT COALESCE(SUM(req_count), 0) as n FROM analyses").get() as { n: number }).n;
-    const totalCredits   = (db.prepare("SELECT COALESCE(SUM(spent_credits), 0) as n FROM analyses").get() as { n: number }).n;
-    const savedCredits   = (db.prepare("SELECT COALESCE(SUM(saved_credits), 0) as n FROM analyses").get() as { n: number }).n;
+    // Yahoo circle stats
+    const yahooCircleCount = (db.prepare("SELECT COUNT(*) as n FROM yahoo_circles").get() as { n: number }).n;
+    const yahooUniqueUsers = (db.prepare("SELECT COUNT(DISTINCT LOWER(username)) as n FROM yahoo_circles").get() as { n: number }).n;
 
-    // Recent daily stats (last 7 days)
-    const dailyRows = db.prepare(`
+    // Generation log stats (Yahoo only)
+    const genYahoo = (db.prepare("SELECT COUNT(*) as n FROM generation_log WHERE source = 'yahoo'").get() as { n: number }).n;
+
+    // Recent daily stats (last 7 days) — Yahoo circles
+    const yahooDailyStats = db.prepare(`
       SELECT
         date(created_at / 1000, 'unixepoch', 'localtime') as day,
-        COUNT(*) as analyses,
-        SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
-        COALESCE(SUM(req_count), 0) as requests,
-        COALESCE(SUM(spent_credits), 0) as credits
-      FROM analyses
+        COUNT(*) as circles
+      FROM yahoo_circles
       WHERE created_at > (strftime('%s','now') - 7*86400) * 1000
       GROUP BY day
       ORDER BY day ASC
-    `).all() as { day: string; analyses: number; done: number; requests: number; credits: number }[];
+    `).all() as { day: string; circles: number }[];
 
-    // Top users by generation count
-    const topUsers = db.prepare(`
-      SELECT u.username, COUNT(a.id) as count,
-             COALESCE(SUM(a.spent_credits), 0) as credits
-      FROM analyses a
-      LEFT JOIN users u ON a.user_id = u.id
-      WHERE a.user_id IS NOT NULL
-      GROUP BY a.user_id
+    // Recent daily stats (last 7 days) — generation_log
+    const genDailyStats = db.prepare(`
+      SELECT
+        date(created_at / 1000, 'unixepoch', 'localtime') as day,
+        COUNT(*) as total
+      FROM generation_log
+      WHERE created_at > (strftime('%s','now') - 7*86400) * 1000
+      GROUP BY day
+      ORDER BY day ASC
+    `).all() as { day: string; total: number }[];
+
+    // Top Yahoo users by circle count
+    const topYahooUsers = db.prepare(`
+      SELECT LOWER(username) as username, COUNT(*) as count
+      FROM yahoo_circles
+      GROUP BY LOWER(username)
       ORDER BY count DESC
       LIMIT 10
-    `).all() as { username: string; count: number; credits: number }[];
+    `).all() as { username: string; count: number }[];
 
     db.close();
     return NextResponse.json({
-      totalUsers, activeUsers, totalAnalyses, doneAnalyses,
-      totalRequests, totalCredits, savedCredits,
-      dailyStats: dailyRows, topUsers,
+      yahooCircleCount,
+      yahooUniqueUsers,
+      generationCounts: { yahoo: genYahoo, total: genYahoo },
+      yahooDailyStats,
+      genDailyStats,
+      topYahooUsers,
     });
   } catch (e) {
     db.close();

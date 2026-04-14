@@ -1,9 +1,9 @@
 "use client";
 import { useRef, useState, useCallback, useEffect } from "react";
-import type { AnalysisResult } from "@/lib/analyze";
+import type { AnalysisResult } from "@/lib/circle-convert";
 import { DEFAULT_STYLE, NODE_PALETTES, hexBrightness, sanitizeHex, type StyleConfig } from "@/lib/style";
 
-type Props = { result: AnalysisResult; style?: StyleConfig; onAccentColor?: (hex: string) => void };
+type Props = { result: AnalysisResult; style?: StyleConfig; onAccentColor?: (hex: string) => void; circleId?: string };
 
 /** 通用绘制函数，可传入任意 canvas、sc、W，供预览和高清导出复用 */
 export function renderToCanvas(
@@ -11,7 +11,7 @@ export function renderToCanvas(
   result: AnalysisResult,
   s: StyleConfig,
   imageCache: Map<string, HTMLImageElement>,
-  options: { exportScale?: number } = {},
+  options: { exportScale?: number; circleId?: string } = {},
 ) {
   const mul       = SIZE_MUL[s.nodeSize];
   const displayN  = s.displayCount ?? 30;
@@ -160,6 +160,25 @@ export function renderToCanvas(
     ctx.globalAlpha = 1.0;
   }
 
+  // Circle ID (bottom-right)
+  if (options.circleId) {
+    const idStr = options.circleId.slice(0, 8);
+    const idFs = Math.round(10 * sc);
+    ctx.font = `${idFs}px ${font}`;
+    const idTw = ctx.measureText(idStr).width;
+    const idPadX = 8 * sc, idPadY = 4 * sc;
+    const idRw = idTw + idPadX * 2;
+    const idRh = idFs + idPadY * 2;
+    const idRx = W - 14 * sc - idRw;
+    const idRy = W - 14 * sc - idRh;
+    ctx.fillStyle = isLight ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.55)";
+    pill(ctx, idRx, idRy, idRw, idRh, 4 * sc); ctx.fill();
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillStyle = isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.7)";
+    ctx.font = `${idFs}px ${font}`;
+    ctx.fillText(idStr, idRx + idPadX, idRy + idPadY);
+  }
+
   (canvas as HTMLCanvasElement & { _nodes?: typeof nodeData })._nodes = nodeData;
 }
 
@@ -271,7 +290,7 @@ function computeScaleForCount(total: number, mul: number): number {
   return Math.min(1.0, lo);
 }
 
-export default function CircleChart({ result, style: styleProp, onAccentColor }: Props) {
+export default function CircleChart({ result, style: styleProp, onAccentColor, circleId }: Props) {
   const s           = styleProp ?? DEFAULT_STYLE;
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const wrapRef     = useRef<HTMLDivElement>(null);
@@ -288,10 +307,10 @@ export default function CircleChart({ result, style: styleProp, onAccentColor }:
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = Math.min(2.5, window.devicePixelRatio || 1);
-    renderToCanvas(canvas, result, s, imageCache.current, { exportScale: dpr });
+    renderToCanvas(canvas, result, s, imageCache.current, { exportScale: dpr, circleId });
     // 把图片缓存挂到 canvas 上，供外部下载时复用
     (canvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache = imageCache.current;
-  }, [result, s, mul, displayN, scAdapt]);
+  }, [result, s, mul, displayN, scAdapt, circleId]);
 
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {

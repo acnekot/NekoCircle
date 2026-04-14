@@ -10,7 +10,19 @@ import {
 } from "@/lib/yahoo-realtime-fetch";
 import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
 import { resolveCircleAvatarUrl } from "@/lib/x-profile-image";
-import { initDb, logGeneration } from "@/lib/db";
+import { initDb, logGeneration, findRecentYahooCircle, createYahooCircle } from "@/lib/db";
+import { randomBytes } from "crypto";
+
+/** 生成 8 位短 ID（a-z0-9，约 41 bit 熵） */
+function generateShortId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = randomBytes(8);
+  let id = "";
+  for (let i = 0; i < 8; i++) {
+    id += chars[bytes[i] % chars.length];
+  }
+  return id;
+}
 
 const YAHOO_PAYLOAD_REVALIDATE_SEC = 300;
 
@@ -102,10 +114,39 @@ export async function GET(req: NextRequest) {
   const buildCircle = parseBuildCircle(sp);
 
   try {
-    const payload = await getCachedYahooPayload(name, buildCircle);
-    // Log generation when building a circle
+    // 2-hour cooldown: if a recent circle exists for this username, return it directly
     if (buildCircle) {
-      try { initDb(); logGeneration("yahoo", name); } catch { /* non-critical */ }
+      try {
+        initDb();
+        const recent = findRecentYahooCircle(name, 2 * 60 * 60 * 1000);
+        if (recent) {
+          const cached = JSON.parse(recent.circle_data);
+          return NextResponse.json({ ...cached, circleId: recent.id, createdAt: recent.created_at }, {
+            headers: {
+              "Cache-Control":
+                "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
+            },
+          });
+        }
+      } catch { /* DB check non-critical, fall through to fetch */ }
+    }
+
+    const payload = await getCachedYahooPayload(name, buildCircle);
+    // Persist + log generation when building a circle
+    if (buildCircle) {
+      try {
+        initDb();
+        const circleId = generateShortId();
+        const createdAt = Date.now();
+        createYahooCircle(circleId, name, JSON.stringify(payload));
+        logGeneration("yahoo", name);
+        return NextResponse.json({ ...payload, circleId, createdAt }, {
+          headers: {
+            "Cache-Control":
+              "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
+          },
+        });
+      } catch { /* non-critical */ }
     }
     return NextResponse.json(payload, {
       headers: {
@@ -148,10 +189,31 @@ export async function POST(req: Request) {
   }
 
   try {
-    const payload = await getCachedYahooPayload(name, body.buildCircle === true);
-    // Log generation when building a circle
-    if (body.buildCircle === true) {
-      try { initDb(); logGeneration("yahoo", name); } catch { /* non-critical */ }
+    const wantCircle = body.buildCircle === true;
+
+    // 2-hour cooldown: if a recent circle exists for this username, return it directly
+    if (wantCircle) {
+      try {
+        initDb();
+        const recent = findRecentYahooCircle(name, 2 * 60 * 60 * 1000);
+        if (recent) {
+          const cached = JSON.parse(recent.circle_data);
+          return NextResponse.json({ ...cached, circleId: recent.id, createdAt: recent.created_at });
+        }
+      } catch { /* DB check non-critical, fall through to fetch */ }
+    }
+
+    const payload = await getCachedYahooPayload(name, wantCircle);
+    // Persist + log generation when building a circle
+    if (wantCircle) {
+      try {
+        initDb();
+        const circleId = generateShortId();
+        const createdAt = Date.now();
+        createYahooCircle(circleId, name, JSON.stringify(payload));
+        logGeneration("yahoo", name);
+        return NextResponse.json({ ...payload, circleId, createdAt });
+      } catch { /* non-critical */ }
     }
     return NextResponse.json(payload);
   } catch {

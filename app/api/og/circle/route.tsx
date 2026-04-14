@@ -1,8 +1,8 @@
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
-import { initDb, getAnalysis } from "@/lib/db";
 import { CircleExportImage, mergeExportStyle } from "@/lib/export-image";
-import type { AnalysisResult } from "@/lib/analyze";
+import type { AnalysisResult } from "@/lib/circle-convert";
+import { DEFAULT_SCORING_WEIGHTS } from "@/lib/circle-convert";
 import {
   aggregateMentionAuthors,
   aggregateMentionTargets,
@@ -13,7 +13,6 @@ import {
 } from "@/lib/yahoo-realtime-fetch";
 import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
 import { resolveCircleAvatarUrl } from "@/lib/x-profile-image";
-import { DEFAULT_SCORING_WEIGHTS } from "@/lib/scoring";
 import { unstable_cache } from "next/cache";
 
 export const runtime = "nodejs";
@@ -99,47 +98,29 @@ function getCachedYahooData(name: string) {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
-  const type = sp.get("type"); // "twitter" | "yahoo"
   const origin = req.nextUrl.origin;
 
   let result: AnalysisResult | null = null;
 
-  if (type === "twitter") {
-    const id = sp.get("id");
-    if (!id) return new Response("Missing id", { status: 400 });
-    initDb();
-    const row = getAnalysis(id);
-    if (!row || !row.result) return new Response("Not found", { status: 404 });
-    try {
-      const parsed = JSON.parse(row.result) as AnalysisResult;
-      if (!parsed.topUsers) return new Response("Invalid data", { status: 404 });
-      result = parsed;
-    } catch {
-      return new Response("Invalid data", { status: 500 });
-    }
-  } else if (type === "yahoo") {
-    const screenName = sp.get("screenName");
-    if (!screenName) return new Response("Missing screenName", { status: 400 });
-    let name: string;
-    try {
-      name = normalizeScreenName(screenName);
-    } catch {
-      return new Response("Invalid screenName", { status: 400 });
-    }
-    try {
-      const data = await getCachedYahooData(name);
-      result = buildYahooAnalysisResult(
-        name,
-        data.selfAvatar,
-        data.circleUsers,
-        data.toYou,
-        data.fromYou,
-      );
-    } catch {
-      return new Response("Failed to fetch Yahoo data", { status: 502 });
-    }
-  } else {
-    return new Response("Invalid type param", { status: 400 });
+  const screenName = sp.get("screenName");
+  if (!screenName) return new Response("Missing screenName", { status: 400 });
+  let name: string;
+  try {
+    name = normalizeScreenName(screenName);
+  } catch {
+    return new Response("Invalid screenName", { status: 400 });
+  }
+  try {
+    const data = await getCachedYahooData(name);
+    result = buildYahooAnalysisResult(
+      name,
+      data.selfAvatar,
+      data.circleUsers,
+      data.toYou,
+      data.fromYou,
+    );
+  } catch {
+    return new Response("Failed to fetch Yahoo data", { status: 502 });
   }
 
   if (!result) return new Response("No data", { status: 404 });

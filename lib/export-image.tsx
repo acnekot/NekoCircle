@@ -1,4 +1,4 @@
-import type { AnalysisResult } from "@/lib/analyze";
+import type { AnalysisResult } from "@/lib/circle-convert";
 import { DEFAULT_STYLE, type StyleConfig } from "@/lib/style";
 
 type PartialStyle = Partial<StyleConfig> | null | undefined;
