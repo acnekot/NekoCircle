@@ -25,17 +25,6 @@ export async function GET() {
     // Total generation count
     const totalGenerations = (db.prepare("SELECT COUNT(*) as n FROM generation_log").get() as { n: number }).n;
 
-    // Recent 7 days daily generation trend
-    const dailyTrend = db.prepare(`
-      SELECT
-        date(created_at / 1000, 'unixepoch', 'localtime') as day,
-        COUNT(*) as count
-      FROM generation_log
-      WHERE created_at > (strftime('%s','now') - 7*86400) * 1000
-      GROUP BY day
-      ORDER BY day ASC
-    `).all() as { day: string; count: number }[];
-
     // Today's generation count
     const todayCount = (db.prepare(`
       SELECT COUNT(*) as n FROM generation_log
@@ -48,7 +37,6 @@ export async function GET() {
       yahooUniqueUsers,
       totalGenerations,
       todayCount,
-      dailyTrend,
     }, {
       headers: {
         // Cache for 2 hours, stale-while-revalidate for 4 hours

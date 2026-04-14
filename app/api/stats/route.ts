@@ -34,25 +34,20 @@ export async function GET() {
       ORDER BY day ASC
     `).all() as { day: string; circles: number }[];
 
-    // Recent daily stats (last 7 days) — generation_log
-    const genDailyStats = db.prepare(`
-      SELECT
-        date(created_at / 1000, 'unixepoch', 'localtime') as day,
-        COUNT(*) as total
-      FROM generation_log
-      WHERE created_at > (strftime('%s','now') - 7*86400) * 1000
-      GROUP BY day
-      ORDER BY day ASC
-    `).all() as { day: string; total: number }[];
+    // Total generation count
+    const totalGenerations = (db.prepare("SELECT COUNT(*) as n FROM generation_log").get() as { n: number }).n;
 
-    // Top Yahoo users by circle count
-    const topYahooUsers = db.prepare(`
-      SELECT LOWER(username) as username, COUNT(*) as count
-      FROM yahoo_circles
-      GROUP BY LOWER(username)
-      ORDER BY count DESC
-      LIMIT 10
-    `).all() as { username: string; count: number }[];
+    // Today's generation count
+    const todayGenerations = (db.prepare(`
+      SELECT COUNT(*) as n FROM generation_log
+      WHERE date(created_at / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+    `).get() as { n: number }).n;
+
+    // Today's new circles
+    const todayCircles = (db.prepare(`
+      SELECT COUNT(*) as n FROM yahoo_circles
+      WHERE date(created_at / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+    `).get() as { n: number }).n;
 
     db.close();
     return NextResponse.json({
@@ -60,8 +55,9 @@ export async function GET() {
       yahooUniqueUsers,
       generationCounts: { yahoo: genYahoo, total: genYahoo },
       yahooDailyStats,
-      genDailyStats,
-      topYahooUsers,
+      totalGenerations,
+      todayGenerations,
+      todayCircles,
     });
   } catch (e) {
     db.close();

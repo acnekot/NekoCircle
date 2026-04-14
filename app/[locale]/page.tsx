@@ -11,7 +11,6 @@ type HomeStats = {
   yahooUniqueUsers: number;
   totalGenerations: number;
   todayCount: number;
-  dailyTrend: { day: string; count: number }[];
 };
 
 export default function HomePage() {
@@ -101,21 +100,8 @@ export default function HomePage() {
                       <span className="font-bold text-emerald-400 text-sm tabular-nums">{homeStats.todayCount.toLocaleString()}</span>
                     </div>
                     <div className="flex flex-col items-center gap-0.5 rounded-xl bg-white/[0.03] border border-white/[0.06] py-2 px-1">
-                      <span className="text-[10px] text-gray-500">{t("home.stats.trend")}</span>
-                      <div className="flex items-end gap-px h-4">
-                        {(homeStats.dailyTrend.length > 0 ? homeStats.dailyTrend : [{ day: "", count: 0 }]).map((d, i) => {
-                          const max = Math.max(...homeStats.dailyTrend.map((x) => x.count), 1);
-                          const h = Math.max(2, Math.round((d.count / max) * 16));
-                          return (
-                            <div
-                              key={i}
-                              className="w-1.5 rounded-sm bg-[#1d9bf0]/60"
-                              style={{ height: `${h}px` }}
-                              title={`${d.day}: ${d.count}`}
-                            />
-                          );
-                        })}
-                      </div>
+                      <span className="text-[10px] text-gray-500">{t("home.stats.total")}</span>
+                      <span className="font-bold text-[#1d9bf0] text-sm tabular-nums">{homeStats.totalGenerations.toLocaleString()}</span>
                     </div>
                   </div>
                 )}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import { SocksProxyAgent } from "socks-proxy-agent";
 import * as https from "https";
 import * as http from "http";
 
@@ -22,10 +23,15 @@ type FetchLike = {
   headers: { get(k: string): string | null };
 };
 
+function makeAgent(proxyUrl: string) {
+  if (proxyUrl.startsWith("socks")) return new SocksProxyAgent(proxyUrl);
+  return new HttpsProxyAgent(proxyUrl);
+}
+
 function fetchWithProxy(url: string): Promise<FetchLike> {
   if (!PROXY_URL) return fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, redirect: "follow" });
   return new Promise((resolve, reject) => {
-    const agent = new HttpsProxyAgent(PROXY_URL);
+    const agent = makeAgent(PROXY_URL);
 
     function doRequest(targetUrl: string, redirectsLeft: number) {
       const parsed = new URL(targetUrl);

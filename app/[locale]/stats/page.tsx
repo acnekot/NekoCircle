@@ -8,8 +8,9 @@ type Stats = {
   yahooUniqueUsers: number;
   generationCounts: { yahoo: number; total: number };
   yahooDailyStats: { day: string; circles: number }[];
-  genDailyStats: { day: string; total: number }[];
-  topYahooUsers: { username: string; count: number }[];
+  totalGenerations: number;
+  todayGenerations: number;
+  todayCircles: number;
 };
 
 function useCountUp(target: number, duration = 1200) {
@@ -67,8 +68,6 @@ export default function StatsPage() {
     </div>
   );
 
-  const maxGenDaily = Math.max(...(stats.genDailyStats ?? []).map(d => d.total), 1);
-
   return (
     <div className="gradient-bg min-h-screen py-10 px-4">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -105,45 +104,39 @@ export default function StatsPage() {
           <StatCard label={t("stats.totalGen")} value={stats.generationCounts?.total ?? 0} color="text-emerald-400" />
         </div>
 
-        {/* Daily generation chart */}
-        {stats.genDailyStats && stats.genDailyStats.length > 0 && (
-          <div className="card rounded-2xl p-6">
-            <h2 className="text-base font-semibold mb-5">{t("stats.dailyTrend")}</h2>
-            <div className="flex items-end gap-2 h-32">
-              {stats.genDailyStats.map((d) => (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="text-xs text-white font-mono font-bold">{d.total || ""}</div>
-                  <div
-                    className="w-full bg-emerald-500/80 rounded-t transition-all duration-700"
-                    style={{ height: `${Math.max(8, (d.total / maxGenDaily) * 96)}px` }}
-                    title={t("stats.dailyTooltip", { n: d.total })}
-                  />
-                  <div className="text-xs text-gray-600 text-center leading-tight">
-                    {d.day.slice(5)}
-                  </div>
-                </div>
-              ))}
+        {/* Total generation stats */}
+        <div className="card rounded-2xl p-6">
+          <h2 className="text-base font-semibold mb-5">{t("stats.totalStats")}</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex flex-col items-center gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] py-4 px-3">
+              <span className="text-xs text-gray-500">{t("stats.totalGenCount")}</span>
+              <span className="text-2xl font-bold text-emerald-400 tabular-nums">{(stats.totalGenerations ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] py-4 px-3">
+              <span className="text-xs text-gray-500">{t("stats.totalCircleCount")}</span>
+              <span className="text-2xl font-bold text-blue-400 tabular-nums">{(stats.yahooCircleCount ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] py-4 px-3">
+              <span className="text-xs text-gray-500">{t("stats.todayGen")}</span>
+              <span className="text-2xl font-bold text-amber-400 tabular-nums">{(stats.todayGenerations ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] py-4 px-3">
+              <span className="text-xs text-gray-500">{t("stats.todayCircle")}</span>
+              <span className="text-2xl font-bold text-pink-400 tabular-nums">{(stats.todayCircles ?? 0).toLocaleString()}</span>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Top Yahoo users */}
-        {stats.topYahooUsers && stats.topYahooUsers.length > 0 && (
-          <div className="card rounded-2xl p-6">
-            <h2 className="text-base font-semibold mb-4">{t("stats.topUsers")}</h2>
-            <div className="space-y-2">
-              {stats.topYahooUsers.map((u, i) => (
-                <div key={u.username} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/3 hover:bg-white/5 transition-colors">
-                  <span className={`text-xs font-bold w-5 text-center ${
-                    i === 0 ? "text-amber-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-orange-400" : "text-gray-600"
-                  }`}>{i + 1}</span>
-                  <span className="flex-1 text-sm font-medium truncate">@{u.username}</span>
-                  <span className="text-xs text-gray-500">{t("stats.genTimes", { n: u.count })}</span>
-                </div>
-              ))}
+        {/* Unique users */}
+        <div className="card rounded-2xl p-6">
+          <h2 className="text-base font-semibold mb-4">{t("stats.uniqueUsers")}</h2>
+          <div className="flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-purple-400 tabular-nums">{(stats.yahooUniqueUsers ?? 0).toLocaleString()}</div>
+              <div className="text-xs text-gray-500 mt-2">{t("stats.uniqueUsersDesc")}</div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Footer note */}
         <p className="text-center text-xs text-gray-700 pb-4">{t("stats.footer")}</p>
