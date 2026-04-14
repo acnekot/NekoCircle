@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "@/components/LocaleProvider";
 
 type Announcement = {
   id: number;
@@ -36,6 +37,7 @@ function addDismissedId(id: number) {
 }
 
 export default function AnnouncementBanner() {
+  const { t } = useTranslation();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
@@ -70,7 +72,7 @@ export default function AnnouncementBanner() {
                 setDismissed((prev) => new Set(prev).add(a.id));
               }}
               className="absolute top-2.5 right-3 text-gray-600 hover:text-gray-300 transition-colors text-sm leading-none"
-              title="关闭"
+              title={t("common.close")}
             >
               ✕
             </button>

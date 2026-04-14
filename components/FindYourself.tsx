@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { InteractionUser } from "@/lib/circle-convert";
+import { useTranslation } from "@/components/LocaleProvider";
 
 type Props = {
   topUsers: InteractionUser[];
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export default function FindYourself({ topUsers, ownerUsername }: Props) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{
     found: boolean;
@@ -38,10 +40,10 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
   return (
     <div className="card rounded-2xl p-4 space-y-3">
       <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
-        <span>🔍</span> 查找自我
+        <span>🔍</span> {t("find.title")}
       </h3>
       <p className="text-xs text-gray-500 leading-relaxed">
-        输入你的 X/Twitter 用户名，查看你是否在这个圈子中
+        {t("find.desc")}
       </p>
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -51,7 +53,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
             value={query}
             onChange={(e) => { setQuery(e.target.value); setSearchResult(null); }}
             onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-            placeholder="用户名"
+            placeholder={t("find.placeholder")}
             className="w-full pl-7 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 outline-none focus:border-white/30 transition-colors"
           />
         </div>
@@ -60,7 +62,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
           disabled={!query.trim()}
           className="px-3 py-2 rounded-xl text-sm font-medium bg-[#1d9bf0]/20 text-[#1d9bf0] hover:bg-[#1d9bf0]/30 border border-[#1d9bf0]/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
         >
-          搜索
+          {t("find.search")}
         </button>
       </div>
 
@@ -76,7 +78,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
               <div className="flex items-center gap-2">
                 <span className="text-green-400 font-bold text-lg">🎉</span>
                 <span className="text-green-400 font-medium">
-                  你在第 {searchResult.rank} 位！
+                  {t("find.rankResult", { rank: searchResult.rank ?? 0 })}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -105,7 +107,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
                   <div className="text-yellow-400 font-bold font-mono text-sm">
                     {searchResult.user.score.toFixed(1)}
                   </div>
-                  <div className="text-gray-600 text-xs">分数</div>
+                  <div className="text-gray-600 text-xs">{t("find.score")}</div>
                 </div>
               </div>
             </div>
@@ -113,17 +115,17 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-gray-400">
                 <span>😿</span>
-                <span>没找到这个人</span>
+                <span>{t("find.selfJoke1")}</span>
               </div>
               <div className="flex items-center gap-2 text-amber-400">
                 <span>😂</span>
-                <span>开玩笑的，这是你自己的圈子啊喂！</span>
+                <span>{t("find.selfJoke2")}</span>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-gray-400">
               <span>😿</span>
-              <span>未在此圈子中找到 @{query.trim().replace(/^@+/, "")}</span>
+              <span>{t("find.notFound", { name: query.trim().replace(/^@+/, "") })}</span>
             </div>
           )}
         </div>

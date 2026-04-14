@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "X 互动圈生成器",
+  title: "X 互动圈生成器 — NekoCircle",
   description: "分析你的 X 互动圈，找出最活跃的互动用户",
 };
 

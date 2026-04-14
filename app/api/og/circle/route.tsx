@@ -1,6 +1,7 @@
 import { ImageResponse } from "@vercel/og";
 import { NextRequest } from "next/server";
 import { CircleExportImage, mergeExportStyle } from "@/lib/export-image";
+import { DEFAULT_STYLE } from "@/lib/style";
 import type { AnalysisResult } from "@/lib/circle-convert";
 import { DEFAULT_SCORING_WEIGHTS } from "@/lib/circle-convert";
 import {
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
   if (!result) return new Response("No data", { status: 404 });
 
   const style = mergeExportStyle({
-    showUsernames: false,
+    usernameConfig: { ...DEFAULT_STYLE.usernameConfig, enabled: false },
     showScores: false,
     showRankBadge: true,
     glowEffect: true,

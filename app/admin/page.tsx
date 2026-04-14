@@ -35,6 +35,15 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditingAnnouncement>({ title: "", content: "", type: "info" });
 
+  // Password change
+  const [showPwForm, setShowPwForm] = useState(false);
+  const [pwOld, setPwOld] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
+  const [pwErr, setPwErr] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+
   const fetchAnnouncements = () => {
     setLoading(true);
     fetch("/api/admin/announcements")
@@ -108,6 +117,27 @@ export default function AdminPage() {
     document.cookie = "neko_admin=; path=/; max-age=0";
     router.push("/admin/login");
     router.refresh();
+  };
+
+  const handleChangePassword = async () => {
+    setPwMsg(""); setPwErr("");
+    if (!pwOld || !pwNew || !pwConfirm) { setPwErr("请填写所有字段"); return; }
+    if (pwNew.length < 6) { setPwErr("新密码至少 6 位"); return; }
+    if (pwNew !== pwConfirm) { setPwErr("两次输入的新密码不一致"); return; }
+    setPwSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldPassword: pwOld, newPassword: pwNew }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setPwErr(data.error ?? "修改失败"); return; }
+      setPwMsg("密码修改成功！");
+      setPwOld(""); setPwNew(""); setPwConfirm("");
+      setTimeout(() => { setShowPwForm(false); setPwMsg(""); }, 1500);
+    } catch { setPwErr("网络错误"); }
+    finally { setPwSubmitting(false); }
   };
 
   const typeOptions = [
@@ -343,6 +373,64 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+
+        {/* Password change */}
+        <div className="card rounded-2xl overflow-hidden">
+          <button
+            onClick={() => { setShowPwForm(!showPwForm); setPwErr(""); setPwMsg(""); }}
+            className="w-full px-5 py-4 flex items-center justify-between text-sm font-semibold hover:bg-white/3 transition-colors"
+          >
+            <span>🔑 修改密码</span>
+            <svg className={`w-4 h-4 text-gray-500 transition-transform ${showPwForm ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          {showPwForm && (
+            <div className="px-5 pb-5 space-y-3 border-t border-white/5 pt-4">
+              {pwMsg && (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-2.5 text-green-400 text-sm">{pwMsg}</div>
+              )}
+              {pwErr && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 text-red-400 text-sm">{pwErr}</div>
+              )}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">旧密码</label>
+                <input
+                  type="password"
+                  value={pwOld}
+                  onChange={(e) => setPwOld(e.target.value)}
+                  placeholder="请输入当前密码"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">新密码</label>
+                <input
+                  type="password"
+                  value={pwNew}
+                  onChange={(e) => setPwNew(e.target.value)}
+                  placeholder="至少 6 位"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5">确认新密码</label>
+                <input
+                  type="password"
+                  value={pwConfirm}
+                  onChange={(e) => setPwConfirm(e.target.value)}
+                  placeholder="再次输入新密码"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
+                />
+              </div>
+              <button
+                onClick={handleChangePassword}
+                disabled={pwSubmitting}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#1d9bf0] hover:bg-[#1a8cd8] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {pwSubmitting ? "修改中..." : "确认修改"}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-700 pt-4">

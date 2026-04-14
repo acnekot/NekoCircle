@@ -5,10 +5,12 @@ import { useParams } from "next/navigation";
 import CircleChart, { renderToCanvas } from "@/components/CircleChart";
 import StylePanel from "@/components/StylePanel";
 import FindYourself from "@/components/FindYourself";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { DEFAULT_STYLE, loadStyleConfig, saveStyleConfig, type StyleConfig } from "@/lib/style";
 import type { AnalysisResult } from "@/lib/circle-convert";
 import type { CircleUser } from "@/types/circle";
 import { parseYahooCircleData } from "@/lib/circle-convert";
+import { useTranslation } from "@/components/LocaleProvider";
 
 type UnifiedCircle = {
   source: "yahoo";
@@ -23,6 +25,7 @@ type Tab = "circle" | "list";
 export default function CirclePreviewPage() {
   const params = useParams();
   const circleId = (params?.id as string) ?? "";
+  const { locale, t } = useTranslation();
 
   const [circle, setCircle] = useState<UnifiedCircle | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -43,7 +46,7 @@ export default function CirclePreviewPage() {
     setError("");
     fetch(`/api/circle/${circleId}`)
       .then((r) => {
-        if (!r.ok) throw new Error("未找到该圈子");
+        if (!r.ok) throw new Error(t("circle.notFound"));
         return r.json();
       })
       .then((data: UnifiedCircle) => {
@@ -52,7 +55,7 @@ export default function CirclePreviewPage() {
         setResult(analysisResult);
         setCircleUsers(cu);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "获取失败"))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t("circle.error")))
       .finally(() => setLoading(false));
   }, [circleId]);
 
@@ -92,21 +95,21 @@ export default function CirclePreviewPage() {
 
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <a href="/" className="text-gray-500 hover:text-white transition-colors text-sm">← 返回首页</a>
+          <a href={`/${locale}`} className="text-gray-500 hover:text-white transition-colors text-sm">{t("common.backHome")}</a>
           {circle && (
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-green-500/20 border-green-500/30 text-green-400">
-                  Yahoo 搜索 · 免费
+                  {t("circle.tag")}
                 </span>
                 <button
                   onClick={() => { navigator.clipboard.writeText(circleId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
                   className="text-xs text-gray-600 font-mono hover:text-gray-400 transition-colors cursor-pointer flex items-center gap-1"
-                  title="点击复制 ID"
+                  title={t("common.copyIdShort")}
                 >
                   ID: {circleId}
                   {copied ? (
-                    <span className="text-green-400 text-xs ml-1">✓ 已复制</span>
+                    <span className="text-green-400 text-xs ml-1">{t("common.copied")}</span>
                   ) : (
                     <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                   )}
@@ -114,14 +117,15 @@ export default function CirclePreviewPage() {
               </div>
               <h1 className="text-2xl font-bold text-white">
                 @{circle.username}
-                <span className="text-gray-400 font-normal text-base ml-2">的互动圈</span>
+                <span className="text-gray-400 font-normal text-base ml-2">{t("circle.circle")}</span>
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
-                创建于 {new Date(circle.created_at).toLocaleString("zh-CN")}
-                {" · "}互动用户：<span className="text-gray-300">{result?.topUsers.length ?? 0}</span> 人
+                {t("circle.createdAt")} {new Date(circle.created_at).toLocaleString(locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "zh-CN")}
+                {" · "}{t("circle.users")}<span className="text-gray-300">{result?.topUsers.length ?? 0}</span> {t("circle.persons")}
               </p>
             </div>
           )}
+          <LanguageSwitcher />
         </div>
 
         {/* Loading */}
@@ -129,7 +133,7 @@ export default function CirclePreviewPage() {
           <div className="card rounded-2xl p-16 flex flex-col items-center gap-4">
             <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#1d9bf0] animate-spin" />
             <div className="text-center">
-              <p className="text-white font-medium">正在加载圈子...</p>
+              <p className="text-white font-medium">{t("circle.loading")}</p>
             </div>
           </div>
         )}
@@ -138,9 +142,9 @@ export default function CirclePreviewPage() {
         {!loading && error && (
           <div className="card rounded-2xl p-8 text-center">
             <div className="text-4xl mb-4">😿</div>
-            <h2 className="text-lg font-bold text-red-400 mb-2">获取失败</h2>
+            <h2 className="text-lg font-bold text-red-400 mb-2">{t("circle.error")}</h2>
             <p className="text-gray-400 text-sm">{error}</p>
-            <a href="/" className="btn-primary inline-block mt-6 px-6 py-2 rounded-xl text-sm font-medium">返回首页</a>
+            <a href={`/${locale}`} className="btn-primary inline-block mt-6 px-6 py-2 rounded-xl text-sm font-medium">{t("common.returnHome")}</a>
           </div>
         )}
 
@@ -148,7 +152,7 @@ export default function CirclePreviewPage() {
         {!loading && !error && result && (
           <div className="flex flex-col lg:flex-row gap-4">
 
-            {/* Left: 样式面板 */}
+            {/* Left: style panel */}
             <div className="lg:w-72 shrink-0 space-y-3">
               <StylePanel
                 value={styleConfig}
@@ -159,8 +163,8 @@ export default function CirclePreviewPage() {
               <div className="card rounded-2xl p-4 space-y-2">
                 <button
                   onClick={async () => {
-                    const pageUrl = `${window.location.origin}/circle/${circleId}`;
-                    const shareText = `我的互动圈\n${pageUrl}`;
+                    const pageUrl = `https://circle.catsuki.cc/${locale}/circle/${circleId}`;
+                    const shareText = `${t("circle.shareText1")}\n${t("circle.shareText2")} ${pageUrl}\n${t("circle.shareText3")}`;
                     try {
                       const blob = await getCanvasBlob();
                       if (blob && navigator.canShare?.({ files: [new File([blob], "circle.png", { type: "image/png" })] })) {
@@ -169,25 +173,25 @@ export default function CirclePreviewPage() {
                       }
                     } catch (e) { if ((e as DOMException)?.name === "AbortError") return; }
                     await downloadCanvas();
-                    const text = encodeURIComponent("我的互动圈");
-                    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(pageUrl)}`, "_blank");
+                    const text = encodeURIComponent(shareText);
+                    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
                   }}
                   className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
                 >
                   <span className="flex items-center justify-center gap-1.5">
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                    分享到 X
+                    {t("common.share")}
                   </span>
                 </button>
                 <button
                   onClick={downloadCanvas}
                   className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
                 >
-                  ⬇️ 下载图片
+                  {t("common.download")}
                 </button>
               </div>
 
-              {/* 查找自我 */}
+              {/* Find yourself */}
               <FindYourself topUsers={result.topUsers} ownerUsername={circle?.username} />
             </div>
 
@@ -195,7 +199,7 @@ export default function CirclePreviewPage() {
             <div className="flex-1 min-w-0">
               {/* Tab bar */}
               <div className="flex gap-1 mb-3">
-                {([["circle", "🔵 互动圈"], ["list", "📋 排名列表"]] as [Tab, string][]).map(([tab, label]) => (
+                {([["circle", t("circle.tabCircle")], ["list", t("circle.tabList")]] as [Tab, string][]).map(([tab, label]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
@@ -224,9 +228,9 @@ export default function CirclePreviewPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-white/10 text-left text-gray-400 text-sm">
-                          <th className="px-4 py-3">#</th>
-                          <th className="px-4 py-3">用户</th>
-                          <th className="px-4 py-3 text-pink-400">Mention 次数</th>
+                          <th className="px-4 py-3">{t("circle.colRank")}</th>
+                          <th className="px-4 py-3">{t("circle.colUser")}</th>
+                          <th className="px-4 py-3 text-pink-400">{t("circle.colMention")}</th>
                         </tr>
                       </thead>
                       <tbody>

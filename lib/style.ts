@@ -3,6 +3,46 @@ export type BgGradient = "radial" | "linear-tb" | "linear-lr" | "solid";
 export type FontChoice = "sans-serif" | "serif" | "monospace";
 export type NodeSize = "small" | "medium" | "large";
 
+export type NameplateStyle = "pill" | "rect" | "bare";
+export type NameplatePosition = "below" | "above";
+export type NameplateTextStyle = "bold" | "normal" | "italic";
+export type NameplateArrange = "horizontal" | "radial";
+
+export type UsernameConfig = {
+  enabled: boolean;
+  style: NameplateStyle;
+  bgColor: string;
+  opacity: number;
+  maxLength: number;
+  position: NameplatePosition;
+  zIndex: "above" | "below";
+  fontSize: "small" | "medium" | "large";
+  textColor: string;
+  textStyle: NameplateTextStyle;
+  arrange: NameplateArrange;
+};
+
+export const DEFAULT_USERNAME: UsernameConfig = {
+  enabled: false,
+  style: "pill",
+  bgColor: "#ffffff",
+  opacity: 1,
+  maxLength: 10,
+  position: "below",
+  zIndex: "above",
+  fontSize: "medium",
+  textColor: "#333333",
+  textStyle: "bold",
+  arrange: "horizontal",
+};
+
+export const USERNAME_PRESETS: { key: string; config: Partial<UsernameConfig> }[] = [
+  { key: "style.uname.presetWhite", config: { style: "pill", bgColor: "#ffffff", textColor: "#333333", opacity: 1 } },
+  { key: "style.uname.presetDark", config: { style: "pill", bgColor: "#1a1a2e", textColor: "#e0e0e0", opacity: 0.9 } },
+  { key: "style.uname.presetGlass", config: { style: "pill", bgColor: "#000000", textColor: "#ffffff", opacity: 0.3 } },
+  { key: "style.uname.presetBare", config: { style: "bare", bgColor: "#000000", textColor: "#ffffff", opacity: 0 } },
+];
+
 export type StyleConfig = {
   theme: string;
   bgColor1: string;
@@ -12,7 +52,7 @@ export type StyleConfig = {
   nodeScheme: NodeScheme;
   nodeSize: NodeSize;
   showAvatars: boolean;
-  showUsernames: boolean;
+  usernameConfig: UsernameConfig;
   showScores: boolean;
   showRankBadge: boolean;
   showLines: boolean;
@@ -34,7 +74,7 @@ export const DEFAULT_STYLE: StyleConfig = {
   nodeScheme: "rainbow",
   nodeSize: "medium",
   showAvatars: true,
-  showUsernames: false,
+  usernameConfig: DEFAULT_USERNAME,
   showScores: false,
   showRankBadge: false,
   showLines: true,
@@ -56,14 +96,14 @@ export type ThemePreset = {
 };
 
 export const THEME_PRESETS: Record<string, ThemePreset> = {
-  "twitter":     { name: "推特圈",   emoji: "🐦", bgColor1: "#d0ddd0", bgColor2: "#d0ddd0", accentColor: "#1d9bf0" },
-  "dark-blue":   { name: "深海蓝",   emoji: "🌊", bgColor1: "#1a2744", bgColor2: "#0a0f1e", accentColor: "#1d9bf0" },
-  "dark-purple": { name: "星云紫",   emoji: "🌌", bgColor1: "#1e1040", bgColor2: "#080510", accentColor: "#7b6cf6" },
-  "midnight":    { name: "午夜",     emoji: "🌙", bgColor1: "#1a1a2e", bgColor2: "#000000", accentColor: "#e94560" },
-  "cyberpunk":   { name: "赛博朋克", emoji: "⚡", bgColor1: "#001a2c", bgColor2: "#000a14", accentColor: "#00d4ff" },
-  "forest":      { name: "森林",     emoji: "🌿", bgColor1: "#0a2010", bgColor2: "#040d04", accentColor: "#10b981" },
-  "rose":        { name: "玫瑰",     emoji: "🌸", bgColor1: "#2a1020", bgColor2: "#0d0408", accentColor: "#ec4899" },
-  "gold":        { name: "黄金",     emoji: "✨", bgColor1: "#1a1200", bgColor2: "#080600", accentColor: "#f59e0b" },
+  "twitter":     { name: "theme.twitter",     emoji: "🐦", bgColor1: "#d0ddd0", bgColor2: "#d0ddd0", accentColor: "#1d9bf0" },
+  "dark-blue":   { name: "theme.dark-blue",   emoji: "🌊", bgColor1: "#1a2744", bgColor2: "#0a0f1e", accentColor: "#1d9bf0" },
+  "dark-purple": { name: "theme.dark-purple", emoji: "🌌", bgColor1: "#1e1040", bgColor2: "#080510", accentColor: "#7b6cf6" },
+  "midnight":    { name: "theme.midnight",    emoji: "🌙", bgColor1: "#1a1a2e", bgColor2: "#000000", accentColor: "#e94560" },
+  "cyberpunk":   { name: "theme.cyberpunk",   emoji: "⚡", bgColor1: "#001a2c", bgColor2: "#000a14", accentColor: "#00d4ff" },
+  "forest":      { name: "theme.forest",      emoji: "🌿", bgColor1: "#0a2010", bgColor2: "#040d04", accentColor: "#10b981" },
+  "rose":        { name: "theme.rose",        emoji: "🌸", bgColor1: "#2a1020", bgColor2: "#0d0408", accentColor: "#ec4899" },
+  "gold":        { name: "theme.gold",        emoji: "✨", bgColor1: "#1a1200", bgColor2: "#080600", accentColor: "#f59e0b" },
 };
 
 export const NODE_PALETTES: Record<NodeScheme, (accent: string, idx: number, tier: number) => string> = {
@@ -103,7 +143,20 @@ export function loadStyleConfig(): StyleConfig {
   if (typeof window === "undefined") return DEFAULT_STYLE;
   try {
     const raw = localStorage.getItem("circle_style");
-    const base = raw ? { ...DEFAULT_STYLE, ...JSON.parse(raw) } : DEFAULT_STYLE;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed: any = raw ? JSON.parse(raw) : {};
+    // Migrate old showUsernames boolean → usernameConfig
+    if (typeof parsed.showUsernames === "boolean") {
+      parsed.usernameConfig = { ...DEFAULT_USERNAME, enabled: parsed.showUsernames };
+      delete parsed.showUsernames;
+    }
+    if (!parsed.usernameConfig || typeof parsed.usernameConfig !== "object") {
+      parsed.usernameConfig = DEFAULT_USERNAME;
+    } else {
+      // Ensure all keys exist (in case of partial save)
+      parsed.usernameConfig = { ...DEFAULT_USERNAME, ...parsed.usernameConfig };
+    }
+    const base: StyleConfig = { ...DEFAULT_STYLE, ...parsed };
     // Always force these on regardless of saved config
     return { ...base, showAvatars: true, showWatermark: true, showLines: true, glowEffect: true,
              bgColor1: base.bgColor1 === "#111827" || base.bgColor1 === "#030712" ? "#b2b2b4" : base.bgColor1,

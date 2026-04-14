@@ -65,7 +65,9 @@ export function mergeExportStyle(partial?: PartialStyle): StyleConfig {
     nodeScheme: sanitizeEnum(style.nodeScheme, ["rainbow", "accent", "tier", "warm", "cool", "mono"], DEFAULT_STYLE.nodeScheme),
     nodeSize: sanitizeEnum(style.nodeSize, ["small", "medium", "large"], DEFAULT_STYLE.nodeSize),
     showAvatars: toBoolean(style.showAvatars, true),
-    showUsernames: toBoolean(style.showUsernames, DEFAULT_STYLE.showUsernames),
+    usernameConfig: style.usernameConfig
+      ? { ...DEFAULT_STYLE.usernameConfig, ...style.usernameConfig }
+      : DEFAULT_STYLE.usernameConfig,
     showScores: toBoolean(style.showScores, DEFAULT_STYLE.showScores),
     showRankBadge: toBoolean(style.showRankBadge, DEFAULT_STYLE.showRankBadge),
     showLines: true,
@@ -283,7 +285,7 @@ export function CircleExportImage({
           const color = nodeColor(style.accentColor, idx, tier, style.nodeScheme);
           const labelX = center + Math.cos(angle) * (R + nodeR + 22 * scale);
           const labelY = center + Math.sin(angle) * (R + nodeR + 22 * scale);
-          const scoreY = labelY + (style.showUsernames ? 22 : 0);
+          const scoreY = labelY + (style.usernameConfig.enabled ? 22 : 0);
 
           return (
             <div
@@ -363,7 +365,7 @@ export function CircleExportImage({
                 </div>
               ) : null}
 
-              {style.showUsernames ? (
+              {style.usernameConfig.enabled ? (
                 <div
                   style={{
                     position: "absolute",

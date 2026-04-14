@@ -5,10 +5,12 @@ import { useParams } from "next/navigation";
 import CircleChart, { renderToCanvas } from "@/components/CircleChart";
 import StylePanel from "@/components/StylePanel";
 import FindYourself from "@/components/FindYourself";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { DEFAULT_STYLE, loadStyleConfig, saveStyleConfig, type StyleConfig } from "@/lib/style";
 import type { CircleUser, SelfProfile } from "@/types/circle";
 import { yahooToAnalysisResult } from "@/lib/circle-convert";
 import { readYahooCircleCache, writeYahooCircleCache } from "@/lib/yahoo-client-cache";
+import { useTranslation } from "@/components/LocaleProvider";
 
 type Tab = "circle" | "list";
 
@@ -28,6 +30,7 @@ const EMPTY_SELF: SelfProfile = { screenName: "", displayName: "" };
 export default function YahooCirclePage() {
   const params = useParams();
   const username = (params?.username as string) ?? "";
+  const { locale, t } = useTranslation();
 
   const [self, setSelf] = useState<SelfProfile>(EMPTY_SELF);
   const [users, setUsers] = useState<CircleUser[]>([]);
@@ -94,7 +97,7 @@ export default function YahooCirclePage() {
           createdAt: data.createdAt,
         });
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "数据获取失败"))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : t("yahoo.dataFailed")))
       .finally(() => setLoading(false));
   }, [username]);
 
@@ -103,7 +106,6 @@ export default function YahooCirclePage() {
       ? yahooToAnalysisResult(self, users, counts)
       : null;
 
-  // CircleChart 自己根据 displayCount 截取，这里直接传完整结果
   const displayedResult = analysisResult;
 
   const getCanvasBlob = (): Promise<Blob | null> => {
@@ -142,21 +144,21 @@ export default function YahooCirclePage() {
 
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <a href="/" className="text-gray-500 hover:text-white transition-colors text-sm">← 返回首页</a>
-          <div>
+          <a href={`/${locale}`} className="text-gray-500 hover:text-white transition-colors text-sm">{t("common.backHome")}</a>
+          <div className="flex-1">
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 font-medium">
-                Yahoo 搜索 · 免费
+                {t("yahoo.tag")}
               </span>
               {circleId && (
                 <button
                   onClick={() => { navigator.clipboard.writeText(circleId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
                   className="text-xs text-gray-600 font-mono hover:text-gray-400 transition-colors cursor-pointer flex items-center gap-1"
-                  title="点击复制完整 ID"
+                  title={t("common.copyId")}
                 >
                   ID: {circleId.slice(0, 8)}
                   {copied ? (
-                    <span className="text-green-400 text-xs ml-1">✓ 已复制</span>
+                    <span className="text-green-400 text-xs ml-1">{t("common.copied")}</span>
                   ) : (
                     <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                   )}
@@ -165,22 +167,23 @@ export default function YahooCirclePage() {
             </div>
             <h1 className="text-2xl font-bold text-white">
               @{username}
-              <span className="text-gray-400 font-normal text-base ml-2">的互动圈</span>
+              <span className="text-gray-400 font-normal text-base ml-2">{t("yahoo.circle")}</span>
             </h1>
             {counts && (
               <p className="text-sm text-gray-500 mt-0.5">
                 {createdAt && (
                   <>
-                    生成于 <span className="text-gray-300">{new Date(createdAt).toLocaleString("zh-CN")}</span>
+                    {t("yahoo.generatedAt")} <span className="text-gray-300">{new Date(createdAt).toLocaleString(locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "zh-CN")}</span>
                     {" · "}
                   </>
                 )}
-                别人 mention 你：<span className="text-gray-300">{counts.toYou}</span> 条
-                {" · "}你 mention 别人：<span className="text-gray-300">{counts.fromYou}</span> 条
-                {" · "}互动用户：<span className="text-gray-300">{users.length}</span> 人
+                {t("yahoo.mentionTo")}<span className="text-gray-300">{counts.toYou}</span> {t("yahoo.items")}
+                {" · "}{t("yahoo.mentionFrom")}<span className="text-gray-300">{counts.fromYou}</span> {t("yahoo.items")}
+                {" · "}{t("yahoo.users")}<span className="text-gray-300">{users.length}</span> {t("yahoo.persons")}
               </p>
             )}
           </div>
+          <LanguageSwitcher />
         </div>
 
         {/* Loading */}
@@ -188,8 +191,8 @@ export default function YahooCirclePage() {
           <div className="card rounded-2xl p-16 flex flex-col items-center gap-4">
             <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#1d9bf0] animate-spin" />
             <div className="text-center">
-              <p className="text-white font-medium">正在获取数据...</p>
-              <p className="text-gray-500 text-sm mt-1">通过 Yahoo 实时搜索抓取，约需 10~40 秒</p>
+              <p className="text-white font-medium">{t("yahoo.loading")}</p>
+              <p className="text-gray-500 text-sm mt-1">{t("yahoo.loadingSub")}</p>
             </div>
           </div>
         )}
@@ -198,9 +201,9 @@ export default function YahooCirclePage() {
         {!loading && error && (
           <div className="card rounded-2xl p-8 text-center">
             <div className="text-4xl mb-4">😿</div>
-            <h2 className="text-lg font-bold text-red-400 mb-2">获取失败</h2>
+            <h2 className="text-lg font-bold text-red-400 mb-2">{t("yahoo.error")}</h2>
             <p className="text-gray-400 text-sm">{error}</p>
-            <a href="/" className="btn-primary inline-block mt-6 px-6 py-2 rounded-xl text-sm font-medium">返回首页</a>
+            <a href={`/${locale}`} className="btn-primary inline-block mt-6 px-6 py-2 rounded-xl text-sm font-medium">{t("common.returnHome")}</a>
           </div>
         )}
 
@@ -208,7 +211,7 @@ export default function YahooCirclePage() {
         {!loading && !error && displayedResult && (
           <div className="flex flex-col lg:flex-row gap-4">
 
-            {/* Left: 样式面板 */}
+            {/* Left: style panel */}
             <div className="lg:w-72 shrink-0 space-y-3">
               <StylePanel
                 value={styleConfig}
@@ -219,11 +222,11 @@ export default function YahooCirclePage() {
               <div className="card rounded-2xl p-4 space-y-2">
                 <button
                   onClick={async () => {
-                    const shareId = circleId ?? username;
-                    const pageUrl = circleId
-                      ? `${window.location.origin}/circle/${circleId}`
-                      : `${window.location.origin}/yahoo/${encodeURIComponent(username)}`;
-                    const shareText = `我的互动圈\n${pageUrl}`;
+                    const cid = circleId ?? "";
+                    const pageUrl = cid
+                      ? `https://circle.catsuki.cc/${locale}/circle/${cid}`
+                      : `${window.location.origin}/${locale}/yahoo/${encodeURIComponent(username)}`;
+                    const shareText = `${t("yahoo.shareText1")}\n${t("yahoo.shareText2")} ${pageUrl}\n${t("yahoo.shareText3")}`;
                     try {
                       const blob = await getCanvasBlob();
                       if (blob && navigator.canShare?.({ files: [new File([blob], "circle.png", { type: "image/png" })] })) {
@@ -231,38 +234,37 @@ export default function YahooCirclePage() {
                         return;
                       }
                     } catch (e) { if ((e as DOMException)?.name === "AbortError") return; }
-                    // Fallback: download image + open tweet intent
                     await downloadCanvas();
-                    const text = encodeURIComponent("我的互动圈");
-                    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(pageUrl)}`, "_blank");
+                    const text = encodeURIComponent(shareText);
+                    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
                   }}
                   className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
                 >
                   <span className="flex items-center justify-center gap-1.5">
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                    分享到 X
+                    {t("common.share")}
                   </span>
                 </button>
                 <button
                   onClick={downloadCanvas}
                   className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
                 >
-                  ⬇️ 下载图片
+                  {t("common.download")}
                 </button>
                 <button
                   onClick={() => { window.location.reload(); }}
                   className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
                 >
-                  🔄 刷新数据
+                  {t("common.refresh")}
                 </button>
                 <div className="text-xs text-gray-600 pt-1 border-t border-white/5 leading-relaxed">
-                  数据来自 Yahoo 实时搜索 · 仅含过去 30 天公开 Mention · 无需登录或 API Key
+                  {t("yahoo.dataSource")}
                   <br />
-                  灵感来自 <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-400 transition-colors">nareaitter</a>
+                  {t("yahoo.inspirationFrom")} <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-400 transition-colors">nareaitter</a>
                 </div>
               </div>
 
-              {/* 查找自我 */}
+              {/* Find yourself */}
               {displayedResult && (
                 <FindYourself topUsers={displayedResult.topUsers} ownerUsername={username} />
               )}
@@ -273,7 +275,7 @@ export default function YahooCirclePage() {
 
               {/* Tab bar */}
               <div className="flex gap-1 mb-3">
-                {([["circle", "🔵 互动圈"], ["list", "📋 排名列表"]] as [Tab, string][]).map(([tab, label]) => (
+                {([["circle", t("yahoo.tabCircle")], ["list", t("yahoo.tabList")]] as [Tab, string][]).map(([tab, label]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
@@ -302,9 +304,9 @@ export default function YahooCirclePage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-white/10 text-left text-gray-400 text-sm">
-                          <th className="px-4 py-3">#</th>
-                          <th className="px-4 py-3">用户</th>
-                          <th className="px-4 py-3 text-pink-400">Mention 次数</th>
+                          <th className="px-4 py-3">{t("yahoo.colRank")}</th>
+                          <th className="px-4 py-3">{t("yahoo.colUser")}</th>
+                          <th className="px-4 py-3 text-pink-400">{t("yahoo.colMention")}</th>
                         </tr>
                       </thead>
                       <tbody>

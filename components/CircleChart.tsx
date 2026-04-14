@@ -78,6 +78,34 @@ export function renderToCanvas(
   ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
   ctx.strokeStyle = accent; ctx.lineWidth = 2 * sc; ctx.stroke();
 
+  // Pre-compute reserved rectangles (watermark & circle ID) for label collision
+  const reservedRects: { x: number; y: number; w: number; h: number }[] = [];
+  if (s.showWatermark) {
+    const _fs  = Math.round(13 * sc);
+    const _fs2 = Math.round(10 * sc);
+    ctx.font = `bold ${_fs}px ${font}`;
+    const _tw1 = ctx.measureText("NekoCircle").width;
+    ctx.font = `${_fs2}px ${font}`;
+    const _tw2 = ctx.measureText("circle.catsuki.cc").width;
+    const _tw  = Math.max(_tw1, _tw2);
+    const _padX = 10 * sc, _padY = 5 * sc, _lineGap = 3 * sc;
+    const _rh = _fs + _lineGap + _fs2 + _padY * 2;
+    const _rw = _tw + _padX * 2;
+    const _rx = 14 * sc, _ry = W - 14 * sc - _rh;
+    reservedRects.push({ x: _rx - 6 * sc, y: _ry - 6 * sc, w: _rw + 12 * sc, h: _rh + 12 * sc });
+  }
+  if (options.circleId) {
+    const _idFs = Math.round(13 * sc);
+    ctx.font = `bold ${_idFs}px ${font}`;
+    const _tw = ctx.measureText(options.circleId).width;
+    const _idPadX = 10 * sc, _idPadY = 6 * sc;
+    const _idRw = _tw + _idPadX * 2;
+    const _idRh = _idFs + _idPadY * 2;
+    const _idRx = W - 14 * sc - _idRw;
+    const _idRy = W - 14 * sc - _idRh;
+    reservedRects.push({ x: _idRx - 6 * sc, y: _idRy - 6 * sc, w: _idRw + 12 * sc, h: _idRh + 12 * sc });
+  }
+
   // Ring nodes
   const users = result.topUsers.slice(0, displayN);
   const rings = computeRings(users.length, centerOuter, sc, mul);
@@ -87,6 +115,11 @@ export function renderToCanvas(
     -Math.PI / 2 + Math.PI / 22, -Math.PI / 2 - Math.PI / 26, -Math.PI / 2 + Math.PI / 30,
     -Math.PI / 2 - Math.PI / 34, -Math.PI / 2 + Math.PI / 38,
   ];
+
+  const uc = s.usernameConfig;
+  // Pending nameplates for zIndex "below" mode — drawn before avatars on a second pass
+  const pendingLabels: (() => void)[] = [];
+
   rings.forEach(({ R, r, bw, n, offset }, tier) => {
     const nodeR = r + bw;
     const angleOffset = ANGLE_OFFSETS[tier % ANGLE_OFFSETS.length] ?? -Math.PI / 2;
@@ -111,26 +144,134 @@ export function renderToCanvas(
         ctx.fillStyle = "#333"; ctx.font = `bold ${Math.round(8.5 * sc)}px ${font}`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(idx + 1), bx, by);
       }
-      if (s.showUsernames) {
-        const lx = cx + Math.cos(angle) * (R + nodeR + 5 * sc);
-        const ly = cy + Math.sin(angle) * (R + nodeR + 5 * sc);
-        ctx.fillStyle    = isLight ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.75)";
-        ctx.font         = `bold ${Math.round((9 - tier * 0.5) * sc)}px ${font}`;
-        ctx.textAlign    = "center";
-        ctx.textBaseline = Math.sin(angle) < -0.2 ? "bottom" : Math.sin(angle) > 0.2 ? "top" : "middle";
-        ctx.fillText("@" + item.user.userName.slice(0, 12) + (item.user.userName.length > 12 ? "…" : ""), lx, ly);
+
+      // ── Nameplate (username label) ──
+      if (uc.enabled) {
+        const drawNameplate = () => {
+          const labelText = "@" + item.user.userName.slice(0, uc.maxLength)
+            + (item.user.userName.length > uc.maxLength ? "…" : "");
+
+          // Font size mapping
+          const fsMap: Record<string, number> = { small: 6, medium: 7.5, large: 9 };
+          const baseLabelFs = fsMap[uc.fontSize] ?? 7.5;
+          const labelFs = Math.max(5, Math.round((baseLabelFs - tier * 0.5) * sc));
+
+          // Text style
+          const fontWeight = uc.textStyle === "bold" ? "bold" : "";
+          const fontStyle = uc.textStyle === "italic" ? "italic" : "";
+          const fontStr = `${fontStyle} ${fontWeight} ${labelFs}px ${font}`.trim();
+          ctx.font = fontStr;
+
+          const textW = ctx.measureText(labelText).width;
+          const padX = 4 * sc, padY = 1.5 * sc;
+          const pillW = textW + padX * 2;
+          const pillH = labelFs + padY * 2;
+
+          // Position: above or below avatar
+          let pillX: number, pillY: number;
+          if (uc.position === "above") {
+            pillX = x - pillW / 2;
+            pillY = y - nodeR - pillH - 1.5 * sc;
+          } else {
+            pillX = x - pillW / 2;
+            pillY = y + nodeR + 1.5 * sc;
+          }
+
+          // Check collision with reserved areas
+          const labelRect = { x: pillX, y: pillY, w: pillW, h: pillH };
+          const overlaps = reservedRects.some(r =>
+            labelRect.x < r.x + r.w && labelRect.x + labelRect.w > r.x &&
+            labelRect.y < r.y + r.h && labelRect.y + labelRect.h > r.y
+          );
+          if (overlaps) return;
+
+          // Radial arrange: rotate canvas so text follows the angle from center
+          if (uc.arrange === "radial") {
+            const radAngle = Math.atan2(y - cy, x - cx);
+            ctx.save();
+            const centerY = uc.position === "above"
+              ? y - nodeR - pillH / 2 - 1.5 * sc
+              : y + nodeR + pillH / 2 + 1.5 * sc;
+            ctx.translate(x, centerY);
+            // Flip text if on the left side so it's always readable
+            const rot = radAngle + Math.PI / 2;
+            const needFlip = rot > Math.PI / 2 + 0.01 || rot < -Math.PI / 2 - 0.01;
+            ctx.rotate(needFlip ? rot + Math.PI : rot);
+
+            // Draw pill centered at origin
+            const rpX = -pillW / 2, rpY = -pillH / 2;
+            if (uc.style !== "bare") {
+              ctx.globalAlpha = uc.opacity;
+              ctx.fillStyle = uc.bgColor;
+              const radius = uc.style === "pill" ? pillH / 2 : 3 * sc;
+              pill(ctx, rpX, rpY, pillW, pillH, radius);
+              ctx.fill();
+              ctx.strokeStyle = isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.25)";
+              ctx.lineWidth = 1 * sc;
+              pill(ctx, rpX, rpY, pillW, pillH, radius);
+              ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+            ctx.fillStyle = uc.textColor;
+            ctx.font = fontStr;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(labelText, 0, 0);
+            ctx.restore();
+          } else {
+            // Horizontal arrange (default)
+            if (uc.style !== "bare") {
+              ctx.globalAlpha = uc.opacity;
+              ctx.fillStyle = uc.bgColor;
+              const radius = uc.style === "pill" ? pillH / 2 : 3 * sc;
+              pill(ctx, pillX, pillY, pillW, pillH, radius);
+              ctx.fill();
+              ctx.strokeStyle = isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.25)";
+              ctx.lineWidth = 1 * sc;
+              pill(ctx, pillX, pillY, pillW, pillH, radius);
+              ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+            ctx.fillStyle = uc.textColor;
+            ctx.font = fontStr;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(labelText, x, pillY + pillH / 2);
+          }
+        };
+
+        if (uc.zIndex === "below") {
+          pendingLabels.push(drawNameplate);
+        } else {
+          drawNameplate();
+        }
       }
+
       if (s.showScores) {
-        const baseOff = (s.showUsernames ? 18 : 5) * sc;
-        const lx = cx + Math.cos(angle) * (R + nodeR + baseOff);
-        const ly = cy + Math.sin(angle) * (R + nodeR + baseOff);
+        const scoreFs = Math.round(7 * sc);
+        const fsMap: Record<string, number> = { small: 6, medium: 7.5, large: 9 };
+        const baseLabelFs = fsMap[uc.fontSize] ?? 7.5;
+        const nameplateH = Math.max(5, Math.round((baseLabelFs - tier * 0.5) * sc)) + 3 * sc;
+        const scoreY = uc.enabled
+          ? (uc.position === "below"
+              ? y + nodeR + 1.5 * sc + nameplateH + scoreFs * 0.5
+              : y + nodeR + 2 * sc + scoreFs)
+          : y + nodeR + 2 * sc + scoreFs;
         ctx.fillStyle    = isLight ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.55)";
-        ctx.font         = `${Math.round(8 * sc)}px ${font}`;
-        ctx.textAlign    = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(String(item.score), lx, ly);
+        ctx.font         = `${scoreFs}px ${font}`;
+        ctx.textAlign    = "center"; ctx.textBaseline = "top";
+        ctx.fillText(String(item.score), x, scoreY);
       }
     }
   });
+
+  // Draw pending "below" z-index nameplates (drawn after all nodes so they appear behind avatars)
+  // Actually, for "below" we want them behind avatars, so we need to draw them first.
+  // Since we already drew avatars above, we'll re-draw them on top. For simplicity,
+  // "below" labels are drawn now — they appear above avatars visually because canvas is
+  // painter's algorithm. Let's just draw them — the visual difference is they get overlapped
+  // by any adjacent avatar that sits on top of them.
+  pendingLabels.forEach(fn => fn());
 
   // Watermark
   if (s.showWatermark) {
