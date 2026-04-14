@@ -5,19 +5,26 @@ import type { InteractionUser } from "@/lib/circle-convert";
 
 type Props = {
   topUsers: InteractionUser[];
+  ownerUsername?: string;
 };
 
-export default function FindYourself({ topUsers }: Props) {
+export default function FindYourself({ topUsers, ownerUsername }: Props) {
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{
     found: boolean;
     rank?: number;
     user?: InteractionUser;
+    isSelf?: boolean;
   } | null>(null);
 
   const handleSearch = () => {
     const q = query.trim().replace(/^@+/, "").toLowerCase();
     if (!q) return;
+    // 检测是否搜索的是圈主自己
+    if (ownerUsername && q === ownerUsername.toLowerCase()) {
+      setSearchResult({ found: false, isSelf: true });
+      return;
+    }
     const idx = topUsers.findIndex(
       (u) => u.user.userName.toLowerCase() === q
     );
@@ -100,6 +107,17 @@ export default function FindYourself({ topUsers }: Props) {
                   </div>
                   <div className="text-gray-600 text-xs">分数</div>
                 </div>
+              </div>
+            </div>
+          ) : searchResult.isSelf ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-gray-400">
+                <span>😿</span>
+                <span>没找到这个人</span>
+              </div>
+              <div className="flex items-center gap-2 text-amber-400">
+                <span>😂</span>
+                <span>开玩笑的，这是你自己的圈子啊喂！</span>
               </div>
             </div>
           ) : (

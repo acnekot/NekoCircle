@@ -1,24 +1,19 @@
 # NekoCircle 🐱
 
-> 生成你的 X (Twitter) 互动圈图谱 — 可视化你最亲密的互动用户
+> 发现你的 X 互动圈 — 通过 Yahoo 搜索免费生成互动圈图谱
 
-**NekoCircle** 是一个基于 Next.js 15 构建的全栈 Web 应用，通过分析 X (Twitter) 账号的最近推文互动，以同心圆图谱的形式展示互动最频繁的用户。支持用户注册登录、订阅管理、历史记录查看，以及高度自定义的图片导出。
-
-
+**NekoCircle** 是一个基于 Next.js 15 构建的 Web 应用，通过 Yahoo 日本实时搜索获取公开 Mention 数据，以同心圆图谱的形式展示过去 30 天内与你互动最频繁的用户。免费、无需登录、无需 API Key。
 
 ---
 
 ## ✨ 功能特性
 
 ### 核心功能
-- 📊 **互动分析** — 抓取最近 75 条推文，识别 Reply / Quote / Mention / Retweet 四类互动，并按主动/被动方向汇总
-- ⚖️ **权重评分** — 按亲密度权重（Reply×10、Quote×8、Mention×5、Retweet×3）并叠加时间衰减，排序取 Top N
+- 🔎 **Yahoo 搜索** — 通过 Yahoo 日本实时搜索获取过去 30 天内的公开 @提及 数据
+- 📊 **Mention 统计** — 按提及次数排名，快速了解谁在近期频繁提及你
 - 🎨 **可视化图谱** — Canvas 渲染同心圆轨道，自动布局，真实头像
-- 💾 **一键下载** — 导出高清 PNG 图片，带 NekoCircle 水印
-
-### 双数据源
-- **twitterapi.io 模式** — 深度分析，需要登录和 API Key，精度高
-- **Yahoo 搜索模式** — 免费、无需登录，通过 Yahoo 日本实时搜索获取公开 Mention 数据（过去 30 天）
+- 💾 **一键下载** — 导出高清 PNG 图片，带 NekoCircle 水印和圈子 ID
+- 🔗 **分享功能** — 支持分享到 X，或通过 8 位短 ID 分享圈子链接
 
 ### 自定义样式
 - 背景颜色 / 渐变模式（纯色 / 径向 / 线性）
@@ -26,19 +21,20 @@
 - 显示人数（10 ~ 50）
 - 用户名标签 / 互动分数 / 排名徽章 开关
 
-### 用户系统
-- 🔐 JWT Cookie 登录（30 天持久化）
-- 📋 历史记录查看（订阅用户）
-- 🚫 未登录 / 未订阅用户无法使用 Twitter API 模式生成
+### 公告系统
+- 📢 管理员可发布/编辑/删除公告
+- 支持 info / warning / success 三种类型
+- 支持置顶和显示/隐藏控制
+- 首页自动展示活跃公告，用户可关闭
 
 ### 管理后台 (`/admin`)
-- API Key 配置（支持多 Key 轮换）
-- 互动权重自定义
-- 订阅开关 & 订阅文案配置
-- 用户管理（激活 / 取消订阅）
-- 缓存管理 & TTL 配置
-- 测试模式（Mock 数据，不消耗 API）
-- 📊 数据统计页面（用户数、Credits、请求数、生成数）
+- 📢 公告管理（新建 / 编辑 / 删除 / 置顶 / 显示隐藏）
+- 🔐 管理员 JWT 登录保护
+
+### 其他
+- 🔍 **查找自我** — 在互动圈中搜索自己或他人，查看排名
+- 📊 **统计页面** — 查看 Yahoo 搜索生成次数、活跃用户等数据
+- 🖼 **OG 图片** — 分享链接时自动生成预览图
 
 ---
 
@@ -50,9 +46,9 @@
 | 语言 | TypeScript |
 | 样式 | Tailwind CSS 4 |
 | 数据库 | SQLite (better-sqlite3) |
-| 认证 | JWT (jose) + bcryptjs |
+| 认证 | JWT (jose) + bcryptjs（仅管理员）|
 | 绘图 | HTML5 Canvas API |
-| API | [twitterapi.io](https://docs.twitterapi.io) / Yahoo 实时搜索 |
+| 数据源 | Yahoo 日本实时搜索 |
 
 ---
 
@@ -63,7 +59,6 @@
 - **Node.js** >= 18.x（推荐 20.x）
 - **npm** >= 9.x
 - 操作系统：Windows / macOS / Linux 均可
-- 可选：[twitterapi.io](https://twitterapi.io) API Key（仅 Twitter 模式需要；Yahoo 模式免费无需 Key）
 
 ### 1. 克隆项目
 
@@ -88,16 +83,12 @@ npm install
 在项目根目录创建 `.env.local` 文件：
 
 ```env
-# JWT 签名密钥（生产环境请替换为随机长字符串）
+# 管理员 JWT 签名密钥（生产环境请替换为随机长字符串）
 JWT_SECRET=your-secret-key-change-in-production
 
-# 可选：HTTP/SOCKS 代理（访问 Twitter 头像等外部资源时使用）
+# 可选：HTTP/SOCKS 代理（访问 X 头像等外部资源时使用）
 HTTPS_PROXY=socks5h://127.0.0.1:7897
 ```
-
-> **说明：**
-> - `JWT_SECRET`：用于用户登录 Token 签名，**生产环境务必修改为随机强密码**
-> - `HTTPS_PROXY`：如果你在国内使用，访问 Twitter 头像需要代理；如果不需要代理可以不配置
 
 ### 4. 启动开发服务器
 
@@ -116,30 +107,20 @@ npm run start
 
 ---
 
-## ⚙️ 首次使用配置
+## ⚙️ 首次使用
 
-### 第一步：创建管理员账号
+### 生成互动圈
 
-1. 访问 `/admin/login`
-2. 首次访问会显示注册表单，创建管理员账号
+1. 访问首页，输入 X 用户名（@ 可加可不加）
+2. 点击「Yahoo 免费分析」按钮
+3. 等待 10~30 秒，Yahoo 搜索完成后即可查看互动圈
+4. 可自定义样式、下载图片、分享到 X
 
-### 第二步：配置 Twitter API Key（可选）
+### 管理员配置（可选）
 
-1. 登录管理后台 `/admin`
-2. 在「基本配置」中填入 [twitterapi.io](https://twitterapi.io) 的 API Key
-3. 支持配置多个 Key，系统会自动轮换
-
-> 如果只使用 Yahoo 搜索模式（免费），可以跳过此步骤
-
-### 第三步：注册普通用户
-
-1. 访问 `/login` 注册用户账号
-2. 在管理后台「用户管理」中为该用户开启订阅权限（仅 Twitter 模式需要）
-
-### 第四步：开始使用
-
-- **Yahoo 模式**（推荐新手）：在首页选择「Yahoo 搜索」，输入用户名直接生成，无需登录
-- **Twitter 模式**：登录后选择「twitterapi.io」，输入用户名开始分析
+1. 访问 `/admin/login`，使用默认密码 `admin123` 登录
+2. **生产环境请立即修改管理员密码**
+3. 在管理后台可管理首页公告
 
 ---
 
@@ -148,44 +129,41 @@ npm run start
 ```
 NekoCircle/
 ├── app/
-│   ├── page.tsx                # 首页（输入框 + Demo 圈 + 使用说明）
+│   ├── page.tsx                # 首页（搜索框 + Demo 圈 + 使用说明 + 公告）
 │   ├── layout.tsx              # 全局布局
 │   ├── globals.css             # 全局样式
-│   ├── login/                  # 用户登录 / 注册
-│   ├── my/                     # 用户历史记录
-│   ├── result/[id]/            # Twitter 模式分析结果页
-│   ├── yahoo/[username]/       # Yahoo 模式结果页
+│   ├── yahoo/[username]/       # Yahoo 搜索结果页
+│   ├── circle/[id]/            # 圈子详情页（通过短 ID 访问）
 │   ├── stats/                  # 数据统计页
-│   ├── admin/                  # 管理后台
+│   ├── admin/
 │   │   ├── login/              # 管理员登录
-│   │   └── ...                 # 设置 / 用户管理 / 缓存
+│   │   └── page.tsx            # 公告管理
 │   └── api/
-│       ├── analyze/            # 核心分析接口（SSE 流式进度）
 │       ├── yahoo-mentions/     # Yahoo 搜索接口
-│       ├── avatar/             # 头像代理
-│       ├── image-proxy/        # 图片代理
+│       ├── circle/[id]/        # 圈子查看接口
+│       ├── announcements/      # 公开公告接口
+│       ├── image-proxy/        # 头像代理
+│       ├── og/circle/          # OG 图片生成
 │       ├── auth/               # 管理员认证
-│       ├── user/               # 用户注册 / 登录 / 信息
-│       ├── admin/              # 后台管理接口
-│       ├── results/            # 分析结果读取
-│       ├── integrations/       # 对外集成 API
+│       ├── admin/announcements/ # 管理员公告 CRUD
+│       ├── generation-stats/   # 生成次数统计
 │       └── stats/              # 统计数据接口
 ├── components/
 │   ├── CircleChart.tsx         # 互动圈 Canvas 渲染组件
 │   ├── DemoCircle.tsx          # 首页展示动画 Canvas
 │   ├── StylePanel.tsx          # 样式自定义面板
-│   └── YahooCircleCanvas.tsx   # Yahoo 模式专用 Canvas
+│   ├── FindYourself.tsx        # 查找自我组件
+│   └── AnnouncementBanner.tsx  # 公告横幅组件
 ├── lib/
-│   ├── analyze.ts              # 互动分析逻辑
-│   ├── twitter.ts              # Twitter API 封装
 │   ├── yahoo-realtime-fetch.ts # Yahoo 搜索数据获取
-│   ├── yahoo-to-circle.ts     # Yahoo 数据转换
+│   ├── yahoo-to-circle.ts     # Yahoo 数据转换为圈子格式
+│   ├── circle-convert.ts      # 分析结果类型 + 转换工具
 │   ├── db.ts                   # SQLite 数据库操作
-│   ├── auth.ts                 # JWT / bcrypt 工具
+│   ├── auth.ts                 # 管理员 JWT 工具
 │   ├── style.ts                # 样式配置
-│   ├── scoring.ts              # 评分权重
-│   ├── mock.ts                 # 测试数据
-│   └── ...                     # 其他工具模块
+│   ├── export-image.tsx        # 图片导出
+│   ├── x-profile-image.ts     # X 头像解析
+│   └── yahoo-client-cache.ts  # 客户端缓存
 ├── types/
 │   ├── circle.ts               # 互动圈类型定义
 │   └── yahoo-realtime.ts       # Yahoo 数据类型
@@ -201,41 +179,19 @@ NekoCircle/
 
 ---
 
-## ⚖️ 互动权重说明
+## 📊 计分规则
 
-| 类型 | 基础权重 | 说明 |
-|------|----------|------|
-| Reply | ×10 | 直接回复推文，最强的基础交流信号 |
-| Quote | ×8 | 带观点的引用转发，属于深度互动 |
-| Mention | ×5 | 主动 @ 对方，代表显式话题连接 |
-| Retweet | ×3 | 普通扩散行为，成本最低 |
+| 维度 | 说明 |
+|------|------|
+| @提及 (Mention) | 唯一计分维度，按提及次数直接排名 |
+| 时间范围 | 仅统计过去 30 天内的公开推文 |
+| 数据来源 | Yahoo 日本实时搜索，免费无需 API Key |
 
-**得分公式：**
-
-```
-总分 = 主动互动得分 × 0.6 + 被动互动得分 × 0.4
-```
-
-每次互动都会乘以时间衰减因子 `e^(-λt)`，越近期的互动权重越高。
+> 仅统计 @提及 次数，不区分互动方向，不含时间衰减。适合快速了解谁在近期频繁提及你。
 
 ---
 
-## 🔌 API 接口说明
-
-### 分析接口（Twitter 模式）
-
-```http
-POST /api/analyze
-Content-Type: application/json
-
-{ "username": "acnekot", "topCount": 50 }
-```
-
-需要有效的 `neko_user` Cookie（已订阅用户）。返回 `{ id }` 后通过 SSE 获取进度：
-
-```http
-GET /api/analyze?id=<analysisId>
-```
+## 🔌 API 接口
 
 ### Yahoo 搜索接口
 
@@ -243,25 +199,31 @@ GET /api/analyze?id=<analysisId>
 GET /api/yahoo-mentions?screenName=acnekot&buildCircle=1
 ```
 
-无需登录，直接返回互动数据。
+无需登录，直接返回互动数据 + 圈子用户列表。
 
-### 对外集成接口
+### 圈子查看接口
 
 ```http
-GET /api/integrations/circle?username=acnekot&showUsernames=1
-Authorization: Bearer <EXTERNAL_API_TOKEN>
+GET /api/circle/{id}
 ```
 
-返回生成好的互动圈 PNG 图片。
+通过 8 位短 ID 获取已生成的圈子数据。
+
+### 公告接口
+
+```http
+GET /api/announcements
+```
+
+获取当前活跃的公告列表。
 
 ---
 
 ## 🔒 安全说明
 
-- 管理员路由 (`/admin/*`) 由 `middleware.ts` 通过 JWT 验证保护
-- 两套 Cookie：`neko_session`（管理员，7天）和 `neko_user`（用户，30天）
-- **生产环境请务必修改 `JWT_SECRET`**
-- API Key 存储在 SQLite 数据库中，不写入代码
+- 管理员路由 (`/admin/*`, `/api/admin/*`) 由 `middleware.ts` 通过 JWT 验证保护
+- 管理员 Cookie：`neko_admin`（7 天有效期）
+- **生产环境请务必修改 `JWT_SECRET` 和管理员默认密码**
 - 头像代理仅允许白名单域名（`pbs.twimg.com`、`abs.twimg.com`）
 
 ---
@@ -326,36 +288,26 @@ A: 这个库需要 C++ 编译环境。Ubuntu 执行 `sudo apt install build-esse
 **Q: 头像加载不出来？**
 A: X 头像需要通过代理加载，在 `.env.local` 中配置 `HTTPS_PROXY`。偶尔因网络波动失败属于正常现象。
 
-**Q: Yahoo 模式和 Twitter 模式有什么区别？**
-A: Yahoo 模式免费、无需登录，但只能获取过去 30 天的公开 Mention 数据。Twitter 模式需要 API Key，能获取 Reply / Quote / Mention / Retweet 四类完整互动数据。
+**Q: 为什么只有 30 天的数据？**
+A: Yahoo 实时搜索只索引过去约 30 天的推文，更早的数据无法获取。
 
-**Q: 生成失败怎么办？**
-A: 可能是 API 额度暂时耗尽或目标账号受限。等待几分钟后重试，或在管理后台检查 API 配置。
+**Q: 搜索结果不准确怎么办？**
+A: Yahoo 搜索依赖公开推文索引，如果目标账号是私密账号或推文被删除，可能导致数据不完整。
 
-**Q: 支持分析私密账号吗？**
-A: 不支持。只能分析公开账号。
+**Q: 为什么有些用户没出现在结果中？**
+A: 仅统计 @提及，不包含回复、引用和转推。如果互动主要通过回复进行，可能不会被统计到。
+
+**Q: 结果会保存吗？**
+A: 会。生成的圈子会保存并分配 8 位短 ID，可以通过 ID 随时查看。
 
 **Q: 数据库文件在哪？**
 A: 在 `data/circle.db`，首次启动时自动创建。
 
 ---
 
-## 📊 数据统计
-
-访问 `/stats` 查看：
-- 注册用户数 / 订阅用户数
-- 成功生成图片数 / 总发起次数
-- API 总请求次数
-- Credits 消耗 / 缓存节省
-- 近 7 天趋势图
-- 最活跃用户排行
-
----
-
 ## 🙏 致谢
 
-- [nareaitter](https://github.com/maebahesioru/nareaitter) — Yahoo 搜索互动圈的灵感来源，Twitter 风馴れ合いサークルアプリケーション
-- [twitterapi.io](https://twitterapi.io) — Twitter 数据 API
+- [nareaitter](https://github.com/maebahesioru/nareaitter) — Yahoo 搜索互动圈的灵感来源
 - [Next.js](https://nextjs.org) — React 全栈框架
 - [Tailwind CSS](https://tailwindcss.com) — 样式框架
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) — SQLite 驱动

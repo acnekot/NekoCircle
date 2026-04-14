@@ -264,7 +264,7 @@ export default function YahooCirclePage() {
 
               {/* 查找自我 */}
               {displayedResult && (
-                <FindYourself topUsers={displayedResult.topUsers} />
+                <FindYourself topUsers={displayedResult.topUsers} ownerUsername={username} />
               )}
             </div>
 

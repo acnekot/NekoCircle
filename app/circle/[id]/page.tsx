@@ -188,7 +188,7 @@ export default function CirclePreviewPage() {
               </div>
 
               {/* 查找自我 */}
-              <FindYourself topUsers={result.topUsers} />
+              <FindYourself topUsers={result.topUsers} ownerUsername={circle?.username} />
             </div>
 
             {/* Right: Circle + List tabs */}
