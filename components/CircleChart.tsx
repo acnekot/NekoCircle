@@ -160,33 +160,23 @@ export function renderToCanvas(
     ctx.globalAlpha = 1.0;
   }
 
-  // Circle ID (bottom-right, same size as watermark)
+  // Circle ID (bottom-right, single line, same size as watermark title)
   if (options.circleId) {
-    const idLabel = "ID";
     const idStr = options.circleId;
-    const idFs1 = Math.round(13 * sc);   // same as watermark title
-    const idFs2 = Math.round(10 * sc);   // same as watermark subtitle
-    ctx.font = `bold ${idFs1}px ${font}`;
-    const tw1 = ctx.measureText(idLabel).width;
-    ctx.font = `${idFs2}px ${font}`;
-    const tw2 = ctx.measureText(idStr).width;
-    const tw = Math.max(tw1, tw2);
-    const idPadX = 10 * sc, idPadY = 5 * sc;
-    const lineGap = 3 * sc;
-    const idRh = idFs1 + lineGap + idFs2 + idPadY * 2;
+    const idFs = Math.round(13 * sc);
+    ctx.font = `bold ${idFs}px ${font}`;
+    const tw = ctx.measureText(idStr).width;
+    const idPadX = 10 * sc, idPadY = 6 * sc;
     const idRw = tw + idPadX * 2;
+    const idRh = idFs + idPadY * 2;
     const idRx = W - 14 * sc - idRw;
     const idRy = W - 14 * sc - idRh;
     ctx.fillStyle = isLight ? "rgba(0,0,0,0.72)" : "rgba(255,255,255,0.82)";
     pill(ctx, idRx, idRy, idRw, idRh, 4 * sc); ctx.fill();
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillStyle = isLight ? "#fff" : "#111";
-    ctx.font = `bold ${idFs1}px ${font}`;
-    ctx.fillText(idLabel, idRx + idPadX, idRy + idPadY);
-    ctx.font = `${idFs2}px ${font}`;
-    ctx.globalAlpha = 0.7;
-    ctx.fillText(idStr, idRx + idPadX, idRy + idPadY + idFs1 + lineGap);
-    ctx.globalAlpha = 1.0;
+    ctx.font = `bold ${idFs}px ${font}`;
+    ctx.fillText(idStr, idRx + idPadX, idRy + idPadY);
   }
 
   (canvas as HTMLCanvasElement & { _nodes?: typeof nodeData })._nodes = nodeData;
