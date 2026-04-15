@@ -319,7 +319,7 @@ export default function HomePage() {
           <a href="/admin/login" className="hover:text-gray-600 transition-colors">·</a>
         </div>
         <div>
-          联系与反馈 <a href="mailto:acnekot@gmail.com" className="hover:text-gray-500 transition-colors underline underline-offset-2">acnekot@gmail.com</a>
+          {t("home.footer.contact")} <a href="mailto:acnekot@gmail.com" className="hover:text-gray-500 transition-colors underline underline-offset-2">acnekot@gmail.com</a>
         </div>
       </footer>
 
