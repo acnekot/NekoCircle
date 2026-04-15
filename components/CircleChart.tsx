@@ -25,8 +25,8 @@ export function renderToCanvas(
   const W   = 700;
   canvas.width        = W * dpr;
   canvas.height       = W * dpr;
-  canvas.style.width  = `${W}px`;
-  canvas.style.height = `${W}px`;
+  canvas.style.width    = `${W}px`;
+  canvas.style.maxWidth = "100%";
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
 
@@ -528,14 +528,15 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
       _nodes?: { x: number; y: number; r: number; idx: number }[];
     };
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx   = e.clientX - rect.left;
-    const my   = e.clientY - rect.top;
+    const rect  = canvas.getBoundingClientRect();
+    const scale = canvasSize / rect.width;
+    const mx    = (e.clientX - rect.left) * scale;
+    const my    = (e.clientY - rect.top) * scale;
     let found  = null;
     for (const n of (canvas._nodes ?? [])) {
       if (Math.hypot(mx - n.x, my - n.y) <= n.r + 4) {
-        // Store position relative to canvas container for absolute positioning
-        found = { x: mx, y: my, user: result.topUsers[n.idx] };
+        // Store CSS pixel position (unscaled) for tooltip absolute positioning
+        found = { x: e.clientX - rect.left, y: e.clientY - rect.top, user: result.topUsers[n.idx] };
         break;
       }
     }
@@ -547,9 +548,10 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
       _nodes?: { x: number; y: number; r: number; idx: number }[];
     };
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx   = e.clientX - rect.left;
-    const my   = e.clientY - rect.top;
+    const rect  = canvas.getBoundingClientRect();
+    const scale = canvasSize / rect.width;
+    const mx    = (e.clientX - rect.left) * scale;
+    const my    = (e.clientY - rect.top) * scale;
     // Check center node first (target user)
     const cx = canvasSize / 2, cy = canvasSize / 2;
     if (Math.hypot(mx - cx, my - cy) <= 48) {
@@ -566,13 +568,14 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
 
   return (
     <div ref={wrapRef} className="relative inline-block w-full max-w-[700px]">
-      <canvas ref={canvasRef} className="rounded-2xl cursor-pointer w-full"
+      <canvas ref={canvasRef} className="rounded-2xl cursor-pointer w-full aspect-square"
         data-circle="true"
         onMouseMove={handleMouseMove} onMouseLeave={() => setTooltip(null)}
         onClick={handleClick} />
       {tooltip && (() => {
         // Smart positioning: flip left if too close to right edge
-        const flipX = tooltip.x + 200 > canvasSize;
+        const wrapWidth = wrapRef.current?.clientWidth ?? canvasSize;
+        const flipX = tooltip.x + 200 > wrapWidth;
         const tipX  = flipX ? tooltip.x - 200 : tooltip.x + 14;
         const tipY  = Math.max(4, tooltip.y - 20);
         return (
