@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { initDb, getActiveAnnouncements } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     initDb();
-    const list = getActiveAnnouncements();
+    const { searchParams } = new URL(req.url);
+    const locale = searchParams.get("locale") || undefined;
+    const list = getActiveAnnouncements(locale);
     return NextResponse.json(list, {
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
     });

@@ -228,8 +228,8 @@
   "stats.totalCircleCount": "总圈子数",
   "stats.todayGen": "今日生成",
   "stats.todayCircle": "今日新圈子",
-  "stats.uniqueUsers": "👤 独立用户",
-  "stats.uniqueUsersDesc": "累计独立用户数",
+  "stats.uniqueUsers": "👤 参与用户",
+  "stats.uniqueUsersDesc": "累计参与用户数",
   "stats.footer": "数据实时统计 · 仅管理员可见完整数据",
 
   "common.backHome": "← 返回首页",

@@ -10,6 +10,7 @@ type Announcement = {
   type: string;
   active: number;
   pinned: number;
+  locale: string;
   created_at: number;
   updated_at: number;
 };
@@ -18,6 +19,7 @@ type EditingAnnouncement = {
   title: string;
   content: string;
   type: string;
+  locale: string;
 };
 
 export default function AdminPage() {
@@ -28,12 +30,12 @@ export default function AdminPage() {
 
   // New announcement form
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<EditingAnnouncement>({ title: "", content: "", type: "info" });
+  const [form, setForm] = useState<EditingAnnouncement>({ title: "", content: "", type: "info", locale: "all" });
   const [submitting, setSubmitting] = useState(false);
 
   // Editing
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<EditingAnnouncement>({ title: "", content: "", type: "info" });
+  const [editForm, setEditForm] = useState<EditingAnnouncement>({ title: "", content: "", type: "info", locale: "all" });
 
   // Password change
   const [showPwForm, setShowPwForm] = useState(false);
@@ -67,7 +69,7 @@ export default function AdminPage() {
         body: JSON.stringify(form),
       });
       if (!res.ok) { const d = await res.json(); setError(d.error ?? "创建失败"); return; }
-      setForm({ title: "", content: "", type: "info" });
+      setForm({ title: "", content: "", type: "info", locale: "all" });
       setShowForm(false);
       fetchAnnouncements();
     } catch { setError("网络错误"); }
@@ -144,6 +146,13 @@ export default function AdminPage() {
     { value: "info", label: "ℹ️ 信息", color: "text-blue-400" },
     { value: "warning", label: "⚠️ 警告", color: "text-amber-400" },
     { value: "success", label: "✅ 成功", color: "text-green-400" },
+  ];
+
+  const localeOptions = [
+    { value: "all", label: "🌐 所有语言" },
+    { value: "zh", label: "🇨🇳 中文" },
+    { value: "en", label: "🇺🇸 English" },
+    { value: "ja", label: "🇯🇵 日本語" },
   ];
 
   return (
@@ -231,6 +240,25 @@ export default function AdminPage() {
               </div>
             </div>
 
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">显示语言</label>
+              <div className="flex gap-2">
+                {localeOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setForm({ ...form, locale: opt.value })}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      form.locale === opt.value
+                        ? "bg-white/10 border-white/20 text-white"
+                        : "bg-white/3 border-white/5 text-gray-500 hover:bg-white/5"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               onClick={handleCreate}
               disabled={submitting || !form.title.trim()}
@@ -290,6 +318,21 @@ export default function AdminPage() {
                         </button>
                       ))}
                     </div>
+                    <div className="flex gap-2">
+                      {localeOptions.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setEditForm({ ...editForm, locale: opt.value })}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                            editForm.locale === opt.value
+                              ? "bg-white/10 border-white/20 text-white"
+                              : "bg-white/3 border-white/5 text-gray-500 hover:bg-white/5"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => setEditingId(null)}
@@ -328,6 +371,9 @@ export default function AdminPage() {
                           }`}>
                             {a.active === 1 ? "显示中" : "已隐藏"}
                           </span>
+                          <span className="text-xs px-1.5 py-0.5 rounded border border-purple-500/30 text-purple-400 bg-purple-500/10">
+                            {a.locale === "zh" ? "🇨🇳 中文" : a.locale === "en" ? "🇺🇸 EN" : a.locale === "ja" ? "🇯🇵 日本語" : "🌐 全部"}
+                          </span>
                         </div>
                         {a.content && (
                           <p className="text-xs text-gray-500 leading-relaxed mt-1 whitespace-pre-line">{a.content}</p>
@@ -342,7 +388,7 @@ export default function AdminPage() {
                     {/* Actions */}
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/5">
                       <button
-                        onClick={() => { setEditingId(a.id); setEditForm({ title: a.title, content: a.content, type: a.type }); }}
+                        onClick={() => { setEditingId(a.id); setEditForm({ title: a.title, content: a.content, type: a.type, locale: a.locale || "all" }); }}
                         className="text-xs text-gray-500 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/5 transition-all"
                       >
                         ✏️ 编辑

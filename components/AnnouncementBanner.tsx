@@ -37,19 +37,19 @@ function addDismissedId(id: number) {
 }
 
 export default function AnnouncementBanner() {
-  const { t } = useTranslation();
+  const { locale, t } = useTranslation();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setDismissed(getDismissedIds());
-    fetch("/api/announcements")
+    fetch(`/api/announcements?locale=${locale}`)
       .then((r) => r.json())
       .then((data: Announcement[]) => {
         if (Array.isArray(data)) setAnnouncements(data);
       })
       .catch(() => {});
-  }, []);
+  }, [locale]);
 
   const visible = announcements.filter((a) => !dismissed.has(a.id));
   if (visible.length === 0) return null;

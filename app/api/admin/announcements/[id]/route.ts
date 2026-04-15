@@ -10,7 +10,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: "无效 ID" }, { status: 400 });
     }
     const body = await req.json();
-    const allowed = ["title", "content", "type", "active", "pinned"] as const;
+    const allowed = ["title", "content", "type", "active", "pinned", "locale"] as const;
     const data: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in body) data[key] = body[key];

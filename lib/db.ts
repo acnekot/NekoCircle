@@ -44,10 +44,15 @@ export function initDb() {
       type        TEXT NOT NULL DEFAULT 'info',
       active      INTEGER NOT NULL DEFAULT 1,
       pinned      INTEGER NOT NULL DEFAULT 0,
+      locale      TEXT NOT NULL DEFAULT 'all',
       created_at  INTEGER NOT NULL,
       updated_at  INTEGER NOT NULL
     );
   `);
+  // Migrate: add locale column if missing (existing databases)
+  try {
+    db.exec("ALTER TABLE announcements ADD COLUMN locale TEXT NOT NULL DEFAULT 'all'");
+  } catch { /* column already exists */ }
   db.close();
 }
 
@@ -177,22 +182,23 @@ export type AnnouncementRow = {
   type: string;       // 'info' | 'warning' | 'success'
   active: number;     // 0 | 1
   pinned: number;     // 0 | 1
+  locale: string;     // 'all' | 'zh' | 'en' | 'ja'
   created_at: number;
   updated_at: number;
 };
 
-export function createAnnouncement(title: string, content: string, type = "info"): number {
+export function createAnnouncement(title: string, content: string, type = "info", locale = "all"): number {
   const db = getDb();
   try {
     const now = Date.now();
     const r = db.prepare(
-      "INSERT INTO announcements (title, content, type, active, pinned, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?, ?)"
-    ).run(title, content, type, now, now);
+      "INSERT INTO announcements (title, content, type, locale, active, pinned, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 0, ?, ?)"
+    ).run(title, content, type, locale, now, now);
     return r.lastInsertRowid as number;
   } finally { db.close(); }
 }
 
-export function updateAnnouncement(id: number, data: Partial<Pick<AnnouncementRow, "title" | "content" | "type" | "active" | "pinned">>): void {
+export function updateAnnouncement(id: number, data: Partial<Pick<AnnouncementRow, "title" | "content" | "type" | "active" | "pinned" | "locale">>): void {
   const db = getDb();
   try {
     const updates = { ...data, updated_at: Date.now() };
@@ -216,9 +222,14 @@ export function listAnnouncements(): AnnouncementRow[] {
   } finally { db.close(); }
 }
 
-export function getActiveAnnouncements(): AnnouncementRow[] {
+export function getActiveAnnouncements(locale?: string): AnnouncementRow[] {
   const db = getDb();
   try {
+    if (locale) {
+      return db.prepare(
+        "SELECT * FROM announcements WHERE active = 1 AND (locale = 'all' OR locale = ?) ORDER BY pinned DESC, created_at DESC"
+      ).all(locale) as AnnouncementRow[];
+    }
     return db.prepare("SELECT * FROM announcements WHERE active = 1 ORDER BY pinned DESC, created_at DESC").all() as AnnouncementRow[];
   } finally { db.close(); }
 }
