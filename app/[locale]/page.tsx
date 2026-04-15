@@ -310,12 +310,17 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="text-center py-6 text-xs text-gray-800 border-t border-white/5">
-        NekoCircle · {t("home.footer.by")}
-        <span className="mx-2">·</span>
-        {t("home.footer.inspiration")} <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors underline underline-offset-2">nareaitter</a>
-        <span className="mx-2">·</span>
-        <a href="/admin/login" className="hover:text-gray-600 transition-colors">·</a>
+      <footer className="text-center py-6 text-xs text-gray-800 border-t border-white/5 space-y-1">
+        <div>
+          NekoCircle · {t("home.footer.by")}
+          <span className="mx-2">·</span>
+          {t("home.footer.inspiration")} <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors underline underline-offset-2">nareaitter</a>
+          <span className="mx-2">·</span>
+          <a href="/admin/login" className="hover:text-gray-600 transition-colors">·</a>
+        </div>
+        <div>
+          联系与反馈 <a href="mailto:acnekot@gmail.com" className="hover:text-gray-500 transition-colors underline underline-offset-2">acnekot@gmail.com</a>
+        </div>
       </footer>
 
     </div>
