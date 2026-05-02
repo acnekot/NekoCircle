@@ -273,51 +273,41 @@ export function renderToCanvas(
   // by any adjacent avatar that sits on top of them.
   pendingLabels.forEach(fn => fn());
 
-  // Watermark
+  // Watermark (bottom-left): NekoCircle / circleId / circle.catsuki.cc
   if (s.showWatermark) {
     const wm1 = "NekoCircle";
-    const wm2 = "circle.catsuki.cc";
+    const wm2 = options.circleId || "";
+    const wm3 = "circle.catsuki.cc";
     const fs = Math.round(13 * sc);
     const fs2 = Math.round(10 * sc);
     ctx.font = `bold ${fs}px ${font}`;
     const tw1 = ctx.measureText(wm1).width;
+    const tw2 = wm2 ? ctx.measureText(wm2).width : 0;
     ctx.font = `${fs2}px ${font}`;
-    const tw2 = ctx.measureText(wm2).width;
-    const tw = Math.max(tw1, tw2);
+    const tw3 = ctx.measureText(wm3).width;
+    const tw = Math.max(tw1, tw2, tw3);
     const padX = 10 * sc, padY = 5 * sc;
     const lineGap = 3 * sc;
-    const rh = fs + lineGap + fs2 + padY * 2;
+    const rh = fs + lineGap + (wm2 ? fs + lineGap : 0) + fs2 + padY * 2;
     const rx = 14 * sc, ry = W - 14 * sc - rh;
     const rw = tw + padX * 2;
     ctx.fillStyle = isLight ? "rgba(0,0,0,0.72)" : "rgba(255,255,255,0.82)";
     pill(ctx, rx, ry, rw, rh, 4 * sc); ctx.fill();
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillStyle = isLight ? "#fff" : "#111";
+    let yOff = ry + padY;
     ctx.font = `bold ${fs}px ${font}`;
-    ctx.fillText(wm1, rx + padX, ry + padY);
+    ctx.fillText(wm1, rx + padX, yOff);
+    yOff += fs + lineGap;
+    if (wm2) {
+      ctx.font = `bold ${fs}px ${font}`;
+      ctx.fillText(wm2, rx + padX, yOff);
+      yOff += fs + lineGap;
+    }
     ctx.font = `${fs2}px ${font}`;
     ctx.globalAlpha = 0.7;
-    ctx.fillText(wm2, rx + padX, ry + padY + fs + lineGap);
+    ctx.fillText(wm3, rx + padX, yOff);
     ctx.globalAlpha = 1.0;
-  }
-
-  // Circle ID (bottom-right, single line, same size as watermark title)
-  if (options.circleId) {
-    const idStr = options.circleId;
-    const idFs = Math.round(13 * sc);
-    ctx.font = `bold ${idFs}px ${font}`;
-    const tw = ctx.measureText(idStr).width;
-    const idPadX = 10 * sc, idPadY = 6 * sc;
-    const idRw = tw + idPadX * 2;
-    const idRh = idFs + idPadY * 2;
-    const idRx = W - 14 * sc - idRw;
-    const idRy = W - 14 * sc - idRh;
-    ctx.fillStyle = isLight ? "rgba(0,0,0,0.72)" : "rgba(255,255,255,0.82)";
-    pill(ctx, idRx, idRy, idRw, idRh, 4 * sc); ctx.fill();
-    ctx.textAlign = "left"; ctx.textBaseline = "top";
-    ctx.fillStyle = isLight ? "#fff" : "#111";
-    ctx.font = `bold ${idFs}px ${font}`;
-    ctx.fillText(idStr, idRx + idPadX, idRy + idPadY);
   }
 
   (canvas as HTMLCanvasElement & { _nodes?: typeof nodeData })._nodes = nodeData;

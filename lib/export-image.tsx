@@ -163,10 +163,12 @@ export function CircleExportImage({
   result,
   style,
   origin,
+  circleId,
 }: {
   result: AnalysisResult;
   style: StyleConfig;
   origin: string;
+  circleId?: string;
 }) {
   const size = IMAGE_SIZE;
   const center = size / 2;
@@ -417,6 +419,7 @@ export function CircleExportImage({
           }}
         >
           <span style={{ fontSize: 24, fontWeight: 700 }}>NekoCircle</span>
+          {circleId ? <span style={{ fontSize: 24, fontWeight: 700 }}>{circleId}</span> : null}
           <span style={{ fontSize: 18, opacity: 0.7, marginTop: 2 }}>circle.catsuki.cc</span>
         </div>
       ) : null}
