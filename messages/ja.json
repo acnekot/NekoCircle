@@ -95,6 +95,8 @@
   "home.footer.by": "by 好奇猫a",
   "home.footer.inspiration": "Yahoo 検索のインスピレーション元",
   "home.footer.contact": "お問い合わせ・フィードバック",
+  "home.footer.source": "ソースコード",
+  "home.footer.license": "本プロジェクトは AGPL-3.0 ライセンスで公開されています",
 
   "yahoo.tag": "Yahoo 検索 · 無料",
   "yahoo.circle": " のサークル",

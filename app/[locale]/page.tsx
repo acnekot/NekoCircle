@@ -321,6 +321,11 @@ export default function HomePage() {
         <div>
           {t("home.footer.contact")} <a href="mailto:acnekot@gmail.com" className="hover:text-gray-500 transition-colors underline underline-offset-2">acnekot@gmail.com</a>
         </div>
+        <div>
+          {t("home.footer.source")} <a href="https://github.com/acnekot/NekoCircle" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors underline underline-offset-2">GitHub</a>
+          <span className="mx-2">·</span>
+          {t("home.footer.license")}
+        </div>
       </footer>
 
     </div>
