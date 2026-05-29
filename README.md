@@ -316,7 +316,7 @@ A: 在 `data/circle.db`，首次启动时自动创建。
 
 ## 📄 License
 
-MIT License
+AGPL-3.0 License
 
 ---
 
