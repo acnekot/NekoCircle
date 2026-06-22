@@ -1,14 +1,21 @@
 import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import {
-  aggregateMentionAuthors,
   aggregateMentionTargets,
   buildYahooAuthorProfileImageMap,
   fetchMentionsBothParallel,
   normalizeScreenName,
   pickSelfProfileImageFromYahoo,
 } from "@/lib/yahoo-realtime-fetch";
+import { fetchBingMentionsSafe } from "@/lib/bing-fetch";
+import {
+  aggregateMergedAuthors,
+  authorAggregateToCountMap,
+  authorSourceMap,
+  mergeMentionTweets,
+} from "@/lib/merge-mentions";
 import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
+import type { CircleUser } from "@/types/circle";
 import { resolveCircleAvatarUrl } from "@/lib/x-profile-image";
 import { initDb, logGeneration, findRecentYahooCircle, createYahooCircle } from "@/lib/db";
 import { randomBytes } from "crypto";
@@ -35,9 +42,38 @@ async function buildYahooPayload(
   name: string,
   buildCircle: boolean,
 ): Promise<Record<string, unknown>> {
-  const { mentionsToYou, mentionsFromYou } = await fetchMentionsBothParallel(name);
+  // Yahoo（主）と Bing（補助）を並列に走らせる。
+  // Yahoo 失敗時でも Bing 結果だけで圏を組成できるよう allSettled を使う。
+  const [yahooSettled, bingSettled] = await Promise.allSettled([
+    fetchMentionsBothParallel(name),
+    fetchBingMentionsSafe(name),
+  ]);
 
-  const authorsToYou = aggregateMentionAuthors(mentionsToYou);
+  let yahooFailed = false;
+  let mentionsToYou: Awaited<ReturnType<typeof fetchMentionsBothParallel>>["mentionsToYou"] = [];
+  let mentionsFromYou: Awaited<ReturnType<typeof fetchMentionsBothParallel>>["mentionsFromYou"] = [];
+  if (yahooSettled.status === "fulfilled") {
+    mentionsToYou = yahooSettled.value.mentionsToYou;
+    mentionsFromYou = yahooSettled.value.mentionsFromYou;
+  } else {
+    yahooFailed = true;
+    console.warn("[yahoo] fetch failed, fallback to Bing only:", (yahooSettled.reason as Error)?.message);
+  }
+
+  const bingEntries =
+    bingSettled.status === "fulfilled" ? bingSettled.value : [];
+
+  if (yahooFailed && bingEntries.length === 0) {
+    // 両方ダメなら諦める（呼び出し側の catch で 502 を返す）
+    throw new Error("both yahoo and bing failed");
+  }
+
+  // tweetId 単位でマージ → 著者単位に集計（source 属性付き）
+  const mergedTweets = mergeMentionTweets(mentionsToYou, bingEntries);
+  const mergedAuthorsAgg = aggregateMergedAuthors(mergedTweets, name);
+  const authorsToYou = authorAggregateToCountMap(mergedAuthorsAgg);
+  const authorsSourceByScreen = authorSourceMap(mergedAuthorsAgg);
+
   const targetsFromYou = aggregateMentionTargets(mentionsFromYou, name);
 
   const payload: Record<string, unknown> = {
@@ -45,17 +81,24 @@ async function buildYahooPayload(
     counts: {
       mentionsToYou: mentionsToYou.length,
       mentionsFromYou: mentionsFromYou.length,
+      bingMentions: bingEntries.length,
+      mergedUniqueTweets: mergedTweets.length,
     },
     aggregates: {
       authorsToYou,
       targetsFromYou,
+      authorsSourceByScreen,
+    },
+    sourceStatus: {
+      yahoo: yahooFailed ? "failed" : "ok",
+      bing: bingSettled.status === "fulfilled" ? "ok" : "failed",
     },
   };
 
   if (buildCircle) {
     const yahooPeerImages = buildYahooAuthorProfileImageMap(mentionsToYou);
     const selfYahoo = pickSelfProfileImageFromYahoo(mentionsFromYou);
-    const [circleUsers, selfHd] = await Promise.all([
+    const [circleUsersRaw, selfHd] = await Promise.all([
       yahooAggregatesToCircleUsers(
         authorsToYou,
         targetsFromYou,
@@ -64,6 +107,12 @@ async function buildYahooPayload(
       ),
       resolveCircleAvatarUrl(name),
     ]);
+    // CircleUser に source 属性を後付け（Bing 由来は 'bing' / 両方は 'both'）
+    const circleUsers: CircleUser[] = circleUsersRaw.map((u) => {
+      const key = u.screenName.toLowerCase();
+      const source = authorsSourceByScreen[key] ?? "yahoo";
+      return { ...u, source };
+    });
     payload.circleUsers = circleUsers;
     if (selfHd?.trim()) payload.selfAvatarUrl = selfHd.trim();
     if (selfYahoo) payload.selfAvatarUrlPreview = selfYahoo;
@@ -76,7 +125,7 @@ function getCachedYahooPayload(name: string, buildCircle: boolean) {
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
-      "yahoo-mentions-v1",
+      "yahoo-mentions-v2",
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],
@@ -154,7 +203,8 @@ export async function GET(req: NextRequest) {
           "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
       },
     });
-  } catch {
+  } catch (e) {
+    console.error("[yahoo-mentions:GET] failed:", e);
     return NextResponse.json(
       { error: "数据获取失败，请稍后重试。" },
       { status: 502 },
@@ -216,7 +266,8 @@ export async function POST(req: Request) {
       } catch { /* non-critical */ }
     }
     return NextResponse.json(payload);
-  } catch {
+  } catch (e) {
+    console.error("[yahoo-mentions:POST] failed:", e);
     return NextResponse.json(
       { error: "数据获取失败，请稍后重试。" },
       { status: 502 },

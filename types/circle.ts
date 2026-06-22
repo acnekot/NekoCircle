@@ -10,6 +10,8 @@ export type CircleUser = {
   interactionScore: number;
   /** 相手との馴れ合い回数（合算）。API から付くときはサイズ計算に使う */
   interactionCount?: number;
+  /** 該当ユーザーのデータソース。'yahoo' | 'bing' | 'both' */
+  source?: "yahoo" | "bing" | "both";
 };
 
 export type SelfProfile = {
