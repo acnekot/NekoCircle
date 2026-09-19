@@ -66,12 +66,12 @@ export type StyleConfig = {
 };
 
 export const DEFAULT_STYLE: StyleConfig = {
-  theme: "dark-blue",
-  bgColor1: "#111827",
-  bgColor2: "#050608",
-  bgGradient: "radial",
-  accentColor: "#0a84ff",
-  nodeScheme: "cool",
+  theme: "dark",
+  bgColor1: "#b2b2b4",
+  bgColor2: "#b2b2b4",
+  bgGradient: "solid",
+  accentColor: "#b2b2b4",
+  nodeScheme: "rainbow",
   nodeSize: "medium",
   showAvatars: true,
   usernameConfig: DEFAULT_USERNAME,
@@ -157,17 +157,18 @@ export function loadStyleConfig(): StyleConfig {
       parsed.usernameConfig = { ...DEFAULT_USERNAME, ...parsed.usernameConfig };
     }
     const base: StyleConfig = { ...DEFAULT_STYLE, ...parsed };
-    // Migrate the previous neutral-gray default to the new technology preset.
-    const legacyNeutral =
-      (base.bgColor1 === "#b2b2b4" && base.bgColor2 === "#b2b2b4") ||
-      (base.bgColor1 === "#071a2c" && base.bgColor2 === "#01050d");
+    // Restore image colors introduced by earlier UI-only redesigns to the
+    // original neutral image background. Website chrome remains independent.
+    const uiRedesignDefault =
+      (base.bgColor1 === "#071a2c" && base.bgColor2 === "#01050d") ||
+      (base.bgColor1 === "#111827" && base.bgColor2 === "#050608");
     return {
       ...base,
       showAvatars: true,
       showWatermark: true,
       showLines: true,
       glowEffect: true,
-      ...(legacyNeutral
+      ...(uiRedesignDefault
         ? {
             theme: DEFAULT_STYLE.theme,
             bgColor1: DEFAULT_STYLE.bgColor1,
