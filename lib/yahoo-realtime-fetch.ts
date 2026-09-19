@@ -3,6 +3,8 @@ import type {
   YahooRealtimeEntry,
 } from "@/types/yahoo-realtime";
 import tls from "node:tls";
+import https from "node:https";
+import { HttpsProxyAgent } from "https-proxy-agent";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { SocksClient } = require("socks") as typeof import("socks");
 
@@ -168,6 +170,43 @@ async function fetchViaSocks5Once(
   return JSON.parse(body) as YahooPaginationResponse;
 }
 
+/** HTTP(S) forward proxy 経由で Yahoo JSON を取得する。 */
+async function fetchViaHttpProxy(
+  urlStr: string,
+  proxyUrl: string,
+): Promise<YahooPaginationResponse> {
+  return new Promise((resolve, reject) => {
+    const request = https.get(
+      urlStr,
+      {
+        headers: YAHOO_HEADERS,
+        agent: new HttpsProxyAgent(proxyUrl),
+        timeout: 30_000,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => {
+          const status = response.statusCode ?? 0;
+          if (status !== 200) {
+            reject(new Error(`Yahoo API HTTP ${status}`));
+            return;
+          }
+          try {
+            resolve(
+              JSON.parse(Buffer.concat(chunks).toString("utf8")) as YahooPaginationResponse,
+            );
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    request.on("timeout", () => request.destroy(new Error("Yahoo proxy timeout")));
+    request.on("error", reject);
+  });
+}
+
 async function fetchPaginationJson(
   p: string,
   opts: {
@@ -183,12 +222,45 @@ async function fetchPaginationJson(
     process.env.HTTP_PROXY ||
     process.env.http_proxy;
 
+  const yahooProxy = process.env.YAHOO_PROXY?.trim().replace(/\/$/, "");
+
   if (proxyUrl && /^socks/i.test(proxyUrl)) {
     const u = new URL(proxyUrl);
     return fetchViaSocks5(url, u.hostname, parseInt(u.port, 10));
   }
 
-  const res = await fetch(url, { headers: YAHOO_HEADERS, cache: "no-store" });
+  if (proxyUrl && /^https?:/i.test(proxyUrl)) {
+    return fetchViaHttpProxy(url, proxyUrl);
+  }
+
+  if (yahooProxy?.startsWith("http://")) {
+    return fetchViaHttpProxy(url, yahooProxy);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: YAHOO_HEADERS, cache: "no-store" });
+  } catch (error) {
+    if (yahooProxy?.startsWith("https://")) {
+      const relayUrl = `${yahooProxy}/pagination?${buildSearchParams(p, opts)}`;
+      const relayRes = await fetch(relayUrl, {
+        headers: YAHOO_HEADERS,
+        cache: "no-store",
+      });
+      if (!relayRes.ok) throw new Error(`Yahoo relay HTTP ${relayRes.status}`);
+      return relayRes.json() as Promise<YahooPaginationResponse>;
+    }
+    throw error;
+  }
+  if (!res.ok && yahooProxy?.startsWith("https://")) {
+    const relayRes = await fetch(
+      `${yahooProxy}/pagination?${buildSearchParams(p, opts)}`,
+      { headers: YAHOO_HEADERS, cache: "no-store" },
+    );
+    if (relayRes.ok) {
+      return relayRes.json() as Promise<YahooPaginationResponse>;
+    }
+  }
   if (!res.ok) {
     throw new Error(`Yahoo API HTTP ${res.status} (${url.slice(0, 120)}…)`);
   }

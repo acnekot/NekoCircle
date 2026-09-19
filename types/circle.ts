@@ -23,7 +23,20 @@ export type SelfProfile = {
   avatarUrl?: string;
   /** あなたへの＋あなたからのメンション件数の合計（表示期間内） */
   mentionTotal?: number;
+  /** fxtwitter から取得したプロフィール統計 */
+  profileFollowers?: number;
+  profileFollowing?: number;
+  profileTweets?: number;
+  profileLikes?: number;
+  profileJoinedAt?: string;
 };
+
+export type FamilyRelationType =
+  | "partner"
+  | "parent"
+  | "sibling"
+  | "child"
+  | "relative";
 
 /** グリッド上の相手ユーザー1件（位置は canvas 側で行列から決定） */
 export type CircleLayoutSlot = {

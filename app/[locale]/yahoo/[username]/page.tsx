@@ -6,13 +6,16 @@ import CircleChart, { renderToCanvas } from "@/components/CircleChart";
 import StylePanel from "@/components/StylePanel";
 import FindYourself from "@/components/FindYourself";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import FamilyTree from "@/components/FamilyTree";
+import AIDiagnosisPanel from "@/components/AIDiagnosisPanel";
+import AccountValuePanel from "@/components/AccountValuePanel";
 import { DEFAULT_STYLE, loadStyleConfig, saveStyleConfig, type StyleConfig } from "@/lib/style";
 import type { CircleUser, SelfProfile } from "@/types/circle";
 import { yahooToAnalysisResult } from "@/lib/circle-convert";
 import { readYahooCircleCache, writeYahooCircleCache } from "@/lib/yahoo-client-cache";
 import { useTranslation } from "@/components/LocaleProvider";
 
-type Tab = "circle" | "list";
+type Tab = "circle" | "list" | "family" | "ai" | "value";
 
 type YahooMentionsResponse = {
   screenName: string;
@@ -20,6 +23,11 @@ type YahooMentionsResponse = {
   circleUsers?: CircleUser[];
   selfAvatarUrl?: string;
   selfAvatarUrlPreview?: string;
+  profileFollowers?: number;
+  profileFollowing?: number;
+  profileTweets?: number;
+  profileLikes?: number;
+  profileJoinedAt?: string;
   circleId?: string;
   createdAt?: number;
   error?: string;
@@ -62,6 +70,11 @@ export default function YahooCirclePage() {
         avatarUrl: cached.selfAvatarUrl,
         avatarUrlPreview: cached.selfAvatarUrlPreview,
         mentionTotal: cached.counts.mentionsToYou + cached.counts.mentionsFromYou,
+        profileFollowers: cached.profileFollowers,
+        profileFollowing: cached.profileFollowing,
+        profileTweets: cached.profileTweets,
+        profileLikes: cached.profileLikes,
+        profileJoinedAt: cached.profileJoinedAt,
       });
       if (cached.circleId) setCircleId(cached.circleId);
       if (cached.createdAt) setCreatedAt(cached.createdAt);
@@ -84,6 +97,11 @@ export default function YahooCirclePage() {
           avatarUrl: data.selfAvatarUrl,
           avatarUrlPreview: data.selfAvatarUrlPreview,
           mentionTotal: data.counts.mentionsToYou + data.counts.mentionsFromYou,
+          profileFollowers: data.profileFollowers,
+          profileFollowing: data.profileFollowing,
+          profileTweets: data.profileTweets,
+          profileLikes: data.profileLikes,
+          profileJoinedAt: data.profileJoinedAt,
         });
         if (data.circleId) setCircleId(data.circleId);
         if (data.createdAt) setCreatedAt(data.createdAt);
@@ -93,6 +111,11 @@ export default function YahooCirclePage() {
           circleUsers: data.circleUsers,
           selfAvatarUrl: data.selfAvatarUrl,
           selfAvatarUrlPreview: data.selfAvatarUrlPreview,
+          profileFollowers: data.profileFollowers,
+          profileFollowing: data.profileFollowing,
+          profileTweets: data.profileTweets,
+          profileLikes: data.profileLikes,
+          profileJoinedAt: data.profileJoinedAt,
           circleId: data.circleId,
           createdAt: data.createdAt,
         });
@@ -135,19 +158,19 @@ export default function YahooCirclePage() {
 
   return (
     <div
-      className="gradient-bg min-h-screen py-8 px-4"
+      className="gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
       style={bgAccent ? {
         background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}28 0%, transparent 55%), radial-gradient(ellipse at top, #1a2744 0%, #0a0f1e 60%)`
       } : undefined}
     >
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <a href={`/${locale}`} className="text-gray-500 hover:text-white transition-colors text-sm">{t("common.backHome")}</a>
+        <div className="tech-panel rounded-2xl flex items-center gap-4 mb-6 px-4 sm:px-5 py-4">
+          <a href={`/${locale}`} className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-500 hover:text-cyan-200 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 font-medium">
+              <span className="hud-label px-2 py-1 rounded-md bg-cyan-400/[0.07] border border-cyan-300/15">
                 {t("yahoo.tag")}
               </span>
               {circleId && (
@@ -165,7 +188,7 @@ export default function YahooCirclePage() {
                 </button>
               )}
             </div>
-            <h1 className="text-2xl font-bold text-white">
+            <h1 className="tech-title text-2xl sm:text-3xl font-bold text-white">
               @{username}
               <span className="text-gray-400 font-normal text-base ml-2">{t("yahoo.circle")}</span>
             </h1>
@@ -209,10 +232,10 @@ export default function YahooCirclePage() {
 
         {/* Result */}
         {!loading && !error && displayedResult && (
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="result-layout">
 
             {/* Left: style panel */}
-            <div className="lg:w-72 shrink-0 space-y-3">
+            <div className="result-sidebar space-y-3">
               <StylePanel
                 value={styleConfig}
                 onChange={handleStyleChange}
@@ -271,24 +294,30 @@ export default function YahooCirclePage() {
             </div>
 
             {/* Right: Circle + List tabs */}
-            <div className="flex-1 min-w-0">
+            <div className="result-main">
 
               {/* Tab bar */}
-              <div className="flex gap-1 mb-3">
-                {([["circle", t("yahoo.tabCircle")], ["list", t("yahoo.tabList")]] as [Tab, string][]).map(([tab, label]) => (
+              <div className="tech-tabs flex flex-wrap gap-1 mb-4">
+                {([
+                  ["circle", t("yahoo.tabCircle")],
+                  ["list", t("yahoo.tabList")],
+                  ["family", t("extras.tabFamily")],
+                  ["ai", t("extras.tabAI")],
+                  ["value", t("extras.tabValue")],
+                ] as [Tab, string][]).map(([tab, label]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       activeTab === tab
-                        ? "bg-[#1d9bf0] text-white"
-                        : "bg-white/5 text-gray-400 hover:bg-white/10"
+                        ? "bg-[#0a84ff]/20 text-white border border-[#0a84ff]/25"
+                        : "border border-transparent text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}
                   >{label}</button>
                 ))}
               </div>
 
               {activeTab === "circle" && (
-                <div className="card rounded-2xl p-4 flex justify-center overflow-x-auto">
+                <div className="card tech-display-frame rounded-2xl p-3 sm:p-5 flex justify-center overflow-x-auto">
                   <CircleChart
                     result={displayedResult}
                     style={styleConfig}
@@ -299,7 +328,7 @@ export default function YahooCirclePage() {
               )}
 
               {activeTab === "list" && (
-                <div className="card rounded-2xl overflow-hidden">
+                <div className="card tech-display-frame rounded-2xl overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -336,6 +365,12 @@ export default function YahooCirclePage() {
                   </div>
                 </div>
               )}
+
+              {activeTab === "family" && <FamilyTree self={self} users={users} />}
+
+              {activeTab === "ai" && <AIDiagnosisPanel self={self} users={users} />}
+
+              {activeTab === "value" && <AccountValuePanel self={self} users={users} />}
 
             </div>
           </div>

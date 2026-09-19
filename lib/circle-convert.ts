@@ -103,6 +103,7 @@ export function parseYahooCircleData(dataStr: string): {
   analysisResult: AnalysisResult;
   circleUsers: CircleUser[];
   counts: { toYou: number; fromYou: number };
+  self: SelfProfile;
   selfAvatarUrl?: string;
   selfAvatarUrlPreview?: string;
   screenName: string;
@@ -119,11 +120,18 @@ export function parseYahooCircleData(dataStr: string): {
     displayName: screenName,
     avatarUrl: data.selfAvatarUrl,
     avatarUrlPreview: data.selfAvatarUrlPreview,
+    mentionTotal: counts.toYou + counts.fromYou,
+    profileFollowers: data.profileFollowers,
+    profileFollowing: data.profileFollowing,
+    profileTweets: data.profileTweets,
+    profileLikes: data.profileLikes,
+    profileJoinedAt: data.profileJoinedAt,
   };
   return {
     analysisResult: yahooToAnalysisResult(self, circleUsers, counts),
     circleUsers,
     counts,
+    self,
     selfAvatarUrl: data.selfAvatarUrl,
     selfAvatarUrlPreview: data.selfAvatarUrlPreview,
     screenName,

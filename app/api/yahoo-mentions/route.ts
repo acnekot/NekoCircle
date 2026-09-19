@@ -16,7 +16,7 @@ import {
 } from "@/lib/merge-mentions";
 import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
 import type { CircleUser } from "@/types/circle";
-import { resolveCircleAvatarUrl } from "@/lib/x-profile-image";
+import { resolveCircleAvatarUrl, resolveProfileData } from "@/lib/x-profile-image";
 import { initDb, logGeneration, findRecentYahooCircle, createYahooCircle } from "@/lib/db";
 import { randomBytes } from "crypto";
 
@@ -98,7 +98,7 @@ async function buildYahooPayload(
   if (buildCircle) {
     const yahooPeerImages = buildYahooAuthorProfileImageMap(mentionsToYou);
     const selfYahoo = pickSelfProfileImageFromYahoo(mentionsFromYou);
-    const [circleUsersRaw, selfHd] = await Promise.all([
+    const [circleUsersRaw, selfHd, profileData] = await Promise.all([
       yahooAggregatesToCircleUsers(
         authorsToYou,
         targetsFromYou,
@@ -106,6 +106,7 @@ async function buildYahooPayload(
         yahooPeerImages,
       ),
       resolveCircleAvatarUrl(name),
+      resolveProfileData(name),
     ]);
     // CircleUser に source 属性を後付け（Bing 由来は 'bing' / 両方は 'both'）
     const circleUsers: CircleUser[] = circleUsersRaw.map((u) => {
@@ -116,6 +117,13 @@ async function buildYahooPayload(
     payload.circleUsers = circleUsers;
     if (selfHd?.trim()) payload.selfAvatarUrl = selfHd.trim();
     if (selfYahoo) payload.selfAvatarUrlPreview = selfYahoo;
+    if (profileData) {
+      payload.profileFollowers = profileData.followers;
+      payload.profileFollowing = profileData.following;
+      payload.profileTweets = profileData.tweets;
+      payload.profileLikes = profileData.likes;
+      payload.profileJoinedAt = profileData.joinedAt;
+    }
   }
 
   return payload;

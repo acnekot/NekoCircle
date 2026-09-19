@@ -18,7 +18,7 @@ const MOCK_USERS = [
 ];
 
 const SIZE      = 460;
-const ACCENT    = "#b2b2b4";
+const ACCENT    = "#64d2ff";
 const SHOW_TEXT = 3500;
 const FADE_IN   = 900;
 const SHOW_AVT  = 4500;
@@ -98,8 +98,6 @@ export default function DemoCircle() {
     const dpr = window.devicePixelRatio || 1;
     canvas.width  = SIZE * dpr;
     canvas.height = SIZE * dpr;
-    canvas.style.width  = `${SIZE}px`;
-    canvas.style.height = `${SIZE}px`;
     const ctx = canvas.getContext("2d")!;
     ctx.scale(dpr, dpr);
     const cx = SIZE / 2, cy = SIZE / 2;
@@ -118,8 +116,15 @@ export default function DemoCircle() {
 
     // Background — transparent (no fill)
 
-    // Orbit lines — hidden per user preference
-    // for (const { R } of rings) { ... }
+    // Soft orbit guides keep the topology readable without visual noise.
+    for (const { R } of rings) {
+      bx.beginPath();
+      bx.arc(cx, cy, R, 0, Math.PI * 2);
+      bx.strokeStyle = "rgba(255,255,255,0.055)";
+      bx.lineWidth = 0.8;
+      bx.stroke();
+    }
+    bx.setLineDash([]);
 
     // Nodes — same rendering as CircleChart ring nodes
     const ANGLE_OFFSETS = [
@@ -236,7 +241,8 @@ export default function DemoCircle() {
     <canvas
       ref={canvasRef}
       onClick={() => { if (showingAvatar.current) window.open("https://x.com/acnekot", "_blank", "noopener"); }}
-      style={{ filter: "drop-shadow(0 0 40px rgba(29,155,240,0.15))" }}
+      className="w-full max-w-[460px] aspect-square"
+      style={{ filter: "drop-shadow(0 16px 36px rgba(0,0,0,0.24))" }}
       title="@acnekot"
     />
   );

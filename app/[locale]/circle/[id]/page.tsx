@@ -6,9 +6,12 @@ import CircleChart, { renderToCanvas } from "@/components/CircleChart";
 import StylePanel from "@/components/StylePanel";
 import FindYourself from "@/components/FindYourself";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import FamilyTree from "@/components/FamilyTree";
+import AIDiagnosisPanel from "@/components/AIDiagnosisPanel";
+import AccountValuePanel from "@/components/AccountValuePanel";
 import { DEFAULT_STYLE, loadStyleConfig, saveStyleConfig, type StyleConfig } from "@/lib/style";
 import type { AnalysisResult } from "@/lib/circle-convert";
-import type { CircleUser } from "@/types/circle";
+import type { CircleUser, SelfProfile } from "@/types/circle";
 import { parseYahooCircleData } from "@/lib/circle-convert";
 import { useTranslation } from "@/components/LocaleProvider";
 
@@ -20,7 +23,7 @@ type UnifiedCircle = {
   data: string;
 };
 
-type Tab = "circle" | "list";
+type Tab = "circle" | "list" | "family" | "ai" | "value";
 
 export default function CirclePreviewPage() {
   const params = useParams();
@@ -30,6 +33,7 @@ export default function CirclePreviewPage() {
   const [circle, setCircle] = useState<UnifiedCircle | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [circleUsers, setCircleUsers] = useState<CircleUser[]>([]);
+  const [self, setSelf] = useState<SelfProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [styleConfig, setStyleConfig] = useState<StyleConfig>(DEFAULT_STYLE);
@@ -51,9 +55,10 @@ export default function CirclePreviewPage() {
       })
       .then((data: UnifiedCircle) => {
         setCircle(data);
-        const { analysisResult, circleUsers: cu } = parseYahooCircleData(data.data);
+        const { analysisResult, circleUsers: cu, self: parsedSelf } = parseYahooCircleData(data.data);
         setResult(analysisResult);
         setCircleUsers(cu);
+        setSelf(parsedSelf);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : t("circle.error")))
       .finally(() => setLoading(false));
@@ -86,20 +91,20 @@ export default function CirclePreviewPage() {
 
   return (
     <div
-      className="gradient-bg min-h-screen py-8 px-4"
+      className="gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
       style={bgAccent ? {
         background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}28 0%, transparent 55%), radial-gradient(ellipse at top, #1a2744 0%, #0a0f1e 60%)`
       } : undefined}
     >
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <a href={`/${locale}`} className="text-gray-500 hover:text-white transition-colors text-sm">{t("common.backHome")}</a>
+        <div className="tech-panel rounded-2xl flex items-center gap-4 mb-6 px-4 sm:px-5 py-4">
+          <a href={`/${locale}`} className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-500 hover:text-cyan-200 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
           {circle && (
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-green-500/20 border-green-500/30 text-green-400">
+                <span className="hud-label px-2 py-1 rounded-md bg-cyan-400/[0.07] border border-cyan-300/15">
                   {t("circle.tag")}
                 </span>
                 <button
@@ -115,7 +120,7 @@ export default function CirclePreviewPage() {
                   )}
                 </button>
               </div>
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className="tech-title text-2xl sm:text-3xl font-bold text-white">
                 @{circle.username}
                 <span className="text-gray-400 font-normal text-base ml-2">{t("circle.circle")}</span>
               </h1>
@@ -150,10 +155,10 @@ export default function CirclePreviewPage() {
 
         {/* Result */}
         {!loading && !error && result && (
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="result-layout">
 
             {/* Left: style panel */}
-            <div className="lg:w-72 shrink-0 space-y-3">
+            <div className="result-sidebar space-y-3">
               <StylePanel
                 value={styleConfig}
                 onChange={handleStyleChange}
@@ -196,23 +201,29 @@ export default function CirclePreviewPage() {
             </div>
 
             {/* Right: Circle + List tabs */}
-            <div className="flex-1 min-w-0">
+            <div className="result-main">
               {/* Tab bar */}
-              <div className="flex gap-1 mb-3">
-                {([["circle", t("circle.tabCircle")], ["list", t("circle.tabList")]] as [Tab, string][]).map(([tab, label]) => (
+              <div className="tech-tabs flex flex-wrap gap-1 mb-4">
+                {([
+                  ["circle", t("circle.tabCircle")],
+                  ["list", t("circle.tabList")],
+                  ["family", t("extras.tabFamily")],
+                  ["ai", t("extras.tabAI")],
+                  ["value", t("extras.tabValue")],
+                ] as [Tab, string][]).map(([tab, label]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       activeTab === tab
-                        ? "bg-[#1d9bf0] text-white"
-                        : "bg-white/5 text-gray-400 hover:bg-white/10"
+                        ? "bg-[#0a84ff]/20 text-white border border-[#0a84ff]/25"
+                        : "border border-transparent text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}
                   >{label}</button>
                 ))}
               </div>
 
               {activeTab === "circle" && (
-                <div className="card rounded-2xl p-4 flex justify-center overflow-x-auto">
+                <div className="card tech-display-frame rounded-2xl p-3 sm:p-5 flex justify-center overflow-x-auto">
                   <CircleChart
                     result={result}
                     style={styleConfig}
@@ -223,7 +234,7 @@ export default function CirclePreviewPage() {
               )}
 
               {activeTab === "list" && (
-                <div className="card rounded-2xl overflow-hidden">
+                <div className="card tech-display-frame rounded-2xl overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -259,6 +270,18 @@ export default function CirclePreviewPage() {
                     </table>
                   </div>
                 </div>
+              )}
+
+              {activeTab === "family" && self && (
+                <FamilyTree self={self} users={circleUsers} />
+              )}
+
+              {activeTab === "ai" && self && (
+                <AIDiagnosisPanel self={self} users={circleUsers} />
+              )}
+
+              {activeTab === "value" && self && (
+                <AccountValuePanel self={self} users={circleUsers} />
               )}
             </div>
           </div>
