@@ -99,7 +99,12 @@ function getCachedYahooData(name: string) {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
-  const origin = req.nextUrl.origin;
+  // Satori（next/og）は <img src> をこのプロセス自身に取りに行く。
+  // トンネル経由だと req.nextUrl.origin は "https://localhost:3000" になる
+  // （scheme は X-Forwarded-Proto、host は localhost 固定）が、loopback の 3000 番に
+  // TLS リスナーは無いため取得が全て失敗し、公開 OG 画像だけアバターが欠けていた。
+  // 自分自身への参照は常に loopback に固定する。
+  const origin = `http://127.0.0.1:${req.nextUrl.port || process.env.PORT || 3000}`;
 
   let result: AnalysisResult | null = null;
 
