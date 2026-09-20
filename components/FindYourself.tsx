@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AvatarImage from "@/components/AvatarImage";
 import type { InteractionUser } from "@/lib/circle-convert";
 import { useTranslation } from "@/components/LocaleProvider";
 
@@ -83,17 +84,12 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-700 overflow-hidden shrink-0">
-                  {searchResult.user.user.profilePicture ? (
-                    <img
-                      src={searchResult.user.user.profilePicture}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-400">
-                      {searchResult.user.user.userName[0]?.toUpperCase()}
-                    </div>
-                  )}
+                  <AvatarImage
+                    hdUrl={searchResult.user.user.profilePicture}
+                    name={searchResult.user.user.userName}
+                    imgClassName="w-full h-full object-cover"
+                    fallbackClassName="w-full h-full flex items-center justify-center text-sm font-bold text-gray-400"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-white text-sm truncate">

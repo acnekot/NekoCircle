@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "@/components/LocaleProvider";
+import AvatarImage from "@/components/AvatarImage";
 import { buildFamilyGroups } from "@/lib/family-tree";
 import type { CircleUser, FamilyRelationType, SelfProfile } from "@/types/circle";
 
@@ -16,7 +17,6 @@ const RELATION_KEYS: Record<FamilyRelationType, string> = {
 };
 
 function Avatar({ user }: { user: CircleUser }) {
-  const src = user.avatarUrlPreview ?? user.avatarUrl;
   return (
     <a
       href={`https://x.com/${user.screenName}`}
@@ -26,13 +26,13 @@ function Avatar({ user }: { user: CircleUser }) {
       title={`@${user.screenName}`}
     >
       <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/15 bg-gray-800 group-hover:border-[#1d9bf0] transition-colors">
-        {src ? (
-          <img src={src} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="w-full h-full flex items-center justify-center font-bold text-gray-400">
-            {user.screenName[0]?.toUpperCase()}
-          </span>
-        )}
+        <AvatarImage
+          previewUrl={user.avatarUrlPreview}
+          hdUrl={user.avatarUrl}
+          name={user.screenName}
+          imgClassName="w-full h-full object-cover"
+          fallbackClassName="w-full h-full flex items-center justify-center font-bold text-gray-400"
+        />
       </div>
       <span className="max-w-24 truncate text-[11px] text-gray-400 group-hover:text-[#1d9bf0]">
         @{user.screenName}
@@ -44,7 +44,6 @@ function Avatar({ user }: { user: CircleUser }) {
 export default function FamilyTree({ self, users }: Props) {
   const { t } = useTranslation();
   const groups = useMemo(() => buildFamilyGroups(users), [users]);
-  const selfSrc = self.avatarUrlPreview ?? self.avatarUrl;
 
   return (
     <div className="card rounded-2xl p-5">
@@ -64,13 +63,13 @@ export default function FamilyTree({ self, users }: Props) {
                 {group.relation === "partner" && (
                   <div className="flex flex-col items-center gap-1.5 min-w-16">
                     <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#1d9bf0] bg-gray-800">
-                      {selfSrc ? (
-                        <img src={selfSrc} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="w-full h-full flex items-center justify-center font-bold text-white">
-                          {self.screenName[0]?.toUpperCase()}
-                        </span>
-                      )}
+                      <AvatarImage
+                        previewUrl={self.avatarUrlPreview}
+                        hdUrl={self.avatarUrl}
+                        name={self.screenName}
+                        imgClassName="w-full h-full object-cover"
+                        fallbackClassName="w-full h-full flex items-center justify-center font-bold text-white"
+                      />
                     </div>
                     <span className="max-w-24 truncate text-[11px] text-[#1d9bf0]">@{self.screenName}</span>
                   </div>

@@ -7,6 +7,7 @@ import StylePanel from "@/components/StylePanel";
 import FindYourself from "@/components/FindYourself";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import FamilyTree from "@/components/FamilyTree";
+import AvatarImage from "@/components/AvatarImage";
 import AIDiagnosisPanel from "@/components/AIDiagnosisPanel";
 import AccountValuePanel from "@/components/AccountValuePanel";
 import { DEFAULT_STYLE, loadStyleConfig, saveStyleConfig, type StyleConfig } from "@/lib/style";
@@ -252,10 +253,12 @@ export default function CirclePreviewPage() {
                               <a href={`https://x.com/${item.user.userName}`} target="_blank" rel="noopener noreferrer"
                                 className="flex items-center gap-3 hover:text-[#1d9bf0] transition-colors">
                                 <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden shrink-0">
-                                  {item.user.profilePicture
-                                    ? <img src={item.user.profilePicture} alt="" className="w-full h-full object-cover" />
-                                    : <div className="w-full h-full flex items-center justify-center text-xs font-bold">{item.user.userName[0]?.toUpperCase()}</div>
-                                  }
+                                  <AvatarImage
+                                    hdUrl={item.user.profilePicture}
+                                    name={item.user.userName}
+                                    imgClassName="w-full h-full object-cover"
+                                    fallbackClassName="w-full h-full flex items-center justify-center text-xs font-bold"
+                                  />
                                 </div>
                                 <div>
                                   <div className="font-medium text-sm">{item.user.name}</div>
