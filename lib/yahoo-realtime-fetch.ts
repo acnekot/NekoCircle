@@ -50,7 +50,19 @@ export function pickSelfProfileImageFromYahoo(
 
 const YAHOO_RT = "https://search.yahoo.co.jp/realtime/api/v1/pagination";
 export const RESULTS_PER_PAGE = 40;
-export const MAX_START_PARALLEL_PAGES = 100;
+/**
+ * 每个方向最多抓取的页数（每页 40 条）。
+ *
+ * 原先固定 100 页：无论账号有多少提及，每次生成都会向 Yahoo 发出约 200 个请求
+ * （双向各 100 页），即使只有几十条提及的账号也一样，极易触发 Yahoo 按 IP 限流。
+ * 实测常见账号的提及量在数十条量级，20 页（每方向 800 条）已足够覆盖。
+ * 可用环境变量 YAHOO_MAX_PAGES 覆盖（1..100）。
+ */
+export const MAX_START_PARALLEL_PAGES = (() => {
+  const n = Number(process.env.YAHOO_MAX_PAGES ?? 20);
+  if (!Number.isFinite(n) || n < 1) return 20;
+  return Math.min(Math.floor(n), 100);
+})();
 /** socks5 代理下降低并发，防止连接池耗尽导致超时 */
 const YAHOO_PARALLEL_CHUNK = 8;
 
@@ -276,26 +288,65 @@ export async function fetchByStartParallel(
   options: { md?: string; maxPages?: number } = {},
 ): Promise<YahooRealtimeEntry[]> {
   const maxPages = options.maxPages ?? MAX_START_PARALLEL_PAGES;
-  const starts = Array.from(
-    { length: maxPages },
-    (_, i) => i * RESULTS_PER_PAGE + 1,
-  );
 
   const flat: YahooRealtimeEntry[][] = [];
-  for (let i = 0; i < starts.length; i += YAHOO_PARALLEL_CHUNK) {
-    const chunk = starts.slice(i, i + YAHOO_PARALLEL_CHUNK);
-    const part = await Promise.all(
-      chunk.map((start) =>
-        fetchPaginationJson(p, { start, md: options.md }).then(getEntries),
-      ),
+  let fetchedPages = 0;
+  let totalAvailable: number | undefined;
+
+  // 先单独取第 1 页：响应里的 head.totalResultsAvailable 直接给出总条数，
+  // 据此可知还要几页。若一上来就并发整块（8 页），小账号会白白多打 7 个请求，
+  // 而这类"注定为空"的请求正是触发 Yahoo 按 IP 限流的主因。
+  const first = await fetchPaginationJson(p, { start: 1, md: options.md });
+  flat.push(getEntries(first));
+  fetchedPages = 1;
+  {
+    const total = first.timeline?.head?.totalResultsAvailable;
+    if (typeof total === "number" && Number.isFinite(total)) {
+      totalAvailable = total;
+    }
+  }
+
+  const neededPages = () =>
+    totalAvailable === undefined
+      ? maxPages
+      : Math.max(1, Math.ceil(totalAvailable / RESULTS_PER_PAGE));
+
+  while (fetchedPages < maxPages) {
+    const want = Math.min(neededPages(), maxPages);
+    if (fetchedPages >= want) break;
+
+    const size = Math.min(YAHOO_PARALLEL_CHUNK, want - fetchedPages);
+    const starts = Array.from(
+      { length: size },
+      (_, i) => (fetchedPages + i) * RESULTS_PER_PAGE + 1,
     );
-    flat.push(...part);
+    const part = await Promise.all(
+      starts.map((start) => fetchPaginationJson(p, { start, md: options.md })),
+    );
+    fetchedPages += size;
+
+    for (const res of part) {
+      if (totalAvailable === undefined) {
+        const total = res.timeline?.head?.totalResultsAvailable;
+        if (typeof total === "number" && Number.isFinite(total)) {
+          totalAvailable = total;
+        }
+      }
+      flat.push(getEntries(res));
+    }
+
+    // 整块为空说明已到时间线末端。
+    if (part.every((res) => getEntries(res).length === 0)) break;
   }
 
   const byId = new Map<string, YahooRealtimeEntry>();
   for (const entry of flat.flat()) {
     if (entry?.id && !byId.has(entry.id)) byId.set(entry.id, entry);
   }
+  // 观测点：每次抓取的页数/总量。此前无法看到请求规模，正是限流问题的盲区。
+  console.error(
+    `[yahoo-fetch] p=${p} pages=${fetchedPages} total=${totalAvailable ?? "?"} entries=${byId.size}`,
+  );
   return [...byId.values()];
 }
 

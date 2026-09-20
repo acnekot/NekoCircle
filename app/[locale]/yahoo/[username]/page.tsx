@@ -86,7 +86,15 @@ export default function YahooCirclePage() {
     setError("");
     const q = new URLSearchParams({ screenName: name, buildCircle: "1" });
     fetch(`/api/yahoo-mentions?${q.toString()}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        const ct = r.headers.get("content-type") ?? "";
+        if (!ct.includes("application/json")) {
+          // 数据源异常时边缘节点可能返回 HTML 错误页，直接 r.json() 会抛出
+          // "Unexpected token '<'" 这类内部错误，这里统一转成可读提示。
+          throw new Error(t("yahoo.dataFailed"));
+        }
+        return r.json();
+      })
       .then((data: YahooMentionsResponse) => {
         if (data.error) { setError(data.error); return; }
         setCounts({ toYou: data.counts.mentionsToYou, fromYou: data.counts.mentionsFromYou });

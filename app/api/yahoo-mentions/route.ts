@@ -141,6 +141,30 @@ function getCachedYahooPayload(name: string, buildCircle: boolean) {
   )();
 }
 
+/**
+ * 数据源不可用（被限流/拦截）时的兜底：返回该用户最近一次成功生成的结果，
+ * 不限时效，并带上 stale 标记。总比直接报错好。
+ */
+function staleFallback(name: string): NextResponse | null {
+  try {
+    initDb();
+    const row = findRecentYahooCircle(name, Number.MAX_SAFE_INTEGER);
+    if (!row) return null;
+    const cached = JSON.parse(row.circle_data);
+    return NextResponse.json(
+      { ...cached, circleId: row.id, createdAt: row.created_at, stale: true },
+      {
+        headers: {
+          "Cache-Control":
+            "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
+        },
+      },
+    );
+  } catch {
+    return null;
+  }
+}
+
 function parseBuildCircle(searchParams: URLSearchParams, body?: Body): boolean {
   if (body) return body.buildCircle === true;
   const v = searchParams.get("buildCircle");
@@ -213,6 +237,8 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     console.error("[yahoo-mentions:GET] failed:", e);
+    const stale = staleFallback(name);
+    if (stale) return stale;
     return NextResponse.json(
       { error: "数据获取失败，请稍后重试。" },
       { status: 502 },
