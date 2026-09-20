@@ -4,26 +4,26 @@ import { useState } from "react";
 import { proxiedImageSrc } from "@/lib/proxied-image-src";
 
 type Props = {
-  /** Yahoo の profileImage（小さめ・壊れていることがある） */
+  /** Yahoo 的 profileImage（尺寸小，且可能是坏的） */
   previewUrl?: string | null;
-  /** FixTweet 経由の高解像度アイコン */
+  /** 经 FixTweet 解析出的高清头像 */
   hdUrl?: string | null;
-  /** 頭文字フォールバックに使うユーザー名 */
+  /** 首字母兜底用的用户名 */
   name: string;
   imgClassName?: string;
   fallbackClassName?: string;
 };
 
 /**
- * SNS アイコン。
+ * SNS 头像。
  *
- * Yahoo の profileImage（rts-pctr.c.yimg.jp）は、存在しないアイコンに対して
- * 404 ではなく「グレーのプレースホルダ画像を 200 で返す」ことがある。
- * 素の <img> でこれを読むと onError が発火せず、グレー円のまま固まってしまう。
+ * Yahoo 的 profileImage（rts-pctr.c.yimg.jp）对不存在的头像**不是返回 404**，
+ * 而是「用 200 返回一张灰色占位图」。用裸 <img> 读它时 onError 不会触发，
+ * 于是界面就定格在灰色圆圈上（实测浏览器事件：404+HTML → onerror；
+ * 404+PNG → onload，naturalWidth=144）。
  *
- * 同一オリジンの /api/image-proxy を経由すると、サーバー側は本当の 404 を
- * 受け取るので、こちらの onError が確実に発火する。
- * そこで preview → HD → 頭文字 の順に落としていく。
+ * 改走同源的 /api/image-proxy：服务端能拿到真正的 404，返回非图片响应，
+ * 这样前端的 onError 才会可靠触发。于是可以按 preview → HD → 首字母 逐级回退。
  */
 export default function AvatarImage({
   previewUrl,

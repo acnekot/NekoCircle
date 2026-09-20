@@ -1,4 +1,4 @@
-/** `/api/image-proxy` で通す外部画像ホスト判定（canvas 用） */
+/** `/api/image-proxy` 放行的外部图片 host 判定（供 canvas 使用） */
 
 const BASE = new Set(["pbs.twimg.com", "abs.twimg.com"]);
 

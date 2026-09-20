@@ -99,11 +99,11 @@ function getCachedYahooData(name: string) {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
-  // Satori（next/og）は <img src> をこのプロセス自身に取りに行く。
-  // トンネル経由だと req.nextUrl.origin は "https://localhost:3000" になる
-  // （scheme は X-Forwarded-Proto、host は localhost 固定）が、loopback の 3000 番に
-  // TLS リスナーは無いため取得が全て失敗し、公開 OG 画像だけアバターが欠けていた。
-  // 自分自身への参照は常に loopback に固定する。
+  // Satori（next/og）会自己去这个进程取 <img src>。
+  // 走隧道时 req.nextUrl.origin 是 "https://localhost:3000"（scheme 取自
+  // X-Forwarded-Proto，host 被固定成 localhost），而 loopback 的 3000 端口上
+  // 没有 TLS 监听，于是取图全部失败 —— 表现为「公开的 OG 图没有头像」，
+  // 本地直连却正常（因为那是 http）。所以对自身的引用一律固定走 loopback。
   const origin = `http://127.0.0.1:${req.nextUrl.port || process.env.PORT || 3000}`;
 
   let result: AnalysisResult | null = null;
