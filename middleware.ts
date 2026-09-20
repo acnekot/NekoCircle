@@ -22,6 +22,19 @@ function detectLocale(req: NextRequest): Locale {
   return DEFAULT_LOCALE;
 }
 
+/* ────────────── Public origin ──────────────── */
+// Next builds `req.url` from the address the server is bound to (127.0.0.1:3000),
+// not from the incoming Host header, so a redirect based on `req.url` leaks
+// `localhost` to public visitors behind the Cloudflare tunnel. Prefer the
+// forwarded host/proto that the tunnel sets, and fall back to Host, then req.url.
+function originOf(req: NextRequest): string {
+  const fwdHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = fwdHost || req.headers.get("host") || req.nextUrl.host;
+  const fwdProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const proto = fwdProto || req.nextUrl.protocol.replace(":", "");
+  return `${proto}://${host}`;
+}
+
 /* ────────────── Admin auth ──────────────── */
 const getAdminSecret = () =>
   new TextEncoder().encode(
@@ -45,7 +58,7 @@ async function handleAdminAuth(req: NextRequest): Promise<NextResponse> {
     if (isAdminApi) {
       return NextResponse.json({ error: "未登录或无权限" }, { status: 401 });
     }
-    return NextResponse.redirect(new URL("/admin/login", req.url));
+    return NextResponse.redirect(new URL("/admin/login", originOf(req)));
   }
 
   try {
@@ -56,7 +69,7 @@ async function handleAdminAuth(req: NextRequest): Promise<NextResponse> {
     if (isAdminApi) {
       return NextResponse.json({ error: "未登录或无权限" }, { status: 401 });
     }
-    const res = NextResponse.redirect(new URL("/admin/login", req.url));
+    const res = NextResponse.redirect(new URL("/admin/login", originOf(req)));
     res.cookies.delete(ADMIN_COOKIE);
     return res;
   }
@@ -90,13 +103,13 @@ export async function middleware(req: NextRequest) {
   // 3. Root path "/" → redirect to /{locale}
   if (pathname === "/") {
     const locale = detectLocale(req);
-    return NextResponse.redirect(new URL(`/${locale}`, req.url));
+    return NextResponse.redirect(new URL(`/${locale}`, originOf(req)));
   }
 
   // 4. Non-locale-prefixed paths (e.g., /circle/abc, /yahoo/user, /stats)
   //    Redirect to /{locale}{pathname}{search}
   const locale = detectLocale(req);
-  const url = new URL(`/${locale}${pathname}${req.nextUrl.search}`, req.url);
+  const url = new URL(`/${locale}${pathname}${req.nextUrl.search}`, originOf(req));
   return NextResponse.redirect(url);
 }
 
