@@ -18,7 +18,24 @@ import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
 import type { CircleUser } from "@/types/circle";
 import { resolveCircleAvatarUrl, resolveProfileData } from "@/lib/x-profile-image";
 import { initDb, logGeneration, findRecentYahooCircle, createYahooCircle } from "@/lib/db";
+import { getAppConfig, getSettingValue } from "@/lib/app-config";
 import { randomBytes } from "crypto";
+
+/**
+ * 生成已关闭时返回的 503。
+ * 便于在数据源被 IP 限流期间从入口处止血。
+ */
+function maintenanceResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      error: "generation_disabled",
+      message:
+        getSettingValue("maintenance_message") ||
+        "暂时停止生成新的互动圈，请稍后再试。",
+    },
+    { status: 503, headers: { "cache-control": "no-store" } },
+  );
+}
 
 /** 生成 8 位短 ID（a-z0-9，约 41 bit 熵） */
 function generateShortId(): string {
@@ -31,7 +48,6 @@ function generateShortId(): string {
   return id;
 }
 
-const YAHOO_PAYLOAD_REVALIDATE_SEC = 300;
 
 /**
  * X のスクリーンネーム規則（1〜15 文字、英数字とアンダースコア）。
@@ -140,6 +156,7 @@ async function buildYahooPayload(
 }
 
 function getCachedYahooPayload(name: string, buildCircle: boolean) {
+  const ttl = getAppConfig().payloadCacheTtlSec;
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
@@ -147,7 +164,9 @@ function getCachedYahooPayload(name: string, buildCircle: boolean) {
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],
-    { revalidate: YAHOO_PAYLOAD_REVALIDATE_SEC },
+    // TTL は設定から読む。値はキャッシュキーに含めないので、変更は次に
+    // キャッシュが切れた時点から効く（即時反映ではない）。
+    { revalidate: ttl },
   )();
 }
 
@@ -163,7 +182,13 @@ function getCachedYahooPayload(name: string, buildCircle: boolean) {
  * ただし公開エンドポイントなので、連打でデータソースを潰さないよう
  * 「同時実行の相乗り」と「最小間隔」だけは入れておく。
  */
-const FORCE_MIN_INTERVAL_MS = 15_000;
+/**
+ * 强制再抓取的最小间隔，读自后台参数设置 `force_refresh_min_interval_sec`
+ * （DB > 默认 15 秒）。不直接写死常量，是为了在数据源被限流期间让运维能放宽间隔。
+ */
+function forceMinIntervalMs(): number {
+  return getAppConfig().forceRefreshMinIntervalMs;
+}
 const inflightForce = new Map<string, Promise<Record<string, unknown>>>();
 const lastForceAt = new Map<string, number>();
 
@@ -187,7 +212,8 @@ function forceHeaders(): Record<string, string> {
 }
 
 /**
- * 直前（FORCE_MIN_INTERVAL_MS 以内）に強制再取得していれば、DB の最新結果を
+ /**
+ * 若在最小间隔内刚刚强制抓取过，则返回 DB 中最近的结果
  * throttled 付きで返す。ヒットしなければ本当に取り直す。
  */
 async function forceRefreshPayload(
@@ -195,9 +221,10 @@ async function forceRefreshPayload(
   buildCircle: boolean,
 ): Promise<Record<string, unknown>> {
   const key = name.toLowerCase();
+  const minInterval = forceMinIntervalMs();
   const last = lastForceAt.get(key);
-  if (last !== undefined && Date.now() - last < FORCE_MIN_INTERVAL_MS) {
-    const row = findRecentYahooCircle(name, FORCE_MIN_INTERVAL_MS);
+  if (last !== undefined && Date.now() - last < minInterval) {
+    const row = findRecentYahooCircle(name, minInterval);
     if (row) {
       const cached = JSON.parse(row.circle_data) as Record<string, unknown>;
       return {
@@ -296,6 +323,8 @@ function parseForce(searchParams: URLSearchParams, body?: Body): boolean {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
+  if (!getAppConfig().generationEnabled) return maintenanceResponse();
+
   const raw = sp.get("screenName") ?? "";
   let name: string;
   try {
@@ -329,11 +358,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 2-hour cooldown: if a recent circle exists for this username, return it directly
+    // 复用窗口：若存在近期圈子则直接返回，不再请求数据源。
+    // 窗口长度由后台参数设置 `circle_reuse_ttl_min` 决定。
     if (buildCircle) {
       try {
         initDb();
-        const recent = findRecentYahooCircle(name, 2 * 60 * 60 * 1000);
+        const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs);
         if (recent) {
           const cached = JSON.parse(recent.circle_data);
           return NextResponse.json({ ...cached, circleId: recent.id, createdAt: recent.created_at }, {
@@ -413,6 +443,8 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!getAppConfig().generationEnabled) return maintenanceResponse();
+
   try {
     const wantCircle = body.buildCircle === true;
 
@@ -420,11 +452,12 @@ export async function POST(req: Request) {
       return handleForce(name, wantCircle);
     }
 
-    // 2-hour cooldown: if a recent circle exists for this username, return it directly
+    // 复用窗口：若存在近期圈子则直接返回，不再请求数据源。
+    // 窗口长度由后台参数设置 `circle_reuse_ttl_min` 决定。
     if (wantCircle) {
       try {
         initDb();
-        const recent = findRecentYahooCircle(name, 2 * 60 * 60 * 1000);
+        const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs);
         if (recent) {
           const cached = JSON.parse(recent.circle_data);
           return NextResponse.json({ ...cached, circleId: recent.id, createdAt: recent.created_at });

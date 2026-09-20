@@ -3,11 +3,14 @@ import tls from "node:tls";
 const { SocksClient } = require("socks") as typeof import("socks");
 
 import type { BingMentionEntry } from "@/types/bing-search";
+import { getAppConfig } from "./app-config";
 
 const BING_BASE = "https://www.bing.com/search";
 
-/** デフォルトで巡回するページ数（1 ページ = 10 件想定） */
-const BING_DEFAULT_MAX_PAGES = 5;
+/**
+ * 默认翻页数的说明（1 页约 10 条）。
+ * 实际取值由后台参数设置 `bing_max_pages` 决定（0 表示关闭 Bing 补充）。
+ */
 /** ページ間の最小／最大ディレイ ms（過度なアクセスを避けるため） */
 const BING_DELAY_MIN_MS = 300;
 const BING_DELAY_MAX_MS = 700;
@@ -130,11 +133,8 @@ async function fetchHtmlViaSocks5(
 }
 
 async function fetchBingHtml(url: string): Promise<string> {
-  const proxyUrl =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy;
+  // 出口代理从后台设置解析（DB > 环境变量 > 无）。
+  const proxyUrl = getAppConfig().globalProxy;
 
   if (proxyUrl && /^socks/i.test(proxyUrl)) {
     const u = new URL(proxyUrl);
@@ -236,7 +236,9 @@ export async function fetchBingMentionsToYou(
 ): Promise<BingMentionEntry[]> {
   const sn = screenName.replace(/^@+/, "").trim();
   if (!sn) return [];
-  const maxPages = Math.max(1, options.maxPages ?? BING_DEFAULT_MAX_PAGES);
+  const maxPages = Math.max(0, options.maxPages ?? getAppConfig().bingMaxPages);
+  // 0 = 关闭 Bing 补充，完全不请求抓取侧。
+  if (maxPages === 0) return [];
 
   const merged = new Map<string, BingMentionEntry>();
   let lastError: Error | null = null;

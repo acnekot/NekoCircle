@@ -48,3 +48,6 @@ next-env.d.ts
 .claude/
 nareaitter/
 saplma/
+
+# Local runtime logs
+logs/

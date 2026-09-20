@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/admin-auth";
 
 /* ────────────── i18n constants (duplicated to avoid importing from lib) ──────────────── */
 const LOCALES = ["zh", "en", "ja"] as const;
@@ -36,12 +36,6 @@ function originOf(req: NextRequest): string {
 }
 
 /* ────────────── Admin auth ──────────────── */
-const getAdminSecret = () =>
-  new TextEncoder().encode(
-    "neko-admin-" + (process.env.JWT_SECRET ?? "neko-circle-secret-change-in-prod") + "-isolated"
-  );
-
-const ADMIN_COOKIE = "neko_admin";
 
 async function handleAdminAuth(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
@@ -61,18 +55,15 @@ async function handleAdminAuth(req: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL("/admin/login", originOf(req)));
   }
 
-  try {
-    const { payload } = await jwtVerify(token, getAdminSecret());
-    if (payload.role !== "admin") throw new Error("not admin");
-    return NextResponse.next();
-  } catch {
-    if (isAdminApi) {
-      return NextResponse.json({ error: "未登录或无权限" }, { status: 401 });
-    }
-    const res = NextResponse.redirect(new URL("/admin/login", originOf(req)));
-    res.cookies.delete(ADMIN_COOKIE);
-    return res;
+  if (await verifyAdminToken(token)) return NextResponse.next();
+
+  // Invalid token: APIs get 401, pages get bounced to the login screen.
+  if (isAdminApi) {
+    return NextResponse.json({ error: "未登录或无权限" }, { status: 401 });
   }
+  const res = NextResponse.redirect(new URL("/admin/login", originOf(req)));
+  res.cookies.delete(ADMIN_COOKIE);
+  return res;
 }
 
 /* ────────────── Main middleware ──────────────── */
@@ -114,5 +105,10 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  // `api/admin/data/import` is excluded on purpose: middleware buffers the
+  // request body, and POSTs above roughly 10MB arrive at the route corrupted
+  // (measured: 11MB and 17MB both failed to parse as JSON, while the same
+  // build without middleware handled 17MB fine). That route authenticates
+  // itself with verifyAdminToken instead.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/admin/data/import|.*\\..*).*)"],
 };

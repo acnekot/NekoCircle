@@ -2,6 +2,7 @@ import type {
   YahooPaginationResponse,
   YahooRealtimeEntry,
 } from "@/types/yahoo-realtime";
+import { getAppConfig } from "./app-config";
 import tls from "node:tls";
 import https from "node:https";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -51,20 +52,17 @@ export function pickSelfProfileImageFromYahoo(
 const YAHOO_RT = "https://search.yahoo.co.jp/realtime/api/v1/pagination";
 export const RESULTS_PER_PAGE = 40;
 /**
- * 每个方向最多抓取的页数（每页 40 条）。
+ * 每个方向最多抓取的页数（每页 40 条）的「出厂默认值」。
  *
  * 原先固定 100 页：无论账号有多少提及，每次生成都会向 Yahoo 发出约 200 个请求
  * （双向各 100 页），即使只有几十条提及的账号也一样，极易触发 Yahoo 按 IP 限流。
  * 实测常见账号的提及量在数十条量级，20 页（每方向 800 条）已足够覆盖。
- * 可用环境变量 YAHOO_MAX_PAGES 覆盖（1..100）。
+ *
+ * 这个值现在只是兜底：实际取值由管理画面「参数设置」的 yahoo_max_pages 决定
+ * （DB > 环境变量 YAHOO_MAX_PAGES > 此处默认）。
  */
-export const MAX_START_PARALLEL_PAGES = (() => {
-  const n = Number(process.env.YAHOO_MAX_PAGES ?? 20);
-  if (!Number.isFinite(n) || n < 1) return 20;
-  return Math.min(Math.floor(n), 100);
-})();
-/** socks5 代理下降低并发，防止连接池耗尽导致超时 */
-const YAHOO_PARALLEL_CHUNK = 8;
+export const MAX_START_PARALLEL_PAGES = 20;
+/** socks5 代理下降低并发，防止连接池耗尽导致超时。现由后台参数设置控制。 */
 
 const YAHOO_HEADERS: Record<string, string> = {
   "User-Agent":
@@ -228,13 +226,11 @@ async function fetchPaginationJson(
   },
 ): Promise<YahooPaginationResponse> {
   const url = `${YAHOO_RT}?${buildSearchParams(p, opts)}`;
-  const proxyUrl =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy;
-
-  const yahooProxy = process.env.YAHOO_PROXY?.trim().replace(/\/$/, "");
+  // 代理从后台设置解析（DB > 环境变量 > 默认）。
+  // 此前直接读环境变量，不重启就改不了。
+  const appConfig = getAppConfig();
+  const proxyUrl = appConfig.globalProxy;
+  const yahooProxy = appConfig.yahooProxy;
 
   if (proxyUrl && /^socks/i.test(proxyUrl)) {
     const u = new URL(proxyUrl);
@@ -287,7 +283,10 @@ export async function fetchByStartParallel(
   p: string,
   options: { md?: string; maxPages?: number } = {},
 ): Promise<YahooRealtimeEntry[]> {
-  const maxPages = options.maxPages ?? MAX_START_PARALLEL_PAGES;
+  // 配置只读一次，本次抓取期间沿用同一组值（中途变化会让行为难以推断）。
+  const appConfig = getAppConfig();
+  const maxPages = options.maxPages ?? appConfig.yahooMaxPages;
+  const parallelChunk = Math.max(1, appConfig.yahooParallelPages);
 
   const flat: YahooRealtimeEntry[][] = [];
   let fetchedPages = 0;
@@ -315,7 +314,7 @@ export async function fetchByStartParallel(
     const want = Math.min(neededPages(), maxPages);
     if (fetchedPages >= want) break;
 
-    const size = Math.min(YAHOO_PARALLEL_CHUNK, want - fetchedPages);
+    const size = Math.min(parallelChunk, want - fetchedPages);
     const starts = Array.from(
       { length: size },
       (_, i) => (fetchedPages + i) * RESULTS_PER_PAGE + 1,

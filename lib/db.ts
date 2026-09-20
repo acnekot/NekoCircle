@@ -2,9 +2,9 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), "data", "circle.db");
+export const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), "data", "circle.db");
 
-function getDb() {
+export function getDb() {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const db = new Database(DB_PATH);
@@ -70,6 +70,15 @@ export function setSetting(key: string, value: string) {
   const db = getDb();
   try {
     db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run(key, value);
+  } finally {
+    db.close();
+  }
+}
+
+export function deleteSetting(key: string) {
+  const db = getDb();
+  try {
+    db.prepare("DELETE FROM settings WHERE key = ?").run(key);
   } finally {
     db.close();
   }
