@@ -11,7 +11,8 @@ const UPSTREAM_HEADERS: Record<string, string> = {
   "Sec-Fetch-Site": "cross-site",
 };
 
-const YIMG_REFERERS = [
+/** yimg（Yahoo の profileImage）は Referer 必須。front 側でも同じ並びを使う */
+export const YIMG_REFERERS = [
   "https://search.yahoo.co.jp/realtime/search",
   "https://search.yahoo.co.jp/realtime/",
   "https://search.yahoo.co.jp/",
