@@ -263,6 +263,7 @@
   "common.share": "X にシェア",
   "common.download": "⬇️ 画像をダウンロード",
   "common.refresh": "🔄 データを更新",
+  "common.forceRefresh": "🔄 強制再取得",
   "common.copied": "✓ コピー済み",
   "common.copyId": "クリックして ID をコピー",
   "common.copyIdShort": "クリックして ID をコピー",

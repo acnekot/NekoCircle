@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import CircleChart, { renderToCanvas } from "@/components/CircleChart";
 import StylePanel from "@/components/StylePanel";
@@ -44,6 +44,7 @@ export default function YahooCirclePage() {
   const [users, setUsers] = useState<CircleUser[]>([]);
   const [counts, setCounts] = useState<{ toYou: number; fromYou: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [styleConfig, setStyleConfig] = useState<StyleConfig>(DEFAULT_STYLE);
   const [bgAccent, setBgAccent] = useState("");
@@ -55,82 +56,105 @@ export default function YahooCirclePage() {
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
   const handleStyleChange = (s: StyleConfig) => { setStyleConfig(s); saveStyleConfig(s); };
 
-  useEffect(() => {
-    if (!username) return;
+  const applyPayload = useCallback((data: YahooMentionsResponse) => {
+    setCounts({ toYou: data.counts.mentionsToYou, fromYou: data.counts.mentionsFromYou });
+    setUsers(data.circleUsers ?? []);
+    setSelf({
+      screenName: data.screenName,
+      displayName: data.screenName,
+      avatarUrl: data.selfAvatarUrl,
+      avatarUrlPreview: data.selfAvatarUrlPreview,
+      mentionTotal: data.counts.mentionsToYou + data.counts.mentionsFromYou,
+      profileFollowers: data.profileFollowers,
+      profileFollowing: data.profileFollowing,
+      profileTweets: data.profileTweets,
+      profileLikes: data.profileLikes,
+      profileJoinedAt: data.profileJoinedAt,
+    });
+    if (data.circleId) setCircleId(data.circleId);
+    if (data.createdAt) setCreatedAt(data.createdAt);
+  }, []);
+
+  /**
+   * force = true のときはキャッシュを全部迂回して取り直す。
+   * ブラウザの sessionStorage もここで意図的に飛ばす。
+   */
+  const load = useCallback(async (force: boolean) => {
     const name = username.replace(/^@+/, "");
     if (!name) return;
 
-    const cached = readYahooCircleCache(name);
-    if (cached) {
-      setCounts({ toYou: cached.counts.mentionsToYou, fromYou: cached.counts.mentionsFromYou });
-      setUsers(cached.circleUsers ?? []);
-      setSelf({
-        screenName: cached.screenName,
-        displayName: cached.screenName,
-        avatarUrl: cached.selfAvatarUrl,
-        avatarUrlPreview: cached.selfAvatarUrlPreview,
-        mentionTotal: cached.counts.mentionsToYou + cached.counts.mentionsFromYou,
-        profileFollowers: cached.profileFollowers,
-        profileFollowing: cached.profileFollowing,
-        profileTweets: cached.profileTweets,
-        profileLikes: cached.profileLikes,
-        profileJoinedAt: cached.profileJoinedAt,
-      });
-      if (cached.circleId) setCircleId(cached.circleId);
-      if (cached.createdAt) setCreatedAt(cached.createdAt);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
+    if (force) setRefreshing(true);
+    else setLoading(true);
     setError("");
-    const q = new URLSearchParams({ screenName: name, buildCircle: "1" });
-    fetch(`/api/yahoo-mentions?${q.toString()}`)
-      .then(async (r) => {
-        const ct = r.headers.get("content-type") ?? "";
-        if (!ct.includes("application/json")) {
-          // 数据源异常时边缘节点可能返回 HTML 错误页，直接 r.json() 会抛出
-          // "Unexpected token '<'" 这类内部错误，这里统一转成可读提示。
-          throw new Error(t("yahoo.dataFailed"));
+
+    try {
+      if (!force) {
+        const cached = readYahooCircleCache(name);
+        if (cached) {
+          applyPayload({
+            screenName: cached.screenName,
+            counts: cached.counts,
+            circleUsers: cached.circleUsers,
+            selfAvatarUrl: cached.selfAvatarUrl,
+            selfAvatarUrlPreview: cached.selfAvatarUrlPreview,
+            profileFollowers: cached.profileFollowers,
+            profileFollowing: cached.profileFollowing,
+            profileTweets: cached.profileTweets,
+            profileLikes: cached.profileLikes,
+            profileJoinedAt: cached.profileJoinedAt,
+            circleId: cached.circleId,
+            createdAt: cached.createdAt,
+          });
+          return;
         }
-        return r.json();
-      })
-      .then((data: YahooMentionsResponse) => {
-        if (data.error) { setError(data.error); return; }
-        setCounts({ toYou: data.counts.mentionsToYou, fromYou: data.counts.mentionsFromYou });
-        setUsers(data.circleUsers ?? []);
-        setSelf({
-          screenName: data.screenName,
-          displayName: data.screenName,
-          avatarUrl: data.selfAvatarUrl,
-          avatarUrlPreview: data.selfAvatarUrlPreview,
-          mentionTotal: data.counts.mentionsToYou + data.counts.mentionsFromYou,
-          profileFollowers: data.profileFollowers,
-          profileFollowing: data.profileFollowing,
-          profileTweets: data.profileTweets,
-          profileLikes: data.profileLikes,
-          profileJoinedAt: data.profileJoinedAt,
-        });
-        if (data.circleId) setCircleId(data.circleId);
-        if (data.createdAt) setCreatedAt(data.createdAt);
-        writeYahooCircleCache(name, {
-          screenName: data.screenName,
-          counts: data.counts,
-          circleUsers: data.circleUsers,
-          selfAvatarUrl: data.selfAvatarUrl,
-          selfAvatarUrlPreview: data.selfAvatarUrlPreview,
-          profileFollowers: data.profileFollowers,
-          profileFollowing: data.profileFollowing,
-          profileTweets: data.profileTweets,
-          profileLikes: data.profileLikes,
-          profileJoinedAt: data.profileJoinedAt,
-          circleId: data.circleId,
-          createdAt: data.createdAt,
-        });
-      })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : t("yahoo.dataFailed")))
-      .finally(() => setLoading(false));
-  }, [username]);
+      }
+
+      const q = new URLSearchParams({ screenName: name, buildCircle: "1" });
+      if (force) q.set("refresh", "1");
+      const r = await fetch(`/api/yahoo-mentions?${q.toString()}`, {
+        cache: force ? "no-store" : "default",
+      });
+      const ct = r.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        // 数据源异常时边缘节点可能返回 HTML 错误页，直接 r.json() 会抛出
+        // "Unexpected token '<'" 这类内部错误，这里统一转成可读提示。
+        throw new Error(t("yahoo.dataFailed"));
+      }
+      const data = (await r.json()) as YahooMentionsResponse;
+      if (data.error) { setError(data.error); return; }
+      applyPayload(data);
+      writeYahooCircleCache(name, {
+        screenName: data.screenName,
+        counts: data.counts,
+        circleUsers: data.circleUsers,
+        selfAvatarUrl: data.selfAvatarUrl,
+        selfAvatarUrlPreview: data.selfAvatarUrlPreview,
+        profileFollowers: data.profileFollowers,
+        profileFollowing: data.profileFollowing,
+        profileTweets: data.profileTweets,
+        profileLikes: data.profileLikes,
+        profileJoinedAt: data.profileJoinedAt,
+        circleId: data.circleId,
+        createdAt: data.createdAt,
+      });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : t("yahoo.dataFailed"));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [username, applyPayload, t]);
+
+  useEffect(() => {
+    if (!username) return;
+    // ?refresh=1 付きで開かれたら最初から強制再取得
+    const sp = new URLSearchParams(window.location.search);
+    const force =
+      sp.get("refresh") === "1" ||
+      sp.get("ref") === "1" ||
+      sp.get("force") === "1";
+    void load(force);
+  }, [username, load]);
 
   const analysisResult =
     self.screenName && counts
@@ -228,8 +252,8 @@ export default function YahooCirclePage() {
           </div>
         )}
 
-        {/* Error */}
-        {!loading && error && (
+        {/* Error（データが何も出せないときだけ全面表示。既存の描画を消さないため） */}
+        {!loading && error && !displayedResult && (
           <div className="card rounded-2xl p-8 text-center">
             <div className="text-4xl mb-4">😿</div>
             <h2 className="text-lg font-bold text-red-400 mb-2">{t("yahoo.error")}</h2>
@@ -239,11 +263,17 @@ export default function YahooCirclePage() {
         )}
 
         {/* Result */}
-        {!loading && !error && displayedResult && (
+        {!loading && displayedResult && (
           <div className="result-layout">
 
             {/* Left: style panel */}
             <div className="result-sidebar space-y-3">
+              {/* 強制再取得に失敗しても、いま表示中の結果は残す */}
+              {error && (
+                <div className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                  {error}
+                </div>
+              )}
               <StylePanel
                 value={styleConfig}
                 onChange={handleStyleChange}
@@ -283,10 +313,12 @@ export default function YahooCirclePage() {
                   {t("common.download")}
                 </button>
                 <button
-                  onClick={() => { window.location.reload(); }}
-                  className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
+                  onClick={() => { void load(true); }}
+                  disabled={refreshing || loading}
+                  title={t("common.forceRefresh")}
+                  className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {t("common.refresh")}
+                  {refreshing ? t("yahoo.loading") : t("common.forceRefresh")}
                 </button>
                 <div className="text-xs text-gray-600 pt-1 border-t border-white/5 leading-relaxed">
                   {t("yahoo.dataSource")}

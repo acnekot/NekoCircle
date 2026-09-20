@@ -33,9 +33,19 @@ function generateShortId(): string {
 
 const YAHOO_PAYLOAD_REVALIDATE_SEC = 300;
 
+/**
+ * X のスクリーンネーム規則（1〜15 文字、英数字とアンダースコア）。
+ * normalizeScreenName は trim と先頭 @ の除去しかせず、検証はしない。
+ * 検証しないままだと "bad name!!" のような入力でもデータソースを叩き、
+ * 空の円が DB に積み上がってしまうので、ここで弾く。
+ */
+const SCREEN_NAME_RE = /^[A-Za-z0-9_]{1,15}$/;
+
 type Body = {
   screenName?: string;
   buildCircle?: boolean;
+  refresh?: boolean;
+  force?: boolean;
 };
 
 async function buildYahooPayload(
@@ -142,6 +152,108 @@ function getCachedYahooPayload(name: string, buildCircle: boolean) {
 }
 
 /**
+ * 強制再取得（force refresh）
+ *
+ * 通常の生成は 4 層のキャッシュに守られている:
+ *   1. CDN / ブラウザ（Cache-Control: s-maxage=300）
+ *   2. Next のデータキャッシュ（unstable_cache, 300s）
+ *   3. DB の 2 時間クールダウン
+ *   4. ブラウザ sessionStorage（8 分）
+ * 強制再取得はそのすべてを迂回してデータソースを叩き直す。
+ * ただし公開エンドポイントなので、連打でデータソースを潰さないよう
+ * 「同時実行の相乗り」と「最小間隔」だけは入れておく。
+ */
+const FORCE_MIN_INTERVAL_MS = 15_000;
+const inflightForce = new Map<string, Promise<Record<string, unknown>>>();
+const lastForceAt = new Map<string, number>();
+
+/** 同じユーザー・同じモードの同時リクエストは 1 回の fetch に相乗りさせる */
+function buildFresh(
+  name: string,
+  buildCircle: boolean,
+): Promise<Record<string, unknown>> {
+  const key = `${name.toLowerCase()}|${buildCircle ? "circle" : "counts"}`;
+  const existing = inflightForce.get(key);
+  if (existing) return existing;
+  const p = buildYahooPayload(name, buildCircle).finally(() => {
+    if (inflightForce.get(key) === p) inflightForce.delete(key);
+  });
+  inflightForce.set(key, p);
+  return p;
+}
+
+function forceHeaders(): Record<string, string> {
+  return { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" };
+}
+
+/**
+ * 直前（FORCE_MIN_INTERVAL_MS 以内）に強制再取得していれば、DB の最新結果を
+ * throttled 付きで返す。ヒットしなければ本当に取り直す。
+ */
+async function forceRefreshPayload(
+  name: string,
+  buildCircle: boolean,
+): Promise<Record<string, unknown>> {
+  const key = name.toLowerCase();
+  const last = lastForceAt.get(key);
+  if (last !== undefined && Date.now() - last < FORCE_MIN_INTERVAL_MS) {
+    const row = findRecentYahooCircle(name, FORCE_MIN_INTERVAL_MS);
+    if (row) {
+      const cached = JSON.parse(row.circle_data) as Record<string, unknown>;
+      return {
+        ...cached,
+        circleId: row.id,
+        createdAt: row.created_at,
+        throttled: true,
+      };
+    }
+  }
+  const payload = await buildFresh(name, buildCircle);
+  lastForceAt.set(key, Date.now());
+  return payload;
+}
+
+/** 強制再取得の本体。GET / POST どちらからも呼ばれる。 */
+async function handleForce(
+  name: string,
+  buildCircle: boolean,
+): Promise<NextResponse> {
+  try {
+    const payload = await forceRefreshPayload(name, buildCircle);
+    if (payload.throttled === true) {
+      return NextResponse.json(
+        { ...payload, refreshed: true },
+        { headers: forceHeaders() },
+      );
+    }
+    const body: Record<string, unknown> = { ...payload, refreshed: true };
+    if (buildCircle) {
+      try {
+        initDb();
+        const circleId = generateShortId();
+        const createdAt = Date.now();
+        createYahooCircle(circleId, name, JSON.stringify(payload));
+        logGeneration("yahoo", name);
+        body.circleId = circleId;
+        body.createdAt = createdAt;
+      } catch { /* non-critical */ }
+    }
+    return NextResponse.json(body, { headers: forceHeaders() });
+  } catch (e) {
+    console.error("[yahoo-mentions:force] failed:", e);
+    const stale = staleFallback(name);
+    if (stale) {
+      for (const [k, v] of Object.entries(forceHeaders())) stale.headers.set(k, v);
+      return stale;
+    }
+    return NextResponse.json(
+      { error: "数据获取失败，请稍后重试。" },
+      { status: 502, headers: forceHeaders() },
+    );
+  }
+}
+
+/**
  * 数据源不可用（被限流/拦截）时的兜底：返回该用户最近一次成功生成的结果，
  * 不限时效，并带上 stale 标记。总比直接报错好。
  */
@@ -172,6 +284,16 @@ function parseBuildCircle(searchParams: URLSearchParams, body?: Body): boolean {
   return true;
 }
 
+/**
+ * 強制再取得の指定。`?refresh=1` を基本形として、
+ * `?ref=1` / `?force=1` / POST の { refresh: true } も受け付ける。
+ */
+function parseForce(searchParams: URLSearchParams, body?: Body): boolean {
+  if (body && (body.refresh === true || body.force === true)) return true;
+  const on = (v: string | null) => v === "1" || v === "true";
+  return on(searchParams.get("refresh")) || on(searchParams.get("ref")) || on(searchParams.get("force"));
+}
+
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const raw = sp.get("screenName") ?? "";
@@ -192,7 +314,19 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  if (!SCREEN_NAME_RE.test(name)) {
+    return NextResponse.json(
+      { error: "用户名格式不正确。" },
+      { status: 400 },
+    );
+  }
+
   const buildCircle = parseBuildCircle(sp);
+
+  // 強制再取得はクールダウンもデータキャッシュも迂回する
+  if (parseForce(sp)) {
+    return handleForce(name, buildCircle);
+  }
 
   try {
     // 2-hour cooldown: if a recent circle exists for this username, return it directly
@@ -272,8 +406,19 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!SCREEN_NAME_RE.test(name)) {
+    return NextResponse.json(
+      { error: "用户名格式不正确。" },
+      { status: 400 },
+    );
+  }
+
   try {
     const wantCircle = body.buildCircle === true;
+
+    if (parseForce(new URLSearchParams(), body)) {
+      return handleForce(name, wantCircle);
+    }
 
     // 2-hour cooldown: if a recent circle exists for this username, return it directly
     if (wantCircle) {

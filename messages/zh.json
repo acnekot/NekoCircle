@@ -263,6 +263,7 @@
   "common.share": "分享到 X",
   "common.download": "⬇️ 下载图片",
   "common.refresh": "🔄 刷新数据",
+  "common.forceRefresh": "🔄 强制重新获取",
   "common.copied": "✓ 已复制",
   "common.copyId": "点击复制完整 ID",
   "common.copyIdShort": "点击复制 ID",

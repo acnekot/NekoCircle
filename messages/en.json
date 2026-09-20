@@ -263,6 +263,7 @@
   "common.share": "Share to X",
   "common.download": "⬇️ Download Image",
   "common.refresh": "🔄 Refresh Data",
+  "common.forceRefresh": "🔄 Force refresh",
   "common.copied": "✓ Copied",
   "common.copyId": "Click to copy full ID",
   "common.copyIdShort": "Click to copy ID",
