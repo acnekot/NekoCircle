@@ -63,3 +63,18 @@ neko-circle/
 - `data/circle.db` 需持久化挂载，否则重启数据丢失
 - 许可证：AGPL-3.0-or-later
 - 项目基于 [maebahesioru/nareaitter](https://github.com/maebahesioru/nareaitter)，并持续选择性同步适合 NekoCircle 架构的上游功能
+
+## 生产进程守护
+
+完成 `npm ci && npm run build` 后，可使用仓库根目录的 `serve.sh` 启动生产服务。脚本通过
+`/api/health/live` 进行三次存活确认，只在全部失败后重启；停止时会终止完整进程组并回收
+子进程，避免慢页面触发误杀或累积僵尸 `next-server`。
+
+常用配置均以环境变量提供：
+
+- `NEKOCIRCLE_PORT`：监听端口，默认 `3000`
+- `NEKOCIRCLE_BIND`：监听地址，默认 `127.0.0.1`
+- `NEKOCIRCLE_STARTUP_GRACE_SECONDS`：启动宽限，默认 `60`
+- `NEKOCIRCLE_CHECK_INTERVAL_SECONDS`：检查间隔，默认 `20`
+- `NEKOCIRCLE_HEALTH_ATTEMPTS`：连续失败阈值，默认 `3`
+- `NEKOCIRCLE_SHUTDOWN_GRACE_SECONDS`：优雅退出等待时间，默认 `15`
