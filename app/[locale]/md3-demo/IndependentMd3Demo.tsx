@@ -100,23 +100,8 @@ export default function IndependentMd3Demo() {
             </div>
           </div>
 
-          <div className={styles.orbitColumn}>
-            <div className={styles.orbitCard}>
-              <div className={styles.orbitHeader}>
-                <div><small>LIVE CIRCLE</small><strong>@acnekot</strong></div>
-                <span>50 people</span>
-              </div>
-              <div className={styles.circleStage}><DemoCircle /></div>
-              <div className={styles.orbitFooter}>
-                <span><i className={styles.dotFresh} />RECENT</span>
-                <span><i className={styles.dotMutual} />MUTUAL</span>
-                <span><i className={styles.dotPublic} />PUBLIC</span>
-              </div>
-            </div>
-            <div className={styles.floatingNote}>
-              <span>↗</span>
-              <div><b>Reciprocal score</b><small>双向关系优先显示</small></div>
-            </div>
+          <div className={styles.orbitColumn} aria-label="Animated interaction circle">
+            <div className={styles.circleOnly}><DemoCircle flat /></div>
           </div>
         </section>
 

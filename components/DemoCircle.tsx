@@ -53,17 +53,21 @@ function computeRings(total: number, centerOuter: number, sc: number) {
 function drawAvatar(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, r: number,
-  color: string, init: string,
+  color: string, init: string, flat: boolean,
 ) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.clip();
-  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
   const safeColor = sanitizeHex(color);
-  g.addColorStop(0, safeColor + "dd");
-  g.addColorStop(1, safeColor + "66");
-  ctx.fillStyle = g;
+  if (flat) {
+    ctx.fillStyle = safeColor + "d9";
+  } else {
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
+    g.addColorStop(0, safeColor + "dd");
+    g.addColorStop(1, safeColor + "66");
+    ctx.fillStyle = g;
+  }
   ctx.fill();
   ctx.fillStyle = "#fff";
   ctx.font = `bold ${Math.floor(r * 0.55)}px system-ui,sans-serif`;
@@ -73,7 +77,7 @@ function drawAvatar(
   ctx.restore();
 }
 
-export default function DemoCircle() {
+export default function DemoCircle({ flat = false }: { flat?: boolean }) {
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const avatarRef     = useRef<HTMLImageElement | null>(null);
   const rafRef        = useRef<number>(0);
@@ -117,12 +121,14 @@ export default function DemoCircle() {
     // Background — transparent (no fill)
 
     // Soft orbit guides keep the topology readable without visual noise.
-    for (const { R } of rings) {
-      bx.beginPath();
-      bx.arc(cx, cy, R, 0, Math.PI * 2);
-      bx.strokeStyle = "rgba(255,255,255,0.055)";
-      bx.lineWidth = 0.8;
-      bx.stroke();
+    if (!flat) {
+      for (const { R } of rings) {
+        bx.beginPath();
+        bx.arc(cx, cy, R, 0, Math.PI * 2);
+        bx.strokeStyle = "rgba(255,255,255,0.055)";
+        bx.lineWidth = 0.8;
+        bx.stroke();
+      }
     }
     bx.setLineDash([]);
 
@@ -142,20 +148,22 @@ export default function DemoCircle() {
         const ny = cy + Math.sin(angle) * R;
         const m  = MOCK_USERS[offset + i];
 
-        // White border disc
-        bx.beginPath();
-        bx.arc(nx, ny, nodeR, 0, Math.PI * 2);
-        bx.fillStyle = "rgba(255,255,255,0.15)";
-        bx.fill();
+        if (!flat) {
+          // White border disc
+          bx.beginPath();
+          bx.arc(nx, ny, nodeR, 0, Math.PI * 2);
+          bx.fillStyle = "rgba(255,255,255,0.15)";
+          bx.fill();
+        }
 
         // Avatar fill
-        drawAvatar(bx, nx, ny, r, m.color, m.init);
+        drawAvatar(bx, nx, ny, r, m.color, m.init, flat);
 
-        // Color border
+        // Flat mode uses one quiet outline instead of a raised double rim.
         bx.beginPath();
-        bx.arc(nx, ny, nodeR, 0, Math.PI * 2);
-        bx.strokeStyle = m.color;
-        bx.lineWidth = bw * 0.6;
+        bx.arc(nx, ny, flat ? r : nodeR, 0, Math.PI * 2);
+        bx.strokeStyle = flat ? "rgba(255,255,255,0.28)" : m.color;
+        bx.lineWidth = flat ? Math.max(1, 1.25 * sc) : bw * 0.6;
         bx.stroke();
       }
     });
@@ -179,18 +187,20 @@ export default function DemoCircle() {
       ctx.clearRect(0, 0, SIZE, SIZE);
       ctx.drawImage(bg, 0, 0, SIZE * dpr, SIZE * dpr, 0, 0, SIZE, SIZE);
 
-      // Center halo
-      ctx.beginPath();
-      ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
-      ctx.strokeStyle = ACCENT + "44";
-      ctx.lineWidth = 2 * sc;
-      ctx.stroke();
+      if (!flat) {
+        // Center halo
+        ctx.beginPath();
+        ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
+        ctx.strokeStyle = ACCENT + "44";
+        ctx.lineWidth = 2 * sc;
+        ctx.stroke();
 
-      // White border disc
-      ctx.beginPath();
-      ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,255,255,0.18)";
-      ctx.fill();
+        // White border disc
+        ctx.beginPath();
+        ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fill();
+      }
 
       // Center clip
       ctx.save();
@@ -198,11 +208,14 @@ export default function DemoCircle() {
       ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
       ctx.clip();
 
-      // Gradient base
-      const base = ctx.createRadialGradient(cx - centerR * 0.3, cy - centerR * 0.3, 0, cx, cy, centerR);
-      base.addColorStop(0, "#1e3a5fcc");
-      base.addColorStop(1, "#0f172acc");
-      ctx.fillStyle = base;
+      if (flat) {
+        ctx.fillStyle = "#34364a";
+      } else {
+        const base = ctx.createRadialGradient(cx - centerR * 0.3, cy - centerR * 0.3, 0, cx, cy, centerR);
+        base.addColorStop(0, "#1e3a5fcc");
+        base.addColorStop(1, "#0f172acc");
+        ctx.fillStyle = base;
+      }
       ctx.fill();
 
       // YOU (fades out)
@@ -225,8 +238,8 @@ export default function DemoCircle() {
       // Accent border on center
       ctx.beginPath();
       ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
-      ctx.strokeStyle = ACCENT;
-      ctx.lineWidth = 2 * sc;
+      ctx.strokeStyle = flat ? "#bec2ff" : ACCENT;
+      ctx.lineWidth = flat ? Math.max(1.5, 2 * sc) : 2 * sc;
       ctx.stroke();
 
       if (canvas) canvas.style.cursor = showingAvatar.current ? "pointer" : "default";
@@ -235,14 +248,14 @@ export default function DemoCircle() {
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+  }, [flat]);
 
   return (
     <canvas
       ref={canvasRef}
       onClick={() => { if (showingAvatar.current) window.open("https://x.com/acnekot", "_blank", "noopener"); }}
       className="w-full max-w-[460px] aspect-square"
-      style={{ filter: "drop-shadow(0 16px 36px rgba(0,0,0,0.24))" }}
+      style={{ filter: flat ? "none" : "drop-shadow(0 16px 36px rgba(0,0,0,0.24))" }}
       title="@acnekot"
     />
   );

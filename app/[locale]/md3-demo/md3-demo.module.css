@@ -102,7 +102,23 @@
 .stats strong { font-size: 22px; letter-spacing: -.04em; }
 .stats span { color: var(--muted); font-size: 11px; }
 
-.orbitColumn { position: relative; }
+.orbitColumn {
+  position: relative;
+  display: grid;
+  min-height: 520px;
+  place-items: center;
+}
+.circleOnly {
+  width: min(112%, 560px);
+  animation: circleFloat 7s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+.circleOnly canvas { display: block; width: 100% !important; max-width: none !important; height: auto !important; }
+
+@keyframes circleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
 .orbitCard { position: relative; z-index: 1; padding: 20px; border-radius: 44px; background: var(--surface-high); box-shadow: 0 24px 70px rgba(0,0,0,.25); }
 .orbitHeader { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 15px; }
 .orbitHeader > div { display: flex; flex-direction: column; gap: 3px; }
@@ -148,7 +164,7 @@
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; padding-top: 64px; }
   .heroCopy { max-width: 720px; }
-  .orbitColumn { width: min(100%, 600px); margin-inline: auto; }
+  .orbitColumn { width: min(100%, 600px); min-height: auto; margin-inline: auto; }
   .methodGrid { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -160,8 +176,7 @@
   .searchRow { grid-template-columns: 1fr; }.searchRow button { justify-content: center; }
   .supporting { align-items: flex-start; flex-direction: column; }
   .stats div { min-width: 0; flex: 1; padding-right: 14px; }.stats div + div { padding-left: 14px; }
-  .orbitCard { padding: 13px; border-radius: 30px; }.circleStage { border-radius: 22px; }
-  .floatingNote { right: 8px; bottom: -20px; }
+  .circleOnly { width: min(100%, 520px); }
   .sectionIntro { align-items: flex-start; flex-direction: column; gap: 20px; }
   .methodGrid { grid-template-columns: 1fr; }.methodGrid article { min-height: 190px; }
   .utility { grid-template-columns: 1fr; padding: 24px; }.lookup input { width: 100%; }
