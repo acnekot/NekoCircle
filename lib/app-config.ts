@@ -133,6 +133,29 @@ export const SETTING_DEFS: SettingDef[] = [
     group: "缓存与频率",
   },
   {
+    key: "temporary_retention_hours",
+    label: "临时圈子保留时长",
+    description:
+      "未授权长期保存的圈子超过此时长后，会进入可清理范围。已授权长期保存的数据不受影响。",
+    type: "number",
+    defaultValue: "168",
+    min: 1,
+    max: 2160,
+    unit: "小时",
+    group: "数据保存",
+  },
+  {
+    key: "temporary_auto_cleanup",
+    label: "自动清理过期临时圈子",
+    description:
+      "开启后，在生成新圈子时最多每小时检查一次，并清理超过保留时长的未授权圈子。关闭后仍可在数据管理页手动清理。",
+    type: "boolean",
+    defaultValue: "true",
+    group: "数据保存",
+    onLabel: "自动清理已开启",
+    offLabel: "仅手动清理",
+  },
+  {
     key: "generation_enabled",
     label: "允许生成新圈子",
     description:
@@ -277,6 +300,9 @@ export type AppConfig = {
   payloadCacheTtlSec: number;
   circleReuseTtlMs: number;
   forceRefreshMinIntervalMs: number;
+  temporaryRetentionHours: number;
+  temporaryRetentionMs: number;
+  temporaryAutoCleanup: boolean;
   generationEnabled: boolean;
 };
 
@@ -290,6 +316,9 @@ export function getAppConfig(): AppConfig {
     payloadCacheTtlSec: num("payload_cache_ttl_sec"),
     circleReuseTtlMs: num("circle_reuse_ttl_min") * 60 * 1000,
     forceRefreshMinIntervalMs: num("force_refresh_min_interval_sec") * 1000,
+    temporaryRetentionHours: num("temporary_retention_hours"),
+    temporaryRetentionMs: num("temporary_retention_hours") * 60 * 60 * 1000,
+    temporaryAutoCleanup: bool("temporary_auto_cleanup"),
     generationEnabled: bool("generation_enabled"),
   };
 }

@@ -166,6 +166,77 @@ export function createYahooCircle(
   } finally { db.close(); }
 }
 
+export type TemporaryCircleCleanupSummary = {
+  count: number;
+  bytes: number;
+  oldestCreatedAt: number | null;
+};
+
+export function getTemporaryCircleCleanupSummary(
+  olderThanMs?: number,
+): TemporaryCircleCleanupSummary {
+  const db = getDb();
+  try {
+    const where = olderThanMs === undefined
+      ? "storage_consent = 0"
+      : "storage_consent = 0 AND created_at < ?";
+    const row = (olderThanMs === undefined
+      ? db.prepare(
+          `SELECT COUNT(*) count, COALESCE(SUM(LENGTH(circle_data)), 0) bytes,
+                  MIN(created_at) oldestCreatedAt
+           FROM yahoo_circles WHERE ${where}`,
+        ).get()
+      : db.prepare(
+          `SELECT COUNT(*) count, COALESCE(SUM(LENGTH(circle_data)), 0) bytes,
+                  MIN(created_at) oldestCreatedAt
+           FROM yahoo_circles WHERE ${where}`,
+        ).get(olderThanMs)) as {
+          count: number;
+          bytes: number;
+          oldestCreatedAt: number | null;
+        };
+    return row;
+  } finally {
+    db.close();
+  }
+}
+
+export function cleanupTemporaryYahooCircles(olderThanMs?: number): TemporaryCircleCleanupSummary {
+  const db = getDb();
+  try {
+    const where = olderThanMs === undefined
+      ? "storage_consent = 0"
+      : "storage_consent = 0 AND created_at < ?";
+    const select = db.prepare(
+      `SELECT COUNT(*) count, COALESCE(SUM(LENGTH(circle_data)), 0) bytes,
+              MIN(created_at) oldestCreatedAt
+       FROM yahoo_circles WHERE ${where}`,
+    );
+    const summary = (olderThanMs === undefined
+      ? select.get()
+      : select.get(olderThanMs)) as TemporaryCircleCleanupSummary;
+    if (summary.count > 0) {
+      const remove = db.prepare(`DELETE FROM yahoo_circles WHERE ${where}`);
+      if (olderThanMs === undefined) remove.run();
+      else remove.run(olderThanMs);
+    }
+    return summary;
+  } finally {
+    db.close();
+  }
+}
+
+let lastAutomaticCleanupAt = 0;
+
+export function maybeCleanupTemporaryYahooCircles(
+  retentionMs: number,
+  nowMs = Date.now(),
+): TemporaryCircleCleanupSummary | null {
+  if (nowMs - lastAutomaticCleanupAt < 60 * 60 * 1000) return null;
+  lastAutomaticCleanupAt = nowMs;
+  return cleanupTemporaryYahooCircles(nowMs - retentionMs);
+}
+
 export function getYahooCircle(id: string): YahooCircleRow | undefined {
   const db = getDb();
   try {

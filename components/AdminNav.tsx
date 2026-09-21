@@ -5,19 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const LINKS = [
-  { href: "/admin", label: "概览", exact: true },
+  { href: "/admin/settings", label: "参数设置" },
   { href: "/admin/announcements", label: "公告" },
   { href: "/admin/feedback", label: "反馈" },
   { href: "/admin/data", label: "数据导出 / 导入" },
-  { href: "/admin/settings", label: "参数设置" },
 ] as const;
 
 export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isActive = (href: string, exact?: boolean) =>
-    exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   const handleLogout = () => {
     document.cookie = "neko_admin=; path=/; max-age=0";
@@ -39,17 +37,31 @@ export default function AdminNav() {
           />
           <h1 className="text-lg font-bold text-white">NekoCircle 管理后台</h1>
         </div>
-        <button
-          onClick={handleLogout}
-          className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors"
-        >
-          退出登录
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/zh"
+            className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors"
+          >
+            返回主页
+          </Link>
+          <Link
+            href="/zh/stats"
+            className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors"
+          >
+            服务状态
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-xs px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors"
+          >
+            退出登录
+          </button>
+        </div>
       </div>
 
       <nav className="flex flex-wrap gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
         {LINKS.map((l) => {
-          const active = isActive(l.href, "exact" in l ? l.exact : false);
+          const active = isActive(l.href);
           return (
             <Link
               key={l.href}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminNav from "@/components/AdminNav";
+import Md3Icon from "@/components/Md3Icon";
 
 type Item = {
   key: string;
@@ -39,6 +40,12 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [flash, setFlash] = useState("");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,6 +137,41 @@ export default function AdminSettingsPage() {
 
   const set = (key: string, value: string) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const changePassword = async () => {
+    setPasswordMessage("");
+    setPasswordError("");
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPasswordError("请填写所有密码字段");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("新密码至少 6 位");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("两次输入的新密码不一致");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ oldPassword, newPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "修改失败");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordMessage("管理员密码已更新");
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : "修改失败");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   return (
     <div className="gradient-bg min-h-screen py-8 px-4">
@@ -275,6 +317,39 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         )}
+
+        <div className="card rounded-2xl p-5">
+          <div className="mb-4 flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#3c4278] text-[#dfe0ff]">
+              <Md3Icon name="key" className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-white">管理员安全</h3>
+              <p className="mt-1 text-[11px] text-gray-600">修改后台登录密码。保存运行参数不会修改这里的密码。</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="text-[11px] text-gray-500">
+              当前密码
+              <input type="password" autoComplete="current-password" value={oldPassword} onChange={(event) => setOldPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-[#bec2ff]/60" />
+            </label>
+            <label className="text-[11px] text-gray-500">
+              新密码
+              <input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-[#bec2ff]/60" />
+            </label>
+            <label className="text-[11px] text-gray-500">
+              确认新密码
+              <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-[#bec2ff]/60" />
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button onClick={changePassword} disabled={changingPassword} className="rounded-full bg-[#bec2ff] px-5 py-2 text-xs font-semibold text-[#252a60] disabled:opacity-40">
+              {changingPassword ? "更新中…" : "更新密码"}
+            </button>
+            {passwordMessage && <span className="text-xs text-emerald-300">{passwordMessage}</span>}
+            {passwordError && <span className="text-xs text-red-300">{passwordError}</span>}
+          </div>
+        </div>
 
         {/* 保存栏 */}
         <div className="sticky bottom-4">

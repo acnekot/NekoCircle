@@ -2,20 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Aldrich } from "next/font/google";
 import { useRouter } from "next/navigation";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { useTranslation } from "@/components/LocaleProvider";
 import LiveGeneratedCircle from "./LiveGeneratedCircle";
 import FeedbackForm from "./FeedbackForm";
 import styles from "./md3-demo.module.css";
-
-const aldrich = Aldrich({
-  weight: "400",
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-aldrich",
-});
 
 type HomeStats = {
   yahooCircleCount: number;
@@ -61,14 +53,8 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
   const landingPath = standaloneDemo ? "/md3-demo" : "";
   const heroTitle = t("home.hero.title2");
   const heroDescription = t("home.hero.desc");
-  const localeDisplayClass = locale === "zh"
-    ? styles.zhDisplayFont
-    : locale === "ja"
-      ? styles.jaDisplayFont
-      : "";
-
   return (
-    <div className={`${styles.page} ${aldrich.variable} ${localeDisplayClass}`}>
+    <div className={styles.page}>
       <header className={styles.header}>
         <a className={styles.brand} href={`/${locale}${landingPath}`} aria-label="NekoCircle">
           <span className={styles.brandMark} aria-hidden="true">

@@ -17,15 +17,7 @@
     radial-gradient(ellipse 42rem 34rem at 85% 18%, rgba(99, 106, 204, .18), transparent 72%),
     radial-gradient(ellipse 28rem 28rem at -10% 56%, rgba(130, 70, 105, .11), transparent 70%),
     var(--surface);
-  font-family: var(--font-aldrich), Inter, ui-sans-serif, system-ui, sans-serif;
-}
-
-.zhDisplayFont :is(h1, h2, h3) {
-  font-family: var(--font-aldrich), "Noto Sans SC Variable", Inter, ui-sans-serif, system-ui, sans-serif;
-}
-
-.jaDisplayFont :is(h1, h2, h3) {
-  font-family: var(--font-aldrich), "M PLUS 1 Code Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: inherit;
 }
 
 .header,

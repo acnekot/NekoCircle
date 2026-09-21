@@ -10,6 +10,7 @@ import {
   logGeneration,
   findRecentYahooCircle,
   createYahooCircle,
+  maybeCleanupTemporaryYahooCircles,
 } from "@/lib/db";
 import {
   getAppConfig,
@@ -68,6 +69,21 @@ function parseStorageConsent(searchParams: URLSearchParams, body?: Body): boolea
   if (body) return body.storageConsent === true;
   const value = searchParams.get("storageConsent");
   return value === "1" || value === "true";
+}
+
+function persistCircle(
+  circleId: string,
+  name: string,
+  payload: Record<string, unknown>,
+  storageConsent: boolean,
+): void {
+  initDb();
+  const config = getAppConfig();
+  if (config.temporaryAutoCleanup) {
+    maybeCleanupTemporaryYahooCircles(config.temporaryRetentionMs);
+  }
+  createYahooCircle(circleId, name, JSON.stringify(payload), storageConsent);
+  logGeneration("yahoo", name);
 }
 
 function retentionFields(storageConsent: boolean) {
@@ -167,11 +183,9 @@ async function handleForce(
     const body: Record<string, unknown> = { ...payload, refreshed: true };
     if (buildCircle) {
       try {
-        initDb();
         const circleId = generateShortId();
         const createdAt = Date.now();
-        createYahooCircle(circleId, name, JSON.stringify(payload), storageConsent);
-        logGeneration("yahoo", name);
+        persistCircle(circleId, name, payload, storageConsent);
         body.circleId = circleId;
         body.createdAt = createdAt;
         Object.assign(body, retentionFields(storageConsent));
@@ -304,11 +318,9 @@ export async function GET(req: NextRequest) {
     // Persist + log generation when building a circle
     if (buildCircle) {
       try {
-        initDb();
         const circleId = generateShortId();
         const createdAt = Date.now();
-        createYahooCircle(circleId, name, JSON.stringify(payload), storageConsent);
-        logGeneration("yahoo", name);
+        persistCircle(circleId, name, payload, storageConsent);
         return NextResponse.json({
           ...payload,
           circleId,
@@ -404,11 +416,9 @@ export async function POST(req: Request) {
     // Persist + log generation when building a circle
     if (wantCircle) {
       try {
-        initDb();
         const circleId = generateShortId();
         const createdAt = Date.now();
-        createYahooCircle(circleId, name, JSON.stringify(payload), storageConsent);
-        logGeneration("yahoo", name);
+        persistCircle(circleId, name, payload, storageConsent);
         return NextResponse.json({
           ...payload,
           circleId,
