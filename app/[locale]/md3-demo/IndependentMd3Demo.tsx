@@ -87,9 +87,22 @@ export default function IndependentMd3Demo() {
                   {t("home.form.submit")}<Arrow />
                 </button>
               </div>
-              <div className={styles.supporting}>
-                <span>{t("home.badge.noLogin")} · No API key</span>
-                <span>FxTwitter / Yahoo / Bing</span>
+
+              <div className={styles.lookupInline}>
+                <div>
+                  <small>SAVED RESULT</small>
+                  <strong>{t("home.lookup.title")}</strong>
+                </div>
+                <div className={styles.lookup}>
+                  <input
+                    value={circleId}
+                    onChange={(event) => setCircleId(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); openCircle(); } }}
+                    placeholder={t("home.lookup.placeholder")}
+                    aria-label={t("home.lookup.placeholder")}
+                  />
+                  <button onClick={openCircle} disabled={!circleId.trim()} type="button" aria-label={t("home.lookup.title")}><Arrow /></button>
+                </div>
               </div>
             </form>
 
@@ -124,23 +137,6 @@ export default function IndependentMd3Demo() {
           </div>
         </section>
 
-        <section className={styles.utility}>
-          <div>
-            <small>SAVED RESULT</small>
-            <h2>{t("home.lookup.title")}</h2>
-            <p>{t("home.lookup.desc")}</p>
-          </div>
-          <div className={styles.lookup}>
-            <input
-              value={circleId}
-              onChange={(event) => setCircleId(event.target.value)}
-              onKeyDown={(event) => { if (event.key === "Enter") openCircle(); }}
-              placeholder={t("home.lookup.placeholder")}
-              aria-label={t("home.lookup.placeholder")}
-            />
-            <button onClick={openCircle} disabled={!circleId.trim()} type="button"><Arrow /></button>
-          </div>
-        </section>
       </main>
 
       <footer className={styles.footer}>
