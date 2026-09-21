@@ -57,6 +57,7 @@ export default function YahooCirclePage() {
   const [createdAt, setCreatedAt] = useState<number | null>(null);
   const [storedLongTerm, setStoredLongTerm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
   const handleStyleChange = (s: StyleConfig) => { setStyleConfig(s); saveStyleConfig(s); };
@@ -355,7 +356,14 @@ export default function YahooCirclePage() {
               />
               {/* Find yourself */}
               {displayedResult && (
-                <FindYourself topUsers={displayedResult.topUsers} ownerUsername={username} />
+                <FindYourself
+                  topUsers={displayedResult.topUsers}
+                  ownerUsername={username}
+                  onHighlight={(name) => {
+                    setHighlightedUsername(name);
+                    if (name) setActiveTab("circle");
+                  }}
+                />
               )}
             </div>
 
@@ -389,6 +397,7 @@ export default function YahooCirclePage() {
                     style={styleConfig}
                     onAccentColor={(color) => setBgAccent(color)}
                     circleId={circleId ?? undefined}
+                    highlightedUsername={highlightedUsername}
                   />
                 </div>
               )}

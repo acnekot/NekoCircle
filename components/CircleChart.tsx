@@ -15,6 +15,7 @@ type Props = {
   centerAvatarCycle?: boolean;
   showFallbackInitials?: boolean;
   fallbackLabelMode?: "username" | "alphabet";
+  highlightedUsername?: string | null;
 };
 
 /** 通用绘制函数，可传入任意 canvas、sc、W，供预览和高清导出复用 */
@@ -31,6 +32,8 @@ export function renderToCanvas(
     centerAvatarAlpha?: number;
     showFallbackInitials?: boolean;
     fallbackLabelMode?: "username" | "alphabet";
+    highlightedUsername?: string | null;
+    highlightPhase?: number;
   } = {},
 ) {
   const mul       = SIZE_MUL[s.nodeSize];
@@ -55,6 +58,13 @@ export function renderToCanvas(
   const sc = scAdapt;
   const isLight = hexBrightness(s.bgColor1) > 128;
   const font    = s.font;
+  const highlightedUsername = options.highlightedUsername
+    ?.trim()
+    .replace(/^@+/, "")
+    .toLowerCase();
+  const highlightPhase = options.highlightPhase ?? 0.5;
+  const highlightPulse = (Math.sin(highlightPhase * Math.PI * 2) + 1) / 2;
+  const highlightedScale = 1 + highlightPulse * 0.12;
 
   // Background
   if (!options.transparent) {
@@ -87,13 +97,19 @@ export function renderToCanvas(
   const centerR     = Math.round(60 * sc * mul);
   const centerBW    = 4 * sc;
   const centerOuter = centerR + centerBW;
+  const isCenterHighlighted = Boolean(
+    highlightedUsername &&
+    result.targetUser.userName.replace(/^@+/, "").toLowerCase() === highlightedUsername,
+  );
+  const centerDrawR = centerR * (isCenterHighlighted ? highlightedScale : 1);
+  const centerDrawOuter = centerDrawR + centerBW;
 
   if (!options.flat) {
     if (s.glowEffect && !isLight) { ctx.shadowColor = accent; ctx.shadowBlur = 22 * sc; }
-    ctx.beginPath(); ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(cx, cy, centerDrawOuter + 5 * sc, 0, Math.PI * 2);
     ctx.strokeStyle = accent + "44"; ctx.lineWidth = 2 * sc; ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(cx, cy, centerDrawOuter, 0, Math.PI * 2);
     ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
   }
   if (options.centerAvatarAlpha !== undefined) {
@@ -103,29 +119,32 @@ export function renderToCanvas(
       : 0;
     ctx.save();
     ctx.beginPath();
-    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+    ctx.arc(cx, cy, centerDrawR, 0, Math.PI * 2);
     ctx.clip();
     ctx.fillStyle = "#34364a";
-    ctx.fillRect(cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+    ctx.fillRect(cx - centerDrawR, cy - centerDrawR, centerDrawR * 2, centerDrawR * 2);
     ctx.globalAlpha = 1 - avatarAlpha;
     ctx.fillStyle = "#f0eff7";
-    ctx.font = `bold ${Math.floor(centerR * 0.36)}px ${font}`;
+    ctx.font = `bold ${Math.floor(centerDrawR * 0.36)}px ${font}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("YOU", cx, cy);
     if (centerImage && avatarAlpha > 0) {
       ctx.globalAlpha = avatarAlpha;
-      ctx.drawImage(centerImage, cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+      ctx.drawImage(centerImage, cx - centerDrawR, cy - centerDrawR, centerDrawR * 2, centerDrawR * 2);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
   } else {
-    drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName, options.flat, options.showFallbackInitials);
+    drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerDrawR, accent, s.showAvatars, font, result.targetUser.userName, options.flat, options.showFallbackInitials);
   }
-  ctx.beginPath(); ctx.arc(cx, cy, options.flat ? centerR : centerOuter, 0, Math.PI * 2);
+  ctx.beginPath(); ctx.arc(cx, cy, options.flat ? centerDrawR : centerDrawOuter, 0, Math.PI * 2);
   ctx.strokeStyle = options.flat ? "rgba(222,224,255,0.72)" : accent;
   ctx.lineWidth = options.flat ? Math.max(1.5, 1.6 * sc) : 2 * sc;
   ctx.stroke();
+  if (isCenterHighlighted) {
+    drawHighlightRing(ctx, cx, cy, options.flat ? centerDrawR : centerDrawOuter, sc, highlightPhase);
+  }
 
   // Pre-compute reserved rectangles (watermark & circle ID) for label collision
   const reservedRects: { x: number; y: number; w: number; h: number }[] = [];
@@ -179,23 +198,32 @@ export function renderToCanvas(
       const angle = angleOffset + (i / n) * Math.PI * 2;
       const x = cx + Math.cos(angle) * R;
       const y = cy + Math.sin(angle) * R;
-      nodeData.push({ x, y, r: nodeR, idx });
+      const isHighlighted = Boolean(
+        highlightedUsername &&
+        item.user.userName.replace(/^@+/, "").toLowerCase() === highlightedUsername,
+      );
+      const drawR = r * (isHighlighted ? highlightedScale : 1);
+      const drawNodeR = drawR + bw;
+      nodeData.push({ x, y, r: drawNodeR, idx });
       const color = sanitizeHex(NODE_PALETTES[s.nodeScheme](accent, idx, tier));
       if (!options.flat) {
         if (s.glowEffect && !isLight) { ctx.shadowColor = color; ctx.shadowBlur = 8 * sc; }
-        ctx.beginPath(); ctx.arc(x, y, nodeR, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(x, y, drawNodeR, 0, Math.PI * 2);
         ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
         ctx.shadowBlur = 0;
       }
       const fallbackLabel = options.fallbackLabelMode === "alphabet"
         ? String.fromCharCode(65 + (idx % 26))
         : item.user.userName;
-      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, fallbackLabel, options.flat, options.showFallbackInitials);
+      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, drawR, color, s.showAvatars, font, fallbackLabel, options.flat, options.showFallbackInitials);
       if (options.flat) {
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(x, y, drawR, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(255,255,255,0.24)";
         ctx.lineWidth = Math.max(1, 1.15 * sc);
         ctx.stroke();
+      }
+      if (isHighlighted) {
+        drawHighlightRing(ctx, x, y, drawNodeR, sc, highlightPhase);
       }
       if (s.showRankBadge) {
         const bx = x + nodeR * 0.68, by = y - nodeR * 0.68, br = 8 * sc;
@@ -501,6 +529,7 @@ export default function CircleChart({
   centerAvatarCycle = false,
   showFallbackInitials = true,
   fallbackLabelMode = "username",
+  highlightedUsername,
 }: Props) {
   const s           = styleProp ?? DEFAULT_STYLE;
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -508,6 +537,8 @@ export default function CircleChart({
   const imageCache  = useRef<Map<string, HTMLImageElement>>(new Map());
   const centerAvatarAlpha = useRef(0);
   const centerAnimationRaf = useRef<number>(0);
+  const highlightPhase = useRef(0.5);
+  const highlightAnimationRaf = useRef<number>(0);
   const [tooltip,    setTooltip]   = useState<{ x: number; y: number; user: (typeof result.topUsers)[0] } | null>(null);
 
   // 根据人数动态计算 sc（缩放比例），人多时整体缩小以放入固定 700px 画布
@@ -529,10 +560,12 @@ export default function CircleChart({
       centerAvatarAlpha: centerAvatarCycle ? centerAvatarAlpha.current : undefined,
       showFallbackInitials,
       fallbackLabelMode,
+      highlightedUsername,
+      highlightPhase: highlightPhase.current,
     });
     // 把图片缓存挂到 canvas 上，供外部下载时复用
     (canvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache = imageCache.current;
-  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle, showFallbackInitials, fallbackLabelMode]);
+  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle, showFallbackInitials, fallbackLabelMode, highlightedUsername]);
 
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {
@@ -616,6 +649,40 @@ export default function CircleChart({
     centerAnimationRaf.current = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(centerAnimationRaf.current);
   }, [centerAvatarCycle, draw]);
+
+  useEffect(() => {
+    cancelAnimationFrame(highlightAnimationRaf.current);
+    if (!highlightedUsername) {
+      highlightPhase.current = 0.5;
+      draw();
+      return;
+    }
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      highlightPhase.current = 0.5;
+      draw();
+      return;
+    }
+
+    const startedAt = performance.now();
+    let lastDrawAt = 0;
+    const frame = (now: number) => {
+      if (now - startedAt >= 4200) {
+        highlightPhase.current = 0.5;
+        draw();
+        return;
+      }
+      highlightPhase.current = ((now - startedAt) % 1400) / 1400;
+      if (now - lastDrawAt >= 34) {
+        lastDrawAt = now;
+        draw();
+      }
+      highlightAnimationRaf.current = requestAnimationFrame(frame);
+    };
+    highlightAnimationRaf.current = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(highlightAnimationRaf.current);
+  }, [highlightedUsername, draw]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current as HTMLCanvasElement & {
@@ -756,6 +823,35 @@ function drawCircleAvatar(
       ctx.fillText(userName[0]?.toUpperCase() ?? "?", x, y);
     }
   }
+  ctx.restore();
+}
+
+function drawHighlightRing(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  scale: number,
+  phase: number,
+) {
+  const pulse = (Math.sin(phase * Math.PI * 2) + 1) / 2;
+  const outerRadius = radius + (7 + pulse * 3) * scale;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, outerRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(223, 224, 255, ${0.72 + pulse * 0.24})`;
+  ctx.lineWidth = (3 + pulse * 1.2) * scale;
+  ctx.shadowColor = "rgba(190, 194, 255, 0.95)";
+  ctx.shadowBlur = (12 + pulse * 12) * scale;
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.arc(x, y, radius + 3.5 * scale, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.96)";
+  ctx.lineWidth = 1.5 * scale;
+  ctx.stroke();
   ctx.restore();
 }
 

@@ -44,6 +44,7 @@ export default function CirclePreviewPage() {
   const [bgAccent, setBgAccent] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("circle");
   const [copied, setCopied] = useState(false);
+  const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
   const handleStyleChange = (s: StyleConfig) => { setStyleConfig(s); saveStyleConfig(s); };
@@ -201,7 +202,14 @@ export default function CirclePreviewPage() {
               </div>
 
               {/* Find yourself */}
-              <FindYourself topUsers={result.topUsers} ownerUsername={circle?.username} />
+              <FindYourself
+                topUsers={result.topUsers}
+                ownerUsername={circle?.username}
+                onHighlight={(name) => {
+                  setHighlightedUsername(name);
+                  if (name) setActiveTab("circle");
+                }}
+              />
             </div>
 
             {/* Right: Circle + List tabs */}
@@ -233,6 +241,7 @@ export default function CirclePreviewPage() {
                     style={styleConfig}
                     onAccentColor={(color) => setBgAccent(color)}
                     circleId={circleId}
+                    highlightedUsername={highlightedUsername}
                   />
                 </div>
               )}

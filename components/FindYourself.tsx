@@ -9,9 +9,10 @@ import { useTranslation } from "@/components/LocaleProvider";
 type Props = {
   topUsers: InteractionUser[];
   ownerUsername?: string;
+  onHighlight?: (username: string | null) => void;
 };
 
-export default function FindYourself({ topUsers, ownerUsername }: Props) {
+export default function FindYourself({ topUsers, ownerUsername, onHighlight }: Props) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [searchResult, setSearchResult] = useState<{
@@ -23,10 +24,14 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
 
   const handleSearch = () => {
     const q = query.trim().replace(/^@+/, "").toLowerCase();
-    if (!q) return;
+    if (!q) {
+      onHighlight?.(null);
+      return;
+    }
     // 检测是否搜索的是圈主自己
-    if (ownerUsername && q === ownerUsername.toLowerCase()) {
+    if (ownerUsername && q === ownerUsername.replace(/^@+/, "").toLowerCase()) {
       setSearchResult({ found: false, isSelf: true });
+      onHighlight?.(ownerUsername);
       return;
     }
     const idx = topUsers.findIndex(
@@ -34,8 +39,10 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
     );
     if (idx >= 0) {
       setSearchResult({ found: true, rank: idx + 1, user: topUsers[idx] });
+      onHighlight?.(topUsers[idx].user.userName);
     } else {
       setSearchResult({ found: false });
+      onHighlight?.(null);
     }
   };
 
@@ -53,7 +60,11 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
           <input
             type="text"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setSearchResult(null); }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSearchResult(null);
+              onHighlight?.(null);
+            }}
             onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
             placeholder={t("find.placeholder")}
             className="w-full pl-7 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 outline-none focus:border-white/30 transition-colors"
