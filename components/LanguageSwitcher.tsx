@@ -4,10 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "@/components/LocaleProvider";
 import { LOCALES, type Locale } from "@/lib/i18n";
 
-const LABELS: Record<Locale, { flag: string; name: string }> = {
-  zh: { flag: "🇨🇳", name: "中文" },
-  en: { flag: "🇺🇸", name: "English" },
-  ja: { flag: "🇯🇵", name: "日本語" },
+const LABELS: Record<Locale, { code: string; name: string }> = {
+  zh: { code: "中", name: "中文" },
+  en: { code: "EN", name: "English" },
+  ja: { code: "日", name: "日本語" },
 };
 
 export default function LanguageSwitcher() {
@@ -44,7 +44,7 @@ export default function LanguageSwitcher() {
         onClick={() => setOpen(!open)}
         className="flex min-h-10 items-center gap-1.5 rounded-full bg-[#34353b] px-3 text-xs text-[#c7c5cf] transition-colors hover:bg-[#45475a] hover:text-white"
       >
-        <span>{LABELS[locale].flag}</span>
+        <span className="font-semibold">{LABELS[locale].code}</span>
         <span className="hidden sm:inline">{LABELS[locale].name}</span>
         <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -62,7 +62,7 @@ export default function LanguageSwitcher() {
                   : "text-[#c7c5cf] hover:bg-white/5"
               }`}
             >
-              <span>{LABELS[l].flag}</span>
+              <span className="w-5 text-center text-xs font-semibold">{LABELS[l].code}</span>
               <span>{LABELS[l].name}</span>
               {l === locale && <span className="ml-auto text-xs">✓</span>}
             </button>

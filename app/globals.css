@@ -337,15 +337,27 @@ body {
 .result-layout {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
-.result-main { order: 1; min-width: 0; }
+.result-main { order: 1; min-width: 0; width: 100%; }
 .result-sidebar { order: 2; }
+
+.result-chart-stage {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.result-chart-stage > div {
+  display: block;
+  min-width: 0;
+}
 
 @media (min-width: 1050px) {
   .result-layout {
     display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: minmax(270px, 300px) minmax(0, 1fr);
+    gap: 1rem;
     align-items: start;
   }
   .result-sidebar {

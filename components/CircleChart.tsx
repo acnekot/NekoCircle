@@ -3,6 +3,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import type { AnalysisResult } from "@/lib/circle-convert";
 import { DEFAULT_STYLE, NODE_PALETTES, hexBrightness, sanitizeHex, type StyleConfig } from "@/lib/style";
 import { proxiedImageSrc } from "@/lib/proxied-image-src";
+import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
 type Props = {
   result: AnalysisResult;
@@ -650,7 +651,7 @@ export default function CircleChart({
   };
 
   return (
-    <div ref={wrapRef} className="relative inline-block w-full max-w-[700px]">
+    <div ref={wrapRef} className="relative inline-block w-full max-w-[820px]">
       <canvas ref={canvasRef} className={`${presentation === "flat-transparent" ? "" : "rounded-2xl"} ${interactive ? "cursor-pointer" : ""} w-full aspect-square`}
         data-circle="true"
         onMouseMove={interactive ? handleMouseMove : undefined}
@@ -659,32 +660,36 @@ export default function CircleChart({
       {interactive && tooltip && (() => {
         // Smart positioning: flip left if too close to right edge
         const wrapWidth = wrapRef.current?.clientWidth ?? canvasSize;
-        const flipX = tooltip.x + 200 > wrapWidth;
-        const tipX  = flipX ? tooltip.x - 200 : tooltip.x + 14;
-        const tipY  = Math.max(4, tooltip.y - 20);
+        const wrapHeight = wrapRef.current?.clientHeight ?? canvasSize;
+        const tipWidth = 216;
+        const tipHeight = 218;
+        const flipX = tooltip.x + tipWidth > wrapWidth;
+        const flipY = tooltip.y + tipHeight > wrapHeight;
+        const tipX  = Math.max(4, flipX ? tooltip.x - tipWidth : tooltip.x + 14);
+        const tipY  = Math.max(4, flipY ? tooltip.y - tipHeight - 8 : tooltip.y - 20);
         return (
           <div
-            className="absolute z-50 bg-gray-900/95 border border-white/20 rounded-xl px-4 py-3 shadow-2xl pointer-events-none text-sm min-w-[180px]"
+            className="absolute z-50 bg-[#292a30]/98 border border-white/15 rounded-2xl px-4 py-3 shadow-2xl pointer-events-none text-sm w-[216px]"
             style={{ left: tipX, top: tipY }}
           >
           <div className="font-bold text-white">@{tooltip.user.user.userName}</div>
           <div className="text-gray-400 text-xs mb-2">{tooltip.user.user.name}</div>
           <div className="space-y-1 text-xs">
             {[
-              { label: "💬 Reply", val: tooltip.user.replies, cls: "text-blue-400" },
-              { label: "🔁 Quote", val: tooltip.user.quotes, cls: "text-purple-400" },
-              { label: "📣 Mention", val: tooltip.user.mentions, cls: "text-pink-400" },
-              { label: "🔄 Retweet", val: tooltip.user.retweets, cls: "text-green-400" },
-              { label: "⬆️ 主动分", val: tooltip.user.outboundScore.toFixed(1), cls: "text-cyan-400" },
-              { label: "⬇️ 被动分", val: tooltip.user.inboundScore.toFixed(1), cls: "text-orange-400" },
-            ].map(({ label, val, cls }) => (
+              { icon: "message" as Md3IconName, label: "Reply", val: tooltip.user.replies, cls: "text-blue-300" },
+              { icon: "quote" as Md3IconName, label: "Quote", val: tooltip.user.quotes, cls: "text-purple-300" },
+              { icon: "mention" as Md3IconName, label: "Mention", val: tooltip.user.mentions, cls: "text-pink-300" },
+              { icon: "repeat" as Md3IconName, label: "Retweet", val: tooltip.user.retweets, cls: "text-green-300" },
+              { icon: "north" as Md3IconName, label: "主动分", val: tooltip.user.outboundScore.toFixed(1), cls: "text-cyan-300" },
+              { icon: "south" as Md3IconName, label: "被动分", val: tooltip.user.inboundScore.toFixed(1), cls: "text-orange-300" },
+            ].map(({ icon, label, val, cls }) => (
               <div key={label} className="flex justify-between gap-4">
-                <span className={cls}>{label}</span>
+                <span className={`flex items-center gap-1.5 ${cls}`}><Md3Icon name={icon} className="h-3.5 w-3.5" />{label}</span>
                 <span className="text-white font-medium">{val}</span>
               </div>
             ))}
             <div className="border-t border-white/10 pt-1 flex justify-between gap-4">
-              <span className="text-yellow-400">⭐ Score</span>
+              <span className="text-yellow-300 flex items-center gap-1.5"><Md3Icon name="star" className="h-3.5 w-3.5" />Score</span>
               <span className="text-yellow-400 font-bold">{tooltip.user.score}</span>
             </div>
           </div>

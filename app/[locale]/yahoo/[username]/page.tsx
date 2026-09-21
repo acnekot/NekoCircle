@@ -15,6 +15,7 @@ import type { CircleUser, SelfProfile } from "@/types/circle";
 import { yahooToAnalysisResult } from "@/lib/circle-convert";
 import { readYahooCircleCache, writeYahooCircleCache } from "@/lib/yahoo-client-cache";
 import { useTranslation } from "@/components/LocaleProvider";
+import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
 type Tab = "circle" | "list" | "family" | "ai" | "value";
 
@@ -215,7 +216,7 @@ export default function YahooCirclePage() {
         background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}20 0%, transparent 55%), radial-gradient(ellipse at 84% 4%, rgba(99, 106, 204, .16), transparent 34rem), #121318`
       } : undefined}
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1440px] mx-auto">
 
         {/* Header */}
         <header className="tech-panel result-header rounded-[28px] mb-5 sm:mb-6 p-4 sm:p-6">
@@ -260,16 +261,16 @@ export default function YahooCirclePage() {
             {displayedResult && (
               <div className="result-actions grid w-full grid-cols-3 gap-2 xl:w-auto">
                 <button type="button" onClick={() => { void shareCircle(); }} className="btn-primary result-action">
-                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                  <Md3Icon name="share" className="h-4 w-4" />
                   <span>{t("common.share")}</span>
                 </button>
                 <button type="button" onClick={() => { void downloadCanvas(); }} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" /><path d="M5 19h14" /></svg>
-                  <span>{t("common.download").replace(/^⬇️\s*/, "")}</span>
+                  <span>{t("common.download")}</span>
                 </button>
                 <button type="button" onClick={() => { void load(true); }} disabled={refreshing || loading} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50">
                   <svg className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66" /><path d="M20 4v7h-7" /></svg>
-                  <span>{refreshing ? t("yahoo.loading") : t("common.forceRefresh").replace(/^🔄\s*/, "")}</span>
+                  <span>{refreshing ? t("yahoo.loading") : t("common.forceRefresh")}</span>
                 </button>
               </div>
             )}
@@ -317,7 +318,7 @@ export default function YahooCirclePage() {
         {/* Error（データが何も出せないときだけ全面表示。既存の描画を消さないため） */}
         {!loading && error && !displayedResult && (
           <div className="card rounded-2xl p-8 text-center">
-            <div className="text-4xl mb-4">😿</div>
+            <Md3Icon name="error" className="mx-auto mb-4 h-10 w-10 text-red-300" />
             <h2 className="text-lg font-bold text-red-400 mb-2">{t("yahoo.error")}</h2>
             <p className="text-gray-400 text-sm">{error}</p>
             <a href={`/${locale}`} className="btn-primary inline-block mt-6 px-6 py-2 rounded-xl text-sm font-medium">{t("common.returnHome")}</a>
@@ -366,25 +367,25 @@ export default function YahooCirclePage() {
               {/* Tab bar */}
               <div className="tech-tabs tech-tabs-scroll flex flex-nowrap gap-1 mb-4 overflow-x-auto">
                 {([
-                  ["circle", t("yahoo.tabCircle")],
-                  ["list", t("yahoo.tabList")],
-                  ["family", t("extras.tabFamily")],
-                  ["ai", t("extras.tabAI")],
-                  ["value", t("extras.tabValue")],
-                ] as [Tab, string][]).map(([tab, label]) => (
+                  ["circle", t("yahoo.tabCircle"), "bubble"],
+                  ["list", t("yahoo.tabList"), "list"],
+                  ["family", t("extras.tabFamily"), "tree"],
+                  ["ai", t("extras.tabAI"), "sparkle"],
+                  ["value", t("extras.tabValue"), "wallet"],
+                ] as [Tab, string, Md3IconName][]).map(([tab, label, icon]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       activeTab === tab
                         ? "bg-[#3c4278] text-[#dfe0ff] border border-[#bec2ff]/20"
                         : "border border-transparent text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}
-                  >{label}</button>
+                  ><Md3Icon name={icon} className="h-4 w-4" />{label}</button>
                 ))}
               </div>
 
               {activeTab === "circle" && (
-                <div className="card tech-display-frame rounded-2xl p-3 sm:p-5 flex justify-center overflow-x-auto">
+                <div className="card tech-display-frame result-chart-stage grid place-items-center p-2 sm:p-3">
                   <CircleChart
                     result={displayedResult}
                     style={styleConfig}
