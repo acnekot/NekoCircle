@@ -95,9 +95,7 @@ export function renderToCanvas(
     ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
   }
   if (options.centerAvatarAlpha !== undefined) {
-    const centerImage = s.showAvatars
-      ? imageCache.get(result.targetUser.profilePicture)
-      : undefined;
+    const centerImage = imageCache.get(result.targetUser.profilePicture);
     const avatarAlpha = centerImage
       ? Math.max(0, Math.min(1, options.centerAvatarAlpha))
       : 0;
@@ -107,14 +105,12 @@ export function renderToCanvas(
     ctx.clip();
     ctx.fillStyle = "#34364a";
     ctx.fillRect(cx - centerR, cy - centerR, centerR * 2, centerR * 2);
-    if (options.showFallbackInitials !== false) {
-      ctx.globalAlpha = 1 - avatarAlpha;
-      ctx.fillStyle = "#f0eff7";
-      ctx.font = `bold ${Math.floor(centerR * 0.36)}px ${font}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("YOU", cx, cy);
-    }
+    ctx.globalAlpha = 1 - avatarAlpha;
+    ctx.fillStyle = "#f0eff7";
+    ctx.font = `bold ${Math.floor(centerR * 0.36)}px ${font}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("YOU", cx, cy);
     if (centerImage && avatarAlpha > 0) {
       ctx.globalAlpha = avatarAlpha;
       ctx.drawImage(centerImage, cx - centerR, cy - centerR, centerR * 2, centerR * 2);
@@ -534,20 +530,21 @@ export default function CircleChart({
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {
     imageCache.current.clear();
-  }, [result, s.showAvatars]);
+  }, [result, s.showAvatars, centerAvatarCycle]);
 
   /* ── Load images and draw ── */
   const colorExtracted = useRef(false);
   useEffect(() => { colorExtracted.current = false; }, [result]);
 
   useEffect(() => {
-    if (!s.showAvatars) { draw(); return; }
+    const shouldLoadCenterAvatar = centerAvatarCycle && Boolean(result.targetUser.profilePicture);
+    if (!s.showAvatars && !shouldLoadCenterAvatar) { draw(); return; }
     // Twitter 与 Yahoo 头像统一走带 7 天服务端缓存的图片代理。
     const proxy = (url: string) => proxiedImageSrc(url);
     const centerUrl = result.targetUser.profilePicture;
     const urls = [
-      centerUrl,
-      ...result.topUsers.slice(0, displayN).map(u => u.user.profilePicture),
+      ...(s.showAvatars || shouldLoadCenterAvatar ? [centerUrl] : []),
+      ...(s.showAvatars ? result.topUsers.slice(0, displayN).map(u => u.user.profilePicture) : []),
     ].filter(Boolean);
 
     let cancelled = false;
@@ -589,7 +586,7 @@ export default function CircleChart({
 
     loadNext();
     return () => { cancelled = true; };
-  }, [result, s.showAvatars, displayN, draw, onAccentColor]);
+  }, [result, s.showAvatars, displayN, draw, onAccentColor, centerAvatarCycle]);
 
   useEffect(() => { draw(); }, [draw]);
 

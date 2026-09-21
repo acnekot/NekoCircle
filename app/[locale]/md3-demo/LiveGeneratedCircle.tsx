@@ -69,6 +69,8 @@ export default function LiveGeneratedCircle({ screenName }: { screenName: string
     const self: SelfProfile = {
       screenName: payload.screenName,
       displayName: payload.screenName,
+      avatarUrl: payload.selfAvatarUrl,
+      avatarUrlPreview: payload.selfAvatarUrlPreview,
     };
     const colorBlockUsers = payload.circleUsers.map((user) => ({
       ...user,
