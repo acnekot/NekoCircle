@@ -11,12 +11,9 @@ type Stats = {
   generatedAt: string;
   timezone: string;
   totals: {
-    circles: number;
     generations: number;
     uniqueUsers: number;
     today: number;
-    last24h: number;
-    last7d: number;
   };
   daily: { date: string; count: number }[];
   hourly: { hour: number; count: number }[];
@@ -27,8 +24,7 @@ const COPY = {
   zh: {
     title: "服务状态",
     subtitle: "公开、实时的 NekoCircle 运行与数据概览",
-    total: "累计生成", users: "独立用户", circles: "已存圈子",
-    today: "今日", last24h: "近 24 小时", last7d: "近 7 天",
+    total: "累计生成", users: "独立用户", today: "今日",
     daily: "每日生成量", hourly: "时段分布", heat: "星期 × 时段",
     days30: "近 30 天", days60: "近 60 天",
     refresh: "刷新", refreshing: "刷新中…",
@@ -38,8 +34,7 @@ const COPY = {
   en: {
     title: "Service status",
     subtitle: "Public, live overview of NekoCircle activity",
-    total: "Generations", users: "Unique users", circles: "Stored circles",
-    today: "Today", last24h: "Last 24 hours", last7d: "Last 7 days",
+    total: "Generations", users: "Unique users", today: "Today",
     daily: "Daily generations", hourly: "Hourly activity", heat: "Weekday × hour",
     days30: "Last 30 days", days60: "Last 60 days",
     refresh: "Refresh", refreshing: "Refreshing…",
@@ -49,8 +44,7 @@ const COPY = {
   ja: {
     title: "サービス状況",
     subtitle: "NekoCircle の稼働状況とデータをリアルタイムで公開",
-    total: "累計生成", users: "ユニークユーザー", circles: "保存サークル",
-    today: "今日", last24h: "過去 24 時間", last7d: "過去 7 日",
+    total: "累計生成", users: "ユニークユーザー", today: "今日",
     daily: "日別生成数", hourly: "時間帯分布", heat: "曜日 × 時間",
     days30: "過去 30 日", days60: "過去 60 日",
     refresh: "更新", refreshing: "更新中…",
@@ -150,13 +144,10 @@ export default function StatsPage() {
 
         {stats && (
           <>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Kpi label={copy.total} value={stats.totals.generations} accent />
               <Kpi label={copy.users} value={stats.totals.uniqueUsers} />
-              <Kpi label={copy.circles} value={stats.totals.circles} />
               <Kpi label={copy.today} value={stats.totals.today} />
-              <Kpi label={copy.last24h} value={stats.totals.last24h} />
-              <Kpi label={copy.last7d} value={stats.totals.last7d} />
             </div>
 
             <Panel title={copy.daily} hint={`${copy.days30} · ${stats.timezone}`}>

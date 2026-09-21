@@ -25,7 +25,6 @@ export async function GET() {
       const one = <T,>(sql: string, ...args: unknown[]): T => db.prepare(sql).get(...args) as T;
       const all = <T,>(sql: string, ...args: unknown[]): T[] => db.prepare(sql).all(...args) as T[];
 
-      const circles = one<{ count: number }>("SELECT COUNT(*) count FROM yahoo_circles").count;
       const generations = one<{ count: number }>("SELECT COUNT(*) count FROM generation_log").count;
       const uniqueUsers = one<{ count: number }>(
         "SELECT COUNT(DISTINCT LOWER(username)) count FROM generation_log",
@@ -34,15 +33,6 @@ export async function GET() {
         `SELECT COUNT(*) count FROM generation_log WHERE ${localDayExpr("created_at")} = ?`,
         dayKey(0),
       ).count;
-      const last24h = one<{ count: number }>(
-        "SELECT COUNT(*) count FROM generation_log WHERE created_at >= ?",
-        now - DAY_MS,
-      ).count;
-      const last7d = one<{ count: number }>(
-        "SELECT COUNT(*) count FROM generation_log WHERE created_at >= ?",
-        now - 7 * DAY_MS,
-      ).count;
-
       const dailyRows = all<{ day: string; count: number }>(
         `SELECT ${localDayExpr("created_at")} day, COUNT(*) count
          FROM generation_log WHERE ${localDayExpr("created_at")} >= ?
@@ -85,7 +75,7 @@ export async function GET() {
         {
           generatedAt: new Date().toISOString(),
           timezone: "UTC+08:00",
-          totals: { circles, generations, uniqueUsers, today, last24h, last7d },
+          totals: { generations, uniqueUsers, today },
           daily,
           hourly,
           weekdayHour,
