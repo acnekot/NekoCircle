@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { proxiedImageSrc } from "@/lib/proxied-image-src";
+import { MONET_AVATAR_COLORS } from "@/lib/style";
 
 type Props = {
   /** Yahoo 的 profileImage（尺寸小，且可能是坏的） */
@@ -45,7 +46,16 @@ export default function AvatarImage({
   const src = candidates.find((candidate) => !dead.includes(candidate));
 
   if (!src) {
-    return <span className={fallbackClassName}>{name[0]?.toUpperCase()}</span>;
+    const seed = [...name].reduce((total, char) => total + char.codePointAt(0)!, 0);
+    const backgroundColor = MONET_AVATAR_COLORS[seed % MONET_AVATAR_COLORS.length];
+    return (
+      <span
+        className={fallbackClassName}
+        style={{ backgroundColor, color: "#fffafc" }}
+      >
+        {name[0]?.toUpperCase()}
+      </span>
+    );
   }
 
   return (

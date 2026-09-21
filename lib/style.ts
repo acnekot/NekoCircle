@@ -106,12 +106,15 @@ export const THEME_PRESETS: Record<string, ThemePreset> = {
   "gold":        { name: "theme.gold",        emoji: "✨", bgColor1: "#1a1200", bgColor2: "#080600", accentColor: "#f59e0b" },
 };
 
+/** Material You / Monet inspired tonal colors for deterministic avatar fallbacks. */
+export const MONET_AVATAR_COLORS = [
+  "#7f9eb2", "#8f9fc0", "#a592bb", "#c38fa4",
+  "#c9a17f", "#91aa94", "#7fa99f", "#b09fc5",
+  "#9eb6c8", "#c2ae88", "#b38694", "#879f91",
+] as const;
+
 export const NODE_PALETTES: Record<NodeScheme, (accent: string, idx: number, tier: number) => string> = {
-  rainbow: (_a, i) => [
-    "#1d9bf0","#7b6cf6","#f59e0b","#10b981",
-    "#ef4444","#ec4899","#06b6d4","#84cc16",
-    "#f97316","#a855f7","#14b8a6","#eab308",
-  ][i % 12],
+  rainbow: (_a, i) => MONET_AVATAR_COLORS[i % MONET_AVATAR_COLORS.length],
   accent:  (a)        => a,
   tier:    (a, _i, t) => (["#1d9bf0","#7b6cf6","#10b981"] as const)[t] ?? a,
   warm:    (_a, i)    => ["#ef4444","#f97316","#f59e0b","#ec4899","#e11d48","#fb923c","#fbbf24","#f43f5e"][i % 8],
