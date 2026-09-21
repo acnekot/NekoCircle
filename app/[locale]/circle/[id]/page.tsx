@@ -92,20 +92,20 @@ export default function CirclePreviewPage() {
 
   return (
     <div
-      className="gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
+      className="md3-app-surface gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
       style={bgAccent ? {
-        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}28 0%, transparent 55%), radial-gradient(ellipse at top, #1a2744 0%, #0a0f1e 60%)`
+        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}20 0%, transparent 55%), radial-gradient(ellipse at 84% 4%, rgba(99, 106, 204, .16), transparent 34rem), #121318`
       } : undefined}
     >
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <div className="tech-panel rounded-2xl flex items-center gap-4 mb-6 px-4 sm:px-5 py-4">
-          <a href={`/${locale}`} className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-500 hover:text-cyan-200 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
+        <div className="tech-panel rounded-[28px] flex items-center gap-4 mb-6 px-4 sm:px-6 py-4 sm:py-5">
+          <a href={`/${locale}`} className="md3-tonal-button shrink-0">{t("common.backHome")}</a>
           {circle && (
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="hud-label px-2 py-1 rounded-md bg-cyan-400/[0.07] border border-cyan-300/15">
+                <span className="hud-label px-3 py-1.5 rounded-full bg-[#3c4278]/70 border border-[#bec2ff]/15">
                   {t("circle.tag")}
                 </span>
                 <button
@@ -137,7 +137,7 @@ export default function CirclePreviewPage() {
         {/* Loading */}
         {loading && (
           <div className="card rounded-2xl p-16 flex flex-col items-center gap-4">
-            <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#1d9bf0] animate-spin" />
+            <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#bec2ff] animate-spin" />
             <div className="text-center">
               <p className="text-white font-medium">{t("circle.loading")}</p>
             </div>
@@ -216,7 +216,7 @@ export default function CirclePreviewPage() {
                     onClick={() => setActiveTab(tab)}
                     className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       activeTab === tab
-                        ? "bg-[#0a84ff]/20 text-white border border-[#0a84ff]/25"
+                        ? "bg-[#3c4278] text-[#dfe0ff] border border-[#bec2ff]/20"
                         : "border border-transparent text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}
                   >{label}</button>
@@ -251,7 +251,7 @@ export default function CirclePreviewPage() {
                             <td className="px-4 py-3 text-gray-500 font-mono text-sm">{i + 1}</td>
                             <td className="px-4 py-3">
                               <a href={`https://x.com/${item.user.userName}`} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-3 hover:text-[#1d9bf0] transition-colors">
+                                className="flex items-center gap-3 hover:text-[#bec2ff] transition-colors">
                                 <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden shrink-0">
                                   <AvatarImage
                                     hdUrl={item.user.profilePicture}

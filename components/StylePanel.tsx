@@ -19,7 +19,7 @@ function Toggle({ checked, onToggle }: { checked: boolean; onToggle: () => void 
     <button
       type="button"
       onClick={onToggle}
-      className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-[#1d9bf0]" : "bg-white/10"}`}
+      className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-[#bec2ff]" : "bg-white/10"}`}
     >
       <span
         className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : ""}`}
@@ -46,7 +46,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
           type="text"
           value={value}
           onChange={(e) => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && onChange(e.target.value)}
-          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono outline-none focus:border-[#1d9bf0] w-20"
+          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono outline-none focus:border-[#bec2ff] w-20"
           maxLength={7}
         />
       </div>
@@ -68,7 +68,7 @@ function BtnGroup<T extends string>({ options, value, onChange }: {
           type="button"
           onClick={() => onChange(key)}
           className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
-            value === key ? "bg-[#1d9bf0] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
+            value === key ? "bg-[#bec2ff] text-[#252a60]" : "bg-white/5 text-gray-400 hover:bg-white/10"
           }`}
         >
           {label}
@@ -119,7 +119,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                   key={key}
                   type="button"
                   onClick={() => set("bgGradient", key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${s.bgGradient === key ? "bg-[#1d9bf0] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${s.bgGradient === key ? "bg-[#bec2ff] text-[#252a60]" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
                 >
                   {t(tKey)}
                 </button>
@@ -136,7 +136,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                   key={key}
                   type="button"
                   onClick={() => set("nodeSize", key)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${s.nodeSize === key ? "border-[#1d9bf0] bg-[#1d9bf0]/10 text-white" : "border-white/10 bg-white/3 text-gray-400 hover:border-white/25"}`}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${s.nodeSize === key ? "border-[#bec2ff] bg-[#3c4278] text-[#dfe0ff]" : "border-white/10 bg-white/3 text-gray-400 hover:border-white/25"}`}
                 >
                   {t(tKey)}
                 </button>
@@ -165,7 +165,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                       disabled={maxUsers < n && maxUsers < (n === 7 ? 1 : n === 22 ? 8 : 23)}
                       className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                         active
-                          ? "bg-[#1d9bf0] text-white"
+                          ? "bg-[#bec2ff] text-[#252a60]"
                           : "bg-white/8 text-gray-300 hover:bg-white/15"
                       } disabled:opacity-30 disabled:cursor-not-allowed`}
                     >
@@ -179,7 +179,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                     onClick={() => set("displayCount", maxUsers)}
                     className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                       (s.displayCount ?? 22) >= maxUsers
-                        ? "bg-[#1d9bf0] text-white"
+                        ? "bg-[#bec2ff] text-[#252a60]"
                         : "bg-white/8 text-gray-300 hover:bg-white/15"
                     }`}
                   >
@@ -313,7 +313,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                         type="range" min={3} max={20} step={1}
                         value={uc.maxLength}
                         onChange={(e) => setUname("maxLength", Number(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#1d9bf0]"
+                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#bec2ff]"
                       />
                     </div>
 
@@ -333,7 +333,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                         type="range" min={0} max={100} step={5}
                         value={Math.round(uc.opacity * 100)}
                         onChange={(e) => setUname("opacity", Number(e.target.value) / 100)}
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#1d9bf0]"
+                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#bec2ff]"
                       />
                     </div>
 

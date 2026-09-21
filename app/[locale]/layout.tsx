@@ -10,14 +10,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const titles: Record<string, string> = {
-    zh: "X 互动圈生成器 — NekoCircle",
-    en: "X Interaction Circle Generator — NekoCircle",
-    ja: "X インタラクションサークル — NekoCircle",
+    zh: "推特互动圈生成器 — NekoCircle",
+    en: "Twitter Interaction Circle Generator — NekoCircle",
+    ja: "Twitter インタラクションサークル — NekoCircle",
   };
   const descriptions: Record<string, string> = {
-    zh: "分析你的 X 互动圈，找出最活跃的互动用户",
-    en: "Analyze your X interaction circle and find the most active users",
-    ja: "X のインタラクションサークルを分析して、最もアクティブなユーザーを見つけましょう",
+    zh: "分析你的推特互动圈，找出最活跃的互动用户",
+    en: "Analyze your Twitter interaction circle and find the most active users",
+    ja: "Twitter のインタラクションサークルを分析して、最もアクティブなユーザーを見つけましょう",
   };
   return {
     title: titles[locale] ?? titles.zh,

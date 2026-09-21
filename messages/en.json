@@ -3,9 +3,10 @@
   "nav.stats": "Stats",
 
   "home.hero.title1": "Discover Your",
-  "home.hero.title2": "X Interaction Circle",
-  "home.hero.desc": "Combine multiple public sources with time decay and reciprocal interaction scoring to reveal a more meaningful X social graph. Free, no login required.",
+  "home.hero.title2": "Twitter Interaction Circle",
+  "home.hero.desc": "Combine multiple public sources with time decay and reciprocal interaction scoring to reveal a more meaningful Twitter social graph. Free, no login required.",
   "home.form.placeholder": "acnekot",
+  "home.form.usernameLabel": "TWITTER USERNAME",
   "home.form.submit": "Generate Circle",
   "home.form.generated": "Generated",
   "home.form.times": "times",
@@ -42,8 +43,8 @@
   "home.guide.title": "📖 User Guide",
   "home.guide.subtitle": "No registration needed, just enter a username to generate for free",
 
-  "home.guide.step01.title": "Enter X (Twitter) Username",
-  "home.guide.step01.desc": "Enter the X username you want to analyze (with or without @), then click the button. No registration or login needed.",
+  "home.guide.step01.title": "Enter Twitter Username",
+  "home.guide.step01.desc": "Enter the Twitter username you want to analyze (with or without @), then click the button. No registration or login needed.",
   "home.guide.step01.tip1": "Username is case-insensitive",
   "home.guide.step01.tip2": "Completely free, no API Key needed",
   "home.guide.step01.tip3": "Data from Yahoo Japan real-time search",
@@ -64,7 +65,7 @@
   "home.guide.step04.desc": "Click \"Download Image\" to save the interaction circle as a PNG file.",
   "home.guide.step04.tip1": "Image includes \"NekoCircle\" watermark",
   "home.guide.step04.tip2": "Share the image directly with friends",
-  "home.guide.step04.tip3": "Supports sharing to X",
+  "home.guide.step04.tip3": "Supports sharing to Twitter",
 
   "home.faq.title": "FAQ",
   "home.faq.q1": "Why only 30 days of data?",
@@ -78,7 +79,7 @@
   "home.faq.q5": "Are results saved?",
   "home.faq.a5": "Yes. Generated circles are saved with a unique ID and can be viewed anytime.",
   "home.faq.q6": "Why don't some avatars load?",
-  "home.faq.a6": "X avatars are loaded via proxy. Occasional failures due to network issues are normal — just refresh later.",
+  "home.faq.a6": "Twitter avatars are loaded via proxy. Occasional failures due to network issues are normal — just refresh later.",
 
   "home.scoring.title": "📊 Scoring Rules",
   "home.scoring.mention": "@Mention",
@@ -150,7 +151,7 @@
   "extras.family.relative": "Extended connections",
   "extras.ai.title": "AI interaction diagnosis",
   "extras.ai.desc": "Choose a topic, then copy the prompt generated from public mention data into your preferred AI.",
-  "extras.ai.partner": "Partner X username",
+  "extras.ai.partner": "Partner Twitter username",
   "extras.ai.copy": "Copy prompt",
   "extras.value.title": "Entertainment account valuation",
   "extras.value.grade": "grade",
@@ -227,7 +228,7 @@
   "theme.gold": "Gold",
 
   "find.title": "Find Yourself",
-  "find.desc": "Enter your X/Twitter username to check if you're in this circle",
+  "find.desc": "Enter your Twitter username to check if you're in this circle",
   "find.placeholder": "username",
   "find.search": "Search",
   "find.rankResult": "You're ranked #{rank}!",
@@ -260,7 +261,7 @@
   "stats.footer": "Real-time statistics · Full data visible to admins only",
 
   "common.backHome": "← Back to Home",
-  "common.share": "Share to X",
+  "common.share": "Share to Twitter",
   "common.download": "⬇️ Download Image",
   "common.refresh": "🔄 Refresh Data",
   "common.forceRefresh": "🔄 Force refresh",

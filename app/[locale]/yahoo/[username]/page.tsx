@@ -210,19 +210,19 @@ export default function YahooCirclePage() {
 
   return (
     <div
-      className="gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
+      className="md3-app-surface gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
       style={bgAccent ? {
-        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}28 0%, transparent 55%), radial-gradient(ellipse at top, #1a2744 0%, #0a0f1e 60%)`
+        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}20 0%, transparent 55%), radial-gradient(ellipse at 84% 4%, rgba(99, 106, 204, .16), transparent 34rem), #121318`
       } : undefined}
     >
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <header className="tech-panel result-header rounded-2xl mb-5 sm:mb-6 p-4 sm:p-5">
+        <header className="tech-panel result-header rounded-[28px] mb-5 sm:mb-6 p-4 sm:p-6">
           <div className="flex items-center gap-3">
-            <a href={`/${locale}`} className="shrink-0 rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-400 hover:text-cyan-100 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
+            <a href={`/${locale}`} className="md3-tonal-button shrink-0">{t("common.backHome")}</a>
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="hud-label px-2 py-1 rounded-md bg-cyan-400/[0.07] border border-cyan-300/15">
+              <span className="hud-label px-3 py-1.5 rounded-full bg-[#3c4278]/70 border border-[#bec2ff]/15">
                 {t("yahoo.tag")}
               </span>
               {circleId && (
@@ -298,8 +298,8 @@ export default function YahooCirclePage() {
           <div className="card loading-stage rounded-2xl p-6 sm:p-10">
             <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-[1fr_1.15fr] md:items-center">
               <div>
-                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06]">
-                  <div className="h-6 w-6 rounded-full border-2 border-white/10 border-t-cyan-300 animate-spin" />
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#bec2ff]/15 bg-[#3c4278]/35">
+                  <div className="h-6 w-6 rounded-full border-2 border-white/10 border-t-[#bec2ff] animate-spin" />
                 </div>
                 <p className="text-lg font-semibold text-white">{t("yahoo.loading")}</p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">{t("yahoo.loadingSub")}</p>
@@ -376,7 +376,7 @@ export default function YahooCirclePage() {
                     onClick={() => setActiveTab(tab)}
                     className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       activeTab === tab
-                        ? "bg-[#0a84ff]/20 text-white border border-[#0a84ff]/25"
+                        ? "bg-[#3c4278] text-[#dfe0ff] border border-[#bec2ff]/20"
                         : "border border-transparent text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}
                   >{label}</button>
@@ -411,7 +411,7 @@ export default function YahooCirclePage() {
                             <td className="px-4 py-3 text-gray-500 font-mono text-sm">{i + 1}</td>
                             <td className="px-4 py-3">
                               <a href={`https://x.com/${u.screenName}`} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-3 hover:text-[#1d9bf0] transition-colors">
+                                className="flex items-center gap-3 hover:text-[#bec2ff] transition-colors">
                                 <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden shrink-0">
                                   <AvatarImage
                                     previewUrl={u.avatarUrlPreview}

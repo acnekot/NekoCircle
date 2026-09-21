@@ -72,6 +72,8 @@
 .hero h1 { margin: 0 0 22px; font-size: clamp(54px, 6.7vw, 92px); font-weight: 780; line-height: .91; letter-spacing: -.072em; }
 .hero h1 em { display: block; color: var(--primary); font-style: normal; }
 .lede { max-width: 600px; color: var(--muted); font-size: 17px; line-height: 1.75; }
+.announcements { margin-top: 24px; }
+.announcements + .searchPanel { margin-top: 18px; }
 
 .searchPanel {
   margin-top: 34px;

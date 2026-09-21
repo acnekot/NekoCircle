@@ -61,7 +61,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
         <button
           onClick={handleSearch}
           disabled={!query.trim()}
-          className="px-3 py-2 rounded-xl text-sm font-medium bg-[#1d9bf0]/20 text-[#1d9bf0] hover:bg-[#1d9bf0]/30 border border-[#1d9bf0]/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          className="px-4 py-2 rounded-full text-sm font-medium bg-[#3c4278] text-[#dfe0ff] hover:bg-[#4b528c] border border-[#bec2ff]/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
         >
           {t("find.search")}
         </button>

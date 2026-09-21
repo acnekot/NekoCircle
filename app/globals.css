@@ -7,12 +7,12 @@
 
 :root {
   color-scheme: dark;
-  --tech-bg: #050608;
-  --tech-panel: rgba(23, 24, 29, 0.78);
-  --tech-line: rgba(255, 255, 255, 0.08);
-  --tech-cyan: #64d2ff;
-  --tech-blue: #0a84ff;
-  --tech-violet: #5e5ce6;
+  --tech-bg: #121318;
+  --tech-panel: #212228;
+  --tech-line: rgba(199, 197, 208, 0.12);
+  --tech-cyan: #bec2ff;
+  --tech-blue: #bec2ff;
+  --tech-violet: #8f96e8;
 }
 
 * {
@@ -24,7 +24,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background: var(--tech-bg);
-  color: #e6f6ff;
+  color: #e5e1e9;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: -0.01em;
 }
@@ -32,38 +32,40 @@ body {
 .gradient-bg {
   background-color: var(--tech-bg);
   background-image:
-    radial-gradient(circle at 12% -8%, rgba(10, 132, 255, 0.2), transparent 32%),
-    radial-gradient(circle at 92% 6%, rgba(94, 92, 230, 0.15), transparent 28%),
-    linear-gradient(180deg, #090b10 0%, #050608 56%, #020304 100%);
+    radial-gradient(ellipse 42rem 34rem at 85% 8%, rgba(99, 106, 204, .17), transparent 72%),
+    radial-gradient(ellipse 28rem 28rem at -8% 52%, rgba(130, 70, 105, .1), transparent 70%),
+    linear-gradient(180deg, #15161c 0%, #121318 62%, #0f1015 100%);
   background-size: auto;
   background-attachment: fixed;
 }
 
 .card {
-  background: rgba(24, 26, 32, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(33, 34, 40, 0.9);
+  border: 1px solid rgba(199, 197, 208, 0.09);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 12px 32px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(24px) saturate(135%);
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 12px 34px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(20px) saturate(125%);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0a84ff, #5e5ce6);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px rgba(255,255,255,0.18), 0 8px 24px rgba(10, 132, 255, 0.18);
+  color: #252a60 !important;
+  background: #bec2ff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .25);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 .btn-primary:hover {
   transform: translateY(-1px);
-  filter: brightness(1.12);
-  box-shadow: inset 0 1px rgba(255,255,255,0.22), 0 10px 28px rgba(10, 132, 255, 0.24);
+  filter: brightness(1.04);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .3);
 }
 
 .tech-nav {
-  background: rgba(8, 9, 12, 0.72);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(28px) saturate(150%);
+  background: rgba(18, 19, 24, 0.86);
+  border-bottom: 1px solid rgba(199, 197, 208, 0.08);
+  backdrop-filter: blur(24px) saturate(135%);
 }
 
 .tech-brand-mark {
@@ -71,10 +73,10 @@ body {
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 11px;
-  background: linear-gradient(145deg, rgba(10,132,255,.22), rgba(94,92,230,.18));
-  color: #d9f3ff;
+  border: 1px solid rgba(223, 224, 255, 0.08);
+  border-radius: 50% 50% 38% 50%;
+  background: #3c4278;
+  color: #dfe0ff;
   box-shadow: inset 0 1px rgba(255,255,255,.08);
 }
 
@@ -83,7 +85,7 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: #8edcff;
+  color: #bec2ff;
   font-size: 0.68rem;
   font-weight: 700;
 }
@@ -96,7 +98,7 @@ body {
   border-radius: 999px;
   margin-right: 10px;
   vertical-align: middle;
-  background: #0a84ff;
+  background: #73dda0;
 }
 
 .tech-title {
@@ -105,29 +107,29 @@ body {
 }
 
 .tech-gradient-text {
-  background: linear-gradient(105deg, #ffffff 4%, #9bdcff 48%, #a9a7ff 100%);
+  background: linear-gradient(105deg, #e5e1e9 4%, #bec2ff 58%, #f0b7d2 100%);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
 }
 
 .tech-panel {
-  background: rgba(25, 27, 34, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.085);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24), inset 0 1px rgba(255, 255, 255, 0.045);
-  backdrop-filter: blur(28px) saturate(140%);
+  background: rgba(33, 34, 40, 0.92);
+  border: 1px solid rgba(199, 197, 208, 0.1);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .2), inset 0 1px rgba(255, 255, 255, .035);
+  backdrop-filter: blur(22px) saturate(125%);
 }
 
 .tech-input {
-  background: rgba(8, 9, 13, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: rgba(18, 19, 24, 0.72);
+  border: 1px solid #918f9a;
   box-shadow: inset 0 1px rgba(255,255,255,.02);
 }
 
 .tech-input:focus-within,
 .tech-input:focus {
-  border-color: rgba(10, 132, 255, 0.7);
-  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.12);
+  border-color: #bec2ff;
+  box-shadow: inset 0 0 0 1px #bec2ff;
 }
 
 .tech-stat {
@@ -179,16 +181,16 @@ body {
 
 .tech-tabs {
   padding: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 14px;
-  background: rgba(22, 24, 30, 0.82);
+  border: 1px solid rgba(199, 197, 208, 0.08);
+  border-radius: 18px;
+  background: rgba(30, 31, 37, 0.88);
   backdrop-filter: blur(20px) saturate(140%);
 }
 
 .tech-display-frame {
   position: relative;
-  border-color: rgba(255, 255, 255, 0.075);
-  background: rgba(15, 17, 22, 0.92);
+  border-color: rgba(199, 197, 208, 0.08);
+  background: rgba(26, 27, 32, 0.92);
   box-shadow: 0 18px 46px rgba(0,0,0,.26), inset 0 1px rgba(255,255,255,.035);
 }
 
@@ -205,7 +207,7 @@ body {
   right: -110px;
   bottom: -160px;
   border-radius: 999px;
-  background: rgba(10, 132, 255, 0.12);
+  background: rgba(190, 194, 255, 0.12);
   filter: blur(36px);
   pointer-events: none;
 }
@@ -448,6 +450,31 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Shared Material 3 surface for public result and statistics pages. */
+.md3-app-surface {
+  --md-primary: #bec2ff;
+  --md-on-primary: #252a60;
+  --md-primary-container: #3c4278;
+  --md-on-primary-container: #dfe0ff;
+  --md-surface: #121318;
+  --md-surface-low: #1a1b20;
+  --md-surface-mid: #212228;
+  --md-surface-high: #2b2c33;
+  --md-on-surface: #e5e1e9;
+  --md-on-surface-variant: #c7c5cf;
+  --md-outline: #918f9a;
+  color: var(--md-on-surface);
+}
+
+.md3-app-surface .card { border-radius: 24px; }
+.md3-app-surface .tech-panel { border-radius: 28px; }
+.md3-app-surface .tech-tabs > button,
+.md3-app-surface .result-action { border-radius: 999px; }
+.md3-app-surface .result-stat { border-radius: 16px; background: rgba(190, 194, 255, .055); }
+.md3-app-surface .tech-status-dot { background: #73dda0; }
+.md3-app-surface input::placeholder { color: #777681; }
+.md3-app-surface :focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
 
 /* Material 3 direction demo ------------------------------------------------- */
 .md3-page {

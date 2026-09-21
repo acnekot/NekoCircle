@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { useTranslation } from "@/components/LocaleProvider";
 import LiveGeneratedCircle from "./LiveGeneratedCircle";
 import styles from "./md3-demo.module.css";
@@ -16,10 +17,10 @@ function Arrow() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5" /></svg>;
 }
 
-export default function IndependentMd3Demo() {
+export default function IndependentMd3Demo({ standaloneDemo = true }: { standaloneDemo?: boolean }) {
   const router = useRouter();
   const { locale, t } = useTranslation();
-  const [username, setUsername] = useState("acnekot");
+  const [username, setUsername] = useState(standaloneDemo ? "acnekot" : "");
   const [circleId, setCircleId] = useState("");
   const [stats, setStats] = useState<HomeStats | null>(null);
 
@@ -42,15 +43,14 @@ export default function IndependentMd3Demo() {
   }
 
   const languageNames: Record<string, string> = { zh: "中", en: "EN", ja: "日" };
-  const heroTitle = locale === "zh" ? "推特互动圈" : t("home.hero.title2");
-  const heroDescription = locale === "zh"
-    ? t("home.hero.desc").replaceAll("X", "推特")
-    : t("home.hero.desc");
+  const landingPath = standaloneDemo ? "/md3-demo" : "";
+  const heroTitle = t("home.hero.title2");
+  const heroDescription = t("home.hero.desc");
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <a className={styles.brand} href={`/${locale}/md3-demo`} aria-label="NekoCircle">
+        <a className={styles.brand} href={`/${locale}${landingPath}`} aria-label="NekoCircle">
           <span className={styles.brandMark} aria-hidden="true"><i /><i /><i /></span>
           <span><b>NekoCircle</b><small>social orbit</small></span>
         </a>
@@ -59,7 +59,7 @@ export default function IndependentMd3Demo() {
           <a href={`/${locale}/stats`}>{t("nav.stats")}</a>
           <div className={styles.languages}>
             {["zh", "en", "ja"].map((code) => (
-              <a key={code} href={`/${code}/md3-demo`} aria-current={locale === code ? "page" : undefined}>
+              <a key={code} href={`/${code}${landingPath}`} aria-current={locale === code ? "page" : undefined}>
                 {languageNames[code]}
               </a>
             ))}
@@ -72,9 +72,10 @@ export default function IndependentMd3Demo() {
           <div className={styles.heroCopy}>
             <h1>{t("home.hero.title1")}<em>{heroTitle}</em></h1>
             <p className={styles.lede}>{heroDescription}</p>
+            {!standaloneDemo && <div className={styles.announcements}><AnnouncementBanner /></div>}
 
             <form className={styles.searchPanel} onSubmit={generate}>
-              <label htmlFor="md3-username">{locale === "zh" ? "推特用户名" : "X USERNAME"}</label>
+              <label htmlFor="md3-username">{t("home.form.usernameLabel")}</label>
               <div className={styles.searchRow}>
                 <div className={styles.inputWrap}>
                   <span>@</span>

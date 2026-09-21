@@ -3,9 +3,10 @@
   "nav.stats": "统计",
 
   "home.hero.title1": "发现你的",
-  "home.hero.title2": "X 互动圈",
-  "home.hero.desc": "聚合多个公开数据源，用时间衰减与双向互动评分，为你生成更真实的 X 社交关系图谱。免费、无需登录。",
+  "home.hero.title2": "推特互动圈",
+  "home.hero.desc": "聚合多个公开数据源，用时间衰减与双向互动评分，为你生成更真实的推特社交关系图谱。免费、无需登录。",
   "home.form.placeholder": "acnekot",
+  "home.form.usernameLabel": "推特用户名",
   "home.form.submit": "生成互动圈",
   "home.form.generated": "已生成",
   "home.form.times": "次",
@@ -42,8 +43,8 @@
   "home.guide.title": "📖 使用说明",
   "home.guide.subtitle": "无需注册，输入用户名即可免费生成",
 
-  "home.guide.step01.title": "输入 X (Twitter) 用户名",
-  "home.guide.step01.desc": "在首页输入框填入想分析的 X 用户名（@ 符号可加可不加），点击按钮即可开始。无需注册或登录。",
+  "home.guide.step01.title": "输入推特用户名",
+  "home.guide.step01.desc": "在首页输入框填入想分析的推特用户名（@ 符号可加可不加），点击按钮即可开始。无需注册或登录。",
   "home.guide.step01.tip1": "用户名不区分大小写",
   "home.guide.step01.tip2": "完全免费，无需 API Key",
   "home.guide.step01.tip3": "数据来自 Yahoo 日本实时搜索",
@@ -64,7 +65,7 @@
   "home.guide.step04.desc": "点击「下载图片」按钮，将互动圈以 PNG 格式保存到本地。",
   "home.guide.step04.tip1": "图片包含水印「NekoCircle」",
   "home.guide.step04.tip2": "可直接分享图片给朋友",
-  "home.guide.step04.tip3": "支持分享到 X",
+  "home.guide.step04.tip3": "支持分享到推特",
 
   "home.faq.title": "常见问题",
   "home.faq.q1": "为什么只有 30 天的数据？",
@@ -78,7 +79,7 @@
   "home.faq.q5": "结果会保存吗？",
   "home.faq.a5": "会。生成的圈子会保存并分配唯一 ID，可以通过 ID 随时查看。",
   "home.faq.q6": "为什么有些头像加载不出来？",
-  "home.faq.a6": "X 头像需要通过代理加载，偶尔因网络波动失败属于正常现象，稍后刷新重试即可。",
+  "home.faq.a6": "推特头像需要通过代理加载，偶尔因网络波动失败属于正常现象，稍后刷新重试即可。",
 
   "home.scoring.title": "📊 计分规则",
   "home.scoring.mention": "@提及",
@@ -150,7 +151,7 @@
   "extras.family.relative": "扩展关系",
   "extras.ai.title": "AI 互动诊断",
   "extras.ai.desc": "选择主题，复制基于公开 Mention 数据生成的提示词到你喜欢的 AI。",
-  "extras.ai.partner": "对方的 X 用户名",
+  "extras.ai.partner": "对方的推特用户名",
   "extras.ai.copy": "复制提示词",
   "extras.value.title": "娱乐性账号估值",
   "extras.value.grade": "等级",
@@ -227,7 +228,7 @@
   "theme.gold": "黄金",
 
   "find.title": "查找自我",
-  "find.desc": "输入你的 X/Twitter 用户名，查看你是否在这个圈子中",
+  "find.desc": "输入你的推特用户名，查看你是否在这个圈子中",
   "find.placeholder": "用户名",
   "find.search": "搜索",
   "find.rankResult": "你在第 {rank} 位！",
@@ -260,7 +261,7 @@
   "stats.footer": "数据实时统计 · 仅管理员可见完整数据",
 
   "common.backHome": "← 返回首页",
-  "common.share": "分享到 X",
+  "common.share": "分享到推特",
   "common.download": "⬇️ 下载图片",
   "common.refresh": "🔄 刷新数据",
   "common.forceRefresh": "🔄 强制重新获取",

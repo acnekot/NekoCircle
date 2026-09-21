@@ -3,9 +3,10 @@
   "nav.stats": "統計",
 
   "home.hero.title1": "あなたの",
-  "home.hero.title2": "X インタラクションサークル",
-  "home.hero.desc": "複数の公開データソースを集約し、時間減衰と双方向インタラクションの評価で、より意味のある X ソーシャルグラフを生成します。無料・ログイン不要。",
+  "home.hero.title2": "Twitter インタラクションサークル",
+  "home.hero.desc": "複数の公開データソースを集約し、時間減衰と双方向インタラクションの評価で、より意味のある Twitter ソーシャルグラフを生成します。無料・ログイン不要。",
   "home.form.placeholder": "acnekot",
+  "home.form.usernameLabel": "TWITTER ユーザー名",
   "home.form.submit": "サークルを生成",
   "home.form.generated": "生成済み",
   "home.form.times": "回",
@@ -42,8 +43,8 @@
   "home.guide.title": "📖 使い方",
   "home.guide.subtitle": "登録不要、ユーザー名を入力するだけで無料生成",
 
-  "home.guide.step01.title": "X (Twitter) ユーザー名を入力",
-  "home.guide.step01.desc": "トップページの入力欄に分析したい X ユーザー名を入力し（@ 記号はあってもなくても OK）、ボタンをクリック。登録・ログイン不要です。",
+  "home.guide.step01.title": "Twitter ユーザー名を入力",
+  "home.guide.step01.desc": "トップページの入力欄に分析したい Twitter ユーザー名を入力し（@ 記号はあってもなくても OK）、ボタンをクリック。登録・ログイン不要です。",
   "home.guide.step01.tip1": "ユーザー名は大文字・小文字を区別しません",
   "home.guide.step01.tip2": "完全無料、API Key 不要",
   "home.guide.step01.tip3": "データは Yahoo Japan リアルタイム検索から取得",
@@ -64,7 +65,7 @@
   "home.guide.step04.desc": "「画像をダウンロード」ボタンをクリックして、サークルを PNG 形式で保存します。",
   "home.guide.step04.tip1": "画像に「NekoCircle」の透かし入り",
   "home.guide.step04.tip2": "友達に直接画像をシェア可能",
-  "home.guide.step04.tip3": "X へのシェアに対応",
+  "home.guide.step04.tip3": "Twitter へのシェアに対応",
 
   "home.faq.title": "よくある質問",
   "home.faq.q1": "なぜ 30 日間のデータだけ？",
@@ -78,7 +79,7 @@
   "home.faq.q5": "結果は保存されますか？",
   "home.faq.a5": "はい。生成されたサークルは固有の ID で保存され、いつでも閲覧できます。",
   "home.faq.q6": "アバターが表示されないのはなぜ？",
-  "home.faq.a6": "X のアバターはプロキシ経由で読み込まれます。ネットワークの一時的な問題で失敗することがありますが、後で再読み込みしてください。",
+  "home.faq.a6": "Twitter のアバターはプロキシ経由で読み込まれます。ネットワークの一時的な問題で失敗することがありますが、後で再読み込みしてください。",
 
   "home.scoring.title": "📊 スコアリングルール",
   "home.scoring.mention": "@メンション",
@@ -150,7 +151,7 @@
   "extras.family.relative": "拡張関係",
   "extras.ai.title": "AI交流診断",
   "extras.ai.desc": "テーマを選び、公開メンションデータから作ったプロンプトをお好みのAIに貼り付けます。",
-  "extras.ai.partner": "相手のXユーザー名",
+  "extras.ai.partner": "相手のTwitterユーザー名",
   "extras.ai.copy": "プロンプトをコピー",
   "extras.value.title": "娯楽用アカウント推定価値",
   "extras.value.grade": "ランク",
@@ -227,7 +228,7 @@
   "theme.gold": "ゴールド",
 
   "find.title": "自分を探す",
-  "find.desc": "X/Twitter ユーザー名を入力して、このサークルに入っているか確認",
+  "find.desc": "Twitter ユーザー名を入力して、このサークルに入っているか確認",
   "find.placeholder": "ユーザー名",
   "find.search": "検索",
   "find.rankResult": "あなたは {rank} 位です！",
@@ -260,7 +261,7 @@
   "stats.footer": "リアルタイム統計 · 完全なデータは管理者のみ閲覧可能",
 
   "common.backHome": "← ホームに戻る",
-  "common.share": "X にシェア",
+  "common.share": "Twitter にシェア",
   "common.download": "⬇️ 画像をダウンロード",
   "common.refresh": "🔄 データを更新",
   "common.forceRefresh": "🔄 強制再取得",

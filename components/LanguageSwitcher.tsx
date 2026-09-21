@@ -42,7 +42,7 @@ export default function LanguageSwitcher() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+        className="flex min-h-10 items-center gap-1.5 rounded-full bg-[#34353b] px-3 text-xs text-[#c7c5cf] transition-colors hover:bg-[#45475a] hover:text-white"
       >
         <span>{LABELS[locale].flag}</span>
         <span className="hidden sm:inline">{LABELS[locale].name}</span>
@@ -51,15 +51,15 @@ export default function LanguageSwitcher() {
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-32 rounded-xl border border-white/10 bg-gray-900/95 backdrop-blur-md shadow-xl overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-36 overflow-hidden rounded-2xl border border-white/10 bg-[#292a30]/95 p-1.5 shadow-xl backdrop-blur-md z-50">
           {LOCALES.map((l) => (
             <button
               key={l}
               onClick={() => switchLocale(l)}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+              className={`w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                 l === locale
-                  ? "bg-[#1d9bf0]/15 text-[#1d9bf0]"
-                  : "text-gray-300 hover:bg-white/5"
+                  ? "bg-[#3c4278] text-[#dfe0ff]"
+                  : "text-[#c7c5cf] hover:bg-white/5"
               }`}
             >
               <span>{LABELS[l].flag}</span>
