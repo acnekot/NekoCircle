@@ -8,7 +8,7 @@ export type Md3IconName =
   | "info" | "warning" | "pin" | "close" | "pet" | "key" | "lock"
   | "edit" | "visibilityOff" | "delete" | "language" | "inbox"
   | "campaign" | "chart" | "globe" | "trend" | "person" | "send"
-  | "feedback";
+  | "feedback" | "open";
 
 export default function Md3Icon({ name, className = "h-5 w-5" }: { name: Md3IconName; className?: string }) {
   let content: ReactNode;
@@ -57,6 +57,7 @@ export default function Md3Icon({ name, className = "h-5 w-5" }: { name: Md3Icon
     case "person": content = <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>; break;
     case "send": content = <><path d="m3 11 18-8-7 18-3-7-8-3Z" /><path d="m11 14 4-4" /></>; break;
     case "feedback": content = <><path d="M4 5h16v12H9l-5 4V5Z" /><path d="M8 9h8M8 13h5" /></>; break;
+    case "open": content = <><path d="M14 4h6v6M20 4l-9 9" /><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6" /></>; break;
   }
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

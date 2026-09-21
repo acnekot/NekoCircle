@@ -55,6 +55,12 @@ export function mergeInteractionEvents(
       ) {
         existing.createdAt = normalized.createdAt;
       }
+      if (
+        normalized.text &&
+        (!existing.text || normalized.text.length > existing.text.length)
+      ) {
+        existing.text = normalized.text;
+      }
     }
   }
 

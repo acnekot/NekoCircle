@@ -1,9 +1,10 @@
 import type { CircleUser } from "@/types/circle";
+import type { InteractionDiagnostics } from "@/types/interaction";
 
-const KEY_PREFIX = "nekocircle-yahoo-v4:";
+const KEY_PREFIX = "nekocircle-yahoo-v7:";
 const TTL_MS = 8 * 60 * 1000;
 
-export type YahooCircleClientCache = {
+export type YahooCircleClientCache = InteractionDiagnostics & {
   screenName: string;
   counts: { mentionsToYou: number; mentionsFromYou: number };
   circleUsers?: CircleUser[];

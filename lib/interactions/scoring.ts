@@ -12,6 +12,15 @@ export const INTERACTION_TYPE_WEIGHTS: Record<InteractionType, number> = {
   repost: 0.4,
 };
 
+/** 入站更能代表「对方主动找你」，出站则降低到原来的一半。 */
+export const INBOUND_DIRECTION_WEIGHT = 1.5;
+export const OUTBOUND_DIRECTION_WEIGHT = 0.5;
+
+const LATEST_WINDOW_DAYS = 2;
+const BOOSTED_WINDOW_END_DAYS = 5;
+const BOOSTED_WINDOW_WEIGHT = 0.95;
+const OLDER_DECAY_DAYS = 15;
+
 export type InteractionScore = {
   screenName: string;
   inbound: number;
@@ -34,7 +43,14 @@ export function calculateTimeWeight(
 ): number {
   if (createdAt === undefined || !Number.isFinite(createdAt)) return 1;
   const daysAgo = Math.max(0, now - toMilliseconds(createdAt)) / 86_400_000;
-  return Math.exp(-daysAgo / 30);
+  // 0–2 天作为最新一档；3–5 天提高保留权重。超过 5 天后从该档位
+  // 连续指数衰减，既不制造断崖，也会让越久远的互动下降得越明显。
+  if (daysAgo <= LATEST_WINDOW_DAYS) return 1;
+  if (daysAgo <= BOOSTED_WINDOW_END_DAYS) return BOOSTED_WINDOW_WEIGHT;
+  return (
+    BOOSTED_WINDOW_WEIGHT *
+    Math.exp(-(daysAgo - BOOSTED_WINDOW_END_DAYS) / OLDER_DECAY_DAYS)
+  );
 }
 
 export function calculateBalance(inbound: number, outbound: number): number {
@@ -97,7 +113,9 @@ export function scoreInteractions(
 
   return [...rows.entries()]
     .map(([screenName, row]): InteractionScore => {
-      const total = row.inbound + row.outbound;
+      const total =
+        row.inbound * INBOUND_DIRECTION_WEIGHT +
+        row.outbound * OUTBOUND_DIRECTION_WEIGHT;
       const balance = calculateBalance(row.inbound, row.outbound);
       return {
         screenName,

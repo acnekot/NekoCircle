@@ -8,18 +8,19 @@ import FindYourself from "@/components/FindYourself";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import FamilyTree from "@/components/FamilyTree";
 import AvatarImage from "@/components/AvatarImage";
-import AIDiagnosisPanel from "@/components/AIDiagnosisPanel";
 import AccountValuePanel from "@/components/AccountValuePanel";
+import DataCallPanel from "@/components/DataCallPanel";
 import { DEFAULT_STYLE, loadStyleConfig, saveStyleConfig, type StyleConfig } from "@/lib/style";
 import type { CircleUser, SelfProfile } from "@/types/circle";
 import { yahooToAnalysisResult } from "@/lib/circle-convert";
 import { readYahooCircleCache, writeYahooCircleCache } from "@/lib/yahoo-client-cache";
 import { useTranslation } from "@/components/LocaleProvider";
 import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
+import type { InteractionDiagnostics } from "@/types/interaction";
 
-type Tab = "circle" | "list" | "family" | "ai" | "value";
+type Tab = "circle" | "list" | "family" | "value" | "data";
 
-type YahooMentionsResponse = {
+type YahooMentionsResponse = InteractionDiagnostics & {
   screenName: string;
   counts: { mentionsToYou: number; mentionsFromYou: number };
   circleUsers?: CircleUser[];
@@ -58,6 +59,7 @@ export default function YahooCirclePage() {
   const [storedLongTerm, setStoredLongTerm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<InteractionDiagnostics | null>(null);
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
   const handleStyleChange = (s: StyleConfig) => { setStyleConfig(s); saveStyleConfig(s); };
@@ -80,6 +82,7 @@ export default function YahooCirclePage() {
     if (data.circleId) setCircleId(data.circleId);
     if (data.createdAt) setCreatedAt(data.createdAt);
     setStoredLongTerm(data.storageConsent === true || data.retentionMode === "long_term");
+    setDiagnostics(data);
   }, []);
 
   /**
@@ -117,6 +120,11 @@ export default function YahooCirclePage() {
             createdAt: cached.createdAt,
             storageConsent: cached.storageConsent,
             retentionMode: cached.retentionMode,
+            dataVersion: cached.dataVersion,
+            sourceStatus: cached.sourceStatus,
+            stats: cached.stats,
+            timings: cached.timings,
+            entries: cached.entries,
           });
           return;
         }
@@ -152,6 +160,11 @@ export default function YahooCirclePage() {
         createdAt: data.createdAt,
         storageConsent: data.storageConsent,
         retentionMode: data.retentionMode,
+        dataVersion: data.dataVersion,
+        sourceStatus: data.sourceStatus,
+        stats: data.stats,
+        timings: data.timings,
+        entries: data.entries,
       });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t("yahoo.dataFailed"));
@@ -379,8 +392,8 @@ export default function YahooCirclePage() {
                   ["circle", t("yahoo.tabCircle"), "bubble"],
                   ["list", t("yahoo.tabList"), "list"],
                   ["family", t("extras.tabFamily"), "tree"],
-                  ["ai", t("extras.tabAI"), "sparkle"],
                   ["value", t("extras.tabValue"), "wallet"],
+                  ["data", t("calls.tab"), "chart"],
                 ] as [Tab, string, Md3IconName][]).map(([tab, label, icon]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
@@ -449,9 +462,9 @@ export default function YahooCirclePage() {
 
               {activeTab === "family" && <FamilyTree self={self} users={users} />}
 
-              {activeTab === "ai" && <AIDiagnosisPanel self={self} users={users} />}
-
               {activeTab === "value" && <AccountValuePanel self={self} users={users} />}
+
+              {activeTab === "data" && <DataCallPanel data={diagnostics} />}
 
             </div>
 

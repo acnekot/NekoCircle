@@ -8,14 +8,15 @@ import FindYourself from "@/components/FindYourself";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import FamilyTree from "@/components/FamilyTree";
 import AvatarImage from "@/components/AvatarImage";
-import AIDiagnosisPanel from "@/components/AIDiagnosisPanel";
 import AccountValuePanel from "@/components/AccountValuePanel";
+import DataCallPanel from "@/components/DataCallPanel";
 import { DEFAULT_STYLE, loadStyleConfig, saveStyleConfig, type StyleConfig } from "@/lib/style";
 import type { AnalysisResult } from "@/lib/circle-convert";
 import type { CircleUser, SelfProfile } from "@/types/circle";
 import { parseYahooCircleData } from "@/lib/circle-convert";
 import { useTranslation } from "@/components/LocaleProvider";
 import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
+import type { InteractionDiagnostics } from "@/types/interaction";
 
 type UnifiedCircle = {
   source: "yahoo";
@@ -27,7 +28,7 @@ type UnifiedCircle = {
   data: string;
 };
 
-type Tab = "circle" | "list" | "family" | "ai" | "value";
+type Tab = "circle" | "list" | "family" | "value" | "data";
 
 export default function CirclePreviewPage() {
   const params = useParams();
@@ -45,6 +46,7 @@ export default function CirclePreviewPage() {
   const [activeTab, setActiveTab] = useState<Tab>("circle");
   const [copied, setCopied] = useState(false);
   const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<InteractionDiagnostics | null>(null);
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
   const handleStyleChange = (s: StyleConfig) => { setStyleConfig(s); saveStyleConfig(s); };
@@ -64,6 +66,7 @@ export default function CirclePreviewPage() {
         setResult(analysisResult);
         setCircleUsers(cu);
         setSelf(parsedSelf);
+        setDiagnostics(JSON.parse(data.data) as InteractionDiagnostics);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : t("circle.error")))
       .finally(() => setLoading(false));
@@ -223,8 +226,8 @@ export default function CirclePreviewPage() {
                   ["circle", t("circle.tabCircle"), "bubble"],
                   ["list", t("circle.tabList"), "list"],
                   ["family", t("extras.tabFamily"), "tree"],
-                  ["ai", t("extras.tabAI"), "sparkle"],
                   ["value", t("extras.tabValue"), "wallet"],
+                  ["data", t("calls.tab"), "chart"],
                 ] as [Tab, string, Md3IconName][]).map(([tab, label, icon]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
@@ -294,13 +297,11 @@ export default function CirclePreviewPage() {
                 <FamilyTree self={self} users={circleUsers} />
               )}
 
-              {activeTab === "ai" && self && (
-                <AIDiagnosisPanel self={self} users={circleUsers} />
-              )}
-
               {activeTab === "value" && self && (
                 <AccountValuePanel self={self} users={circleUsers} />
               )}
+
+              {activeTab === "data" && <DataCallPanel data={diagnostics} />}
             </div>
 
             <footer className="order-3 col-span-full mt-2 flex flex-col gap-2 border-t border-white/10 px-1 pt-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">

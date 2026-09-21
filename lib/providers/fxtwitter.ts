@@ -6,6 +6,7 @@ import type {
 import { hasRankingConverged } from "../interactions/convergence";
 import { mergeInteractionEvents } from "../interactions/merge";
 import { normalizeUsername } from "../interactions/normalize";
+import { normalizeInteractionText } from "../interactions/text";
 import type { InteractionProvider } from "./types";
 
 const FX_API = "https://api.fxtwitter.com/2";
@@ -82,11 +83,13 @@ function addEvent(
   type: InteractionType,
 ) {
   if (!status.id || !author || !target || author === target) return;
+  const text = normalizeInteractionText(status.raw_text?.text ?? status.text);
   out.push({
     tweetId: status.id,
     author,
     target,
     type,
+    ...(text ? { text } : {}),
     createdAt: createdAt(status),
     source: "fxtwitter",
   });

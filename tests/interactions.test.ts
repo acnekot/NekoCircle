@@ -4,6 +4,8 @@ import { hasRankingConverged, rankingOverlap } from "../lib/interactions/converg
 import { mergeInteractionEvents } from "../lib/interactions/merge";
 import { normalizeUsername } from "../lib/interactions/normalize";
 import {
+  INBOUND_DIRECTION_WEIGHT,
+  OUTBOUND_DIRECTION_WEIGHT,
   calculateBalance,
   calculateTimeWeight,
   scoreInteractions,
@@ -24,12 +26,13 @@ test("互动事件按完整键去重并保留多个来源", () => {
     author: "Alice",
     target: "SELF",
     type: "mention",
+    text: "short",
     source: "yahoo",
   };
   const merged = mergeInteractionEvents([
     [yahoo],
     [
-      { ...yahoo, author: "@alice", source: "fxtwitter" },
+      { ...yahoo, author: "@alice", text: "a longer public excerpt", source: "fxtwitter" },
       { ...yahoo, type: "reply", source: "fxtwitter" },
     ],
   ]);
@@ -39,6 +42,7 @@ test("互动事件按完整键去重并保留多个来源", () => {
   assert.deepEqual(new Set(mention?.sources), new Set(["yahoo", "fxtwitter"]));
   assert.equal(mention?.author, "alice");
   assert.equal(mention?.target, "self");
+  assert.equal(mention?.text, "a longer public excerpt");
 });
 
 test("最近互动的时间权重大于几个月前的互动", () => {
@@ -46,6 +50,38 @@ test("最近互动的时间权重大于几个月前的互动", () => {
   const recent = calculateTimeWeight(now - 2 * 86_400_000, now);
   const old = calculateTimeWeight(now - 120 * 86_400_000, now);
   assert.ok(recent > old);
+});
+
+test("时间权重按 0–2 天、3–5 天和更早互动分档并持续衰减", () => {
+  const now = Date.UTC(2026, 8, 21);
+  const day1 = calculateTimeWeight(now - 1 * 86_400_000, now);
+  const day2 = calculateTimeWeight(now - 2 * 86_400_000, now);
+  const day3 = calculateTimeWeight(now - 3 * 86_400_000, now);
+  const day5 = calculateTimeWeight(now - 5 * 86_400_000, now);
+  const day10 = calculateTimeWeight(now - 10 * 86_400_000, now);
+  const day30 = calculateTimeWeight(now - 30 * 86_400_000, now);
+  assert.equal(day1, 1);
+  assert.equal(day2, 1);
+  assert.equal(day3, 0.95);
+  assert.equal(day5, 0.95);
+  assert.ok(day5 > day10);
+  assert.ok(day10 > day30);
+});
+
+test("入站互动增强而出站互动减半", () => {
+  assert.equal(INBOUND_DIRECTION_WEIGHT, 1.5);
+  assert.equal(OUTBOUND_DIRECTION_WEIGHT, 0.5);
+  const scores = scoreInteractions(
+    [
+      { tweetId: "in", author: "inbound", target: "self", type: "mention", source: "yahoo" },
+      { tweetId: "out", author: "self", target: "outbound", type: "mention", source: "yahoo" },
+    ],
+    "self",
+  );
+  const inbound = scores.find((row) => row.screenName === "inbound");
+  const outbound = scores.find((row) => row.screenName === "outbound");
+  assert.ok(inbound && outbound);
+  assert.ok(inbound.finalScore > outbound.finalScore);
 });
 
 test("双向互动在总量相同时高于单向互动", () => {
@@ -166,6 +202,7 @@ test("FxTwitter facets 缺失时仍会从正文识别入站 mention", () => {
       ["fx-facet-1", "other", "self"],
     ],
   );
+  assert.equal(incoming[0]?.text, "hello @Self");
 });
 
 test("Yahoo 入站会从 URL 补全作者并识别回复", () => {
@@ -173,6 +210,7 @@ test("Yahoo 入站会从 URL 补全作者并识别回复", () => {
     [
       {
         id: "yahoo-1",
+        displayTextBody: "  <b>Hello</b>&nbsp;@Self  ",
         url: "https://x.com/Friend/status/123",
         replyMentions: ["Self"],
         inReplyTo: "122",
@@ -188,6 +226,7 @@ test("Yahoo 入站会从 URL 补全作者并识别回复", () => {
       author: "friend",
       target: "self",
       type: "reply",
+      text: "Hello @Self",
       createdAt: undefined,
       source: "yahoo",
     },

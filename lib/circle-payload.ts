@@ -36,7 +36,7 @@ import type {
   InteractionEvent,
 } from "@/types/interaction";
 
-export const CIRCLE_PAYLOAD_VERSION = 5;
+export const CIRCLE_PAYLOAD_VERSION = 8;
 
 /**
  * 共有の取得パイプライン。
@@ -178,6 +178,18 @@ export async function buildYahooPayload(
       uniqueUsers: scores.length,
     },
     timings,
+    entries: [...mergedEvents]
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+      .map((event) => ({
+        tweetId: event.tweetId,
+        author: event.author,
+        target: event.target,
+        type: event.type,
+        text: event.text,
+        direction: event.target === self ? "inbound" : "outbound",
+        createdAt: event.createdAt,
+        sources: [...new Set([event.source, ...(event.sources ?? [])])],
+      })),
   };
 
   if (buildCircle) {
@@ -215,7 +227,7 @@ export function getCachedYahooPayload(name: string, buildCircle: boolean) {
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
-      "yahoo-mentions-v5",
+      "yahoo-mentions-v8",
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],

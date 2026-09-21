@@ -408,12 +408,14 @@ export async function POST(req: Request) {
         const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs, storageConsent);
         if (recent) {
           const cached = JSON.parse(recent.circle_data);
-          return NextResponse.json({
-            ...cached,
-            circleId: recent.id,
-            createdAt: recent.created_at,
-            ...retentionFields(recent.storage_consent === 1),
-          });
+          if (cached.dataVersion === CIRCLE_PAYLOAD_VERSION) {
+            return NextResponse.json({
+              ...cached,
+              circleId: recent.id,
+              createdAt: recent.created_at,
+              ...retentionFields(recent.storage_consent === 1),
+            });
+          }
         }
       } catch { /* DB check non-critical, fall through to fetch */ }
     }

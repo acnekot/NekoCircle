@@ -6,6 +6,7 @@ import {
   pickSelfProfileImageFromYahoo,
 } from "../yahoo-realtime-fetch";
 import { normalizeUsername } from "../interactions/normalize";
+import { normalizeInteractionText } from "../interactions/text";
 import type { InteractionProvider } from "./types";
 
 function usernameFromXUrl(value: string | undefined): string {
@@ -55,11 +56,13 @@ export function yahooEntriesToInteractionEvents(
     const author = yahooEntryAuthor(entry);
     if (!entry.id || !author || author === self) continue;
     const isReply = yahooReplyTargets(entry).includes(self);
+    const text = normalizeInteractionText(entry.displayTextBody ?? entry.displayText);
     events.push({
       tweetId: entry.id,
       author,
       target: self,
       type: isReply ? "reply" : "mention",
+      ...(text ? { text } : {}),
       createdAt: yahooTimestamp(entry.createdAt),
       source: "yahoo",
     });
@@ -72,12 +75,14 @@ export function yahooEntriesToInteractionEvents(
         .map((mention) => normalizeUsername(mention.screenName ?? ""))
         .filter((target) => target && target !== self),
     );
+    const text = normalizeInteractionText(entry.displayTextBody ?? entry.displayText);
     for (const target of targets) {
       events.push({
         tweetId: entry.id,
         author: self,
         target,
         type: "mention",
+        ...(text ? { text } : {}),
         createdAt: yahooTimestamp(entry.createdAt),
         source: "yahoo",
       });
