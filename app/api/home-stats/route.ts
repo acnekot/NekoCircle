@@ -3,6 +3,10 @@ import path from "path";
 import Database from "better-sqlite3";
 import fs from "fs";
 
+export const dynamic = "force-dynamic";
+
+const UTC_8_OFFSET_SECONDS = 8 * 60 * 60;
+
 function getDb() {
   const DB_PATH = path.join(process.cwd(), "data", "circle.db");
   if (!fs.existsSync(DB_PATH)) return null;
@@ -25,10 +29,11 @@ export async function GET() {
     // Total generation count
     const totalGenerations = (db.prepare("SELECT COUNT(*) as n FROM generation_log").get() as { n: number }).n;
 
-    // Today's generation count
+    // Today's generation count, using the same UTC+08:00 day boundary as /api/stats.
     const todayCount = (db.prepare(`
       SELECT COUNT(*) as n FROM generation_log
-      WHERE date(created_at / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+      WHERE date(created_at / 1000 + ${UTC_8_OFFSET_SECONDS}, 'unixepoch')
+        = date(strftime('%s', 'now') + ${UTC_8_OFFSET_SECONDS}, 'unixepoch')
     `).get() as { n: number }).n;
 
     db.close();
@@ -39,8 +44,8 @@ export async function GET() {
       todayCount,
     }, {
       headers: {
-        // Cache for 2 hours, stale-while-revalidate for 4 hours
-        "Cache-Control": "public, s-maxage=7200, stale-while-revalidate=14400, max-age=3600",
+        // Keep the homepage close to the public status page instead of serving hours-old counts.
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
       },
     });
   } catch (e) {
