@@ -60,7 +60,7 @@ export default function AIDiagnosisPanel({ self, users }: Props) {
             onClick={() => setSelected(selected === item.id ? null : item.id)}
             className={`rounded-xl border p-3 text-left transition-colors ${
               selected === item.id
-                ? "border-[#1d9bf0]/60 bg-[#1d9bf0]/15"
+                ? "border-[#bec2ff]/45 bg-[#3c4278]/55"
                 : "border-white/10 bg-white/5 hover:bg-white/10"
             }`}
           >
@@ -80,7 +80,7 @@ export default function AIDiagnosisPanel({ self, users }: Props) {
             value={partner}
             onChange={(event) => setPartner(event.target.value.replace(/^@+/, ""))}
             placeholder="username"
-            className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white outline-none focus:border-[#1d9bf0]/60"
+            className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-white outline-none focus:border-[#bec2ff]/60"
           />
         </label>
       )}

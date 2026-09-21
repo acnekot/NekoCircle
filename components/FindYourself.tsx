@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AvatarImage from "@/components/AvatarImage";
+import Md3Icon from "@/components/Md3Icon";
 import type { InteractionUser } from "@/lib/circle-convert";
 import { useTranslation } from "@/components/LocaleProvider";
 
@@ -41,7 +42,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
   return (
     <div className="card rounded-2xl p-4 space-y-3">
       <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
-        <span>🔍</span> {t("find.title")}
+        <Md3Icon name="search" className="h-4 w-4 text-[#bec2ff]" /> {t("find.title")}
       </h3>
       <p className="text-xs text-gray-500 leading-relaxed">
         {t("find.desc")}
@@ -61,7 +62,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
         <button
           onClick={handleSearch}
           disabled={!query.trim()}
-          className="px-3 py-2 rounded-xl text-sm font-medium bg-[#1d9bf0]/20 text-[#1d9bf0] hover:bg-[#1d9bf0]/30 border border-[#1d9bf0]/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          className="px-4 py-2 rounded-full text-sm font-medium bg-[#3c4278] text-[#dfe0ff] hover:bg-[#4b528c] border border-[#bec2ff]/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
         >
           {t("find.search")}
         </button>
@@ -77,7 +78,7 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
           {searchResult.found && searchResult.user ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-green-400 font-bold text-lg">🎉</span>
+                <Md3Icon name="check" className="h-5 w-5 text-green-400" />
                 <span className="text-green-400 font-medium">
                   {t("find.rankResult", { rank: searchResult.rank ?? 0 })}
                 </span>
@@ -110,17 +111,17 @@ export default function FindYourself({ topUsers, ownerUsername }: Props) {
           ) : searchResult.isSelf ? (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-gray-400">
-                <span>😿</span>
+                <Md3Icon name="sad" className="h-4 w-4" />
                 <span>{t("find.selfJoke1")}</span>
               </div>
               <div className="flex items-center gap-2 text-amber-400">
-                <span>😂</span>
+                <Md3Icon name="sparkle" className="h-4 w-4" />
                 <span>{t("find.selfJoke2")}</span>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2 text-gray-400">
-              <span>😿</span>
+              <Md3Icon name="sad" className="h-4 w-4" />
               <span>{t("find.notFound", { name: query.trim().replace(/^@+/, "") })}</span>
             </div>
           )}

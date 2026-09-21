@@ -10,6 +10,7 @@ import {
   logGeneration,
   findRecentYahooCircle,
   createYahooCircle,
+  maybeCleanupTemporaryYahooCircles,
 } from "@/lib/db";
 import {
   getAppConfig,
@@ -59,9 +60,38 @@ const SCREEN_NAME_RE = /^[A-Za-z0-9_]{1,15}$/;
 type Body = {
   screenName?: string;
   buildCircle?: boolean;
+  storageConsent?: boolean;
   refresh?: boolean;
   force?: boolean;
 };
+
+function parseStorageConsent(searchParams: URLSearchParams, body?: Body): boolean {
+  if (body) return body.storageConsent === true;
+  const value = searchParams.get("storageConsent");
+  return value === "1" || value === "true";
+}
+
+function persistCircle(
+  circleId: string,
+  name: string,
+  payload: Record<string, unknown>,
+  storageConsent: boolean,
+): void {
+  initDb();
+  const config = getAppConfig();
+  if (config.temporaryAutoCleanup) {
+    maybeCleanupTemporaryYahooCircles(config.temporaryRetentionMs);
+  }
+  createYahooCircle(circleId, name, JSON.stringify(payload), storageConsent);
+  logGeneration("yahoo", name);
+}
+
+function retentionFields(storageConsent: boolean) {
+  return {
+    storageConsent,
+    retentionMode: storageConsent ? "long_term" : "temporary",
+  } as const;
+}
 
 
 /**
@@ -113,18 +143,20 @@ function forceHeaders(): Record<string, string> {
 async function forceRefreshPayload(
   name: string,
   buildCircle: boolean,
+  storageConsent: boolean,
 ): Promise<Record<string, unknown>> {
   const key = name.toLowerCase();
   const minInterval = forceMinIntervalMs();
   const last = lastForceAt.get(key);
   if (last !== undefined && Date.now() - last < minInterval) {
-    const row = findRecentYahooCircle(name, minInterval);
+    const row = findRecentYahooCircle(name, minInterval, storageConsent);
     if (row) {
       const cached = JSON.parse(row.circle_data) as Record<string, unknown>;
       return {
         ...cached,
         circleId: row.id,
         createdAt: row.created_at,
+        ...retentionFields(row.storage_consent === 1),
         throttled: true,
       };
     }
@@ -138,9 +170,10 @@ async function forceRefreshPayload(
 async function handleForce(
   name: string,
   buildCircle: boolean,
+  storageConsent: boolean,
 ): Promise<NextResponse> {
   try {
-    const payload = await forceRefreshPayload(name, buildCircle);
+    const payload = await forceRefreshPayload(name, buildCircle, storageConsent);
     if (payload.throttled === true) {
       return NextResponse.json(
         { ...payload, refreshed: true },
@@ -150,19 +183,18 @@ async function handleForce(
     const body: Record<string, unknown> = { ...payload, refreshed: true };
     if (buildCircle) {
       try {
-        initDb();
         const circleId = generateShortId();
         const createdAt = Date.now();
-        createYahooCircle(circleId, name, JSON.stringify(payload));
-        logGeneration("yahoo", name);
+        persistCircle(circleId, name, payload, storageConsent);
         body.circleId = circleId;
         body.createdAt = createdAt;
+        Object.assign(body, retentionFields(storageConsent));
       } catch { /* non-critical */ }
     }
     return NextResponse.json(body, { headers: forceHeaders() });
   } catch (e) {
     console.error("[yahoo-mentions:force] failed:", e);
-    const stale = staleFallback(name);
+    const stale = staleFallback(name, storageConsent);
     if (stale) {
       for (const [k, v] of Object.entries(forceHeaders())) stale.headers.set(k, v);
       return stale;
@@ -178,14 +210,20 @@ async function handleForce(
  * 数据源不可用（被限流/拦截）时的兜底：返回该用户最近一次成功生成的结果，
  * 不限时效，并带上 stale 标记。总比直接报错好。
  */
-function staleFallback(name: string): NextResponse | null {
+function staleFallback(name: string, storageConsent: boolean): NextResponse | null {
   try {
     initDb();
-    const row = findRecentYahooCircle(name, Number.MAX_SAFE_INTEGER);
+    const row = findRecentYahooCircle(name, Number.MAX_SAFE_INTEGER, storageConsent);
     if (!row) return null;
     const cached = JSON.parse(row.circle_data);
     return NextResponse.json(
-      { ...cached, circleId: row.id, createdAt: row.created_at, stale: true },
+      {
+        ...cached,
+        circleId: row.id,
+        createdAt: row.created_at,
+        ...retentionFields(row.storage_consent === 1),
+        stale: true,
+      },
       {
         headers: {
           "Cache-Control":
@@ -245,10 +283,11 @@ export async function GET(req: NextRequest) {
   }
 
   const buildCircle = parseBuildCircle(sp);
+  const storageConsent = parseStorageConsent(sp);
 
   // 強制再取得はクールダウンもデータキャッシュも迂回する
   if (parseForce(sp)) {
-    return handleForce(name, buildCircle);
+    return handleForce(name, buildCircle, storageConsent);
   }
 
   try {
@@ -257,10 +296,15 @@ export async function GET(req: NextRequest) {
     if (buildCircle) {
       try {
         initDb();
-        const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs);
+        const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs, storageConsent);
         if (recent) {
           const cached = JSON.parse(recent.circle_data);
-          return NextResponse.json({ ...cached, circleId: recent.id, createdAt: recent.created_at }, {
+          return NextResponse.json({
+            ...cached,
+            circleId: recent.id,
+            createdAt: recent.created_at,
+            ...retentionFields(recent.storage_consent === 1),
+          }, {
             headers: {
               "Cache-Control":
                 "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
@@ -274,12 +318,15 @@ export async function GET(req: NextRequest) {
     // Persist + log generation when building a circle
     if (buildCircle) {
       try {
-        initDb();
         const circleId = generateShortId();
         const createdAt = Date.now();
-        createYahooCircle(circleId, name, JSON.stringify(payload));
-        logGeneration("yahoo", name);
-        return NextResponse.json({ ...payload, circleId, createdAt }, {
+        persistCircle(circleId, name, payload, storageConsent);
+        return NextResponse.json({
+          ...payload,
+          circleId,
+          createdAt,
+          ...retentionFields(storageConsent),
+        }, {
           headers: {
             "Cache-Control":
               "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
@@ -295,7 +342,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     console.error("[yahoo-mentions:GET] failed:", e);
-    const stale = staleFallback(name);
+    const stale = staleFallback(name, storageConsent);
     if (stale) return stale;
     return NextResponse.json(
       { error: "数据获取失败，请稍后重试。" },
@@ -341,9 +388,10 @@ export async function POST(req: Request) {
 
   try {
     const wantCircle = body.buildCircle === true;
+    const storageConsent = parseStorageConsent(new URLSearchParams(), body);
 
     if (parseForce(new URLSearchParams(), body)) {
-      return handleForce(name, wantCircle);
+      return handleForce(name, wantCircle, storageConsent);
     }
 
     // 复用窗口：若存在近期圈子则直接返回，不再请求数据源。
@@ -351,10 +399,15 @@ export async function POST(req: Request) {
     if (wantCircle) {
       try {
         initDb();
-        const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs);
+        const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs, storageConsent);
         if (recent) {
           const cached = JSON.parse(recent.circle_data);
-          return NextResponse.json({ ...cached, circleId: recent.id, createdAt: recent.created_at });
+          return NextResponse.json({
+            ...cached,
+            circleId: recent.id,
+            createdAt: recent.created_at,
+            ...retentionFields(recent.storage_consent === 1),
+          });
         }
       } catch { /* DB check non-critical, fall through to fetch */ }
     }
@@ -363,12 +416,15 @@ export async function POST(req: Request) {
     // Persist + log generation when building a circle
     if (wantCircle) {
       try {
-        initDb();
         const circleId = generateShortId();
         const createdAt = Date.now();
-        createYahooCircle(circleId, name, JSON.stringify(payload));
-        logGeneration("yahoo", name);
-        return NextResponse.json({ ...payload, circleId, createdAt });
+        persistCircle(circleId, name, payload, storageConsent);
+        return NextResponse.json({
+          ...payload,
+          circleId,
+          createdAt,
+          ...retentionFields(storageConsent),
+        });
       } catch { /* non-critical */ }
     }
     return NextResponse.json(payload);

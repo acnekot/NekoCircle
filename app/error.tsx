@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Md3Icon from "@/components/Md3Icon";
 
 export default function ErrorPage({
   error,
@@ -16,7 +17,7 @@ export default function ErrorPage({
   return (
     <main className="gradient-bg min-h-screen flex items-center justify-center px-4">
       <div className="card rounded-2xl p-8 max-w-md text-center">
-        <div className="text-5xl mb-4">😿</div>
+        <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[20px] bg-[#3c4278] text-[#bec2ff]"><Md3Icon name="sad" className="h-8 w-8" /></span>
         <h1 className="text-xl font-bold text-white">页面出现了问题</h1>
         <p className="mt-2 text-sm text-gray-500">请重试；如果问题持续发生，可返回首页重新生成。</p>
         <div className="mt-6 flex justify-center gap-2">

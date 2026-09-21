@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/components/LocaleProvider";
+import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
 type Announcement = {
   id: number;
@@ -12,10 +13,10 @@ type Announcement = {
   created_at: number;
 };
 
-const TYPE_CONFIG: Record<string, { border: string; bg: string; icon: string; iconColor: string }> = {
-  info:    { border: "border-blue-500/30",   bg: "bg-blue-500/5",   icon: "ℹ️",  iconColor: "text-blue-400" },
-  warning: { border: "border-amber-500/30",  bg: "bg-amber-500/5",  icon: "⚠️",  iconColor: "text-amber-400" },
-  success: { border: "border-green-500/30",  bg: "bg-green-500/5",  icon: "✅",  iconColor: "text-green-400" },
+const TYPE_CONFIG: Record<string, { border: string; bg: string; icon: Md3IconName; iconColor: string }> = {
+  info:    { border: "border-blue-500/30",   bg: "bg-blue-500/5",   icon: "info",  iconColor: "text-blue-400" },
+  warning: { border: "border-amber-500/30",  bg: "bg-amber-500/5",  icon: "warning",  iconColor: "text-amber-400" },
+  success: { border: "border-green-500/30",  bg: "bg-green-500/5",  icon: "check",  iconColor: "text-green-400" },
 };
 
 function getDismissedIds(): Set<number> {
@@ -64,7 +65,7 @@ export default function AnnouncementBanner() {
             className={`relative rounded-xl border ${cfg.border} ${cfg.bg} px-4 py-3 pr-10`}
           >
             {a.pinned === 1 && (
-              <span className="absolute top-2 right-9 text-xs text-gray-600">📌</span>
+              <Md3Icon name="pin" className="absolute right-9 top-2 h-4 w-4 text-gray-600" />
             )}
             <button
               onClick={() => {
@@ -74,12 +75,10 @@ export default function AnnouncementBanner() {
               className="absolute top-2.5 right-3 text-gray-600 hover:text-gray-300 transition-colors text-sm leading-none"
               title={t("common.close")}
             >
-              ✕
+              <Md3Icon name="close" className="h-4 w-4" />
             </button>
             <div className="flex items-start gap-2.5">
-              <span className={`shrink-0 text-base leading-none mt-0.5 ${cfg.iconColor}`}>
-                {cfg.icon}
-              </span>
+              <Md3Icon name={cfg.icon} className={`mt-0.5 h-4 w-4 shrink-0 ${cfg.iconColor}`} />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-white leading-snug">{a.title}</div>
                 {a.content && (

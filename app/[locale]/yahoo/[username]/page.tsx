@@ -15,6 +15,7 @@ import type { CircleUser, SelfProfile } from "@/types/circle";
 import { yahooToAnalysisResult } from "@/lib/circle-convert";
 import { readYahooCircleCache, writeYahooCircleCache } from "@/lib/yahoo-client-cache";
 import { useTranslation } from "@/components/LocaleProvider";
+import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
 type Tab = "circle" | "list" | "family" | "ai" | "value";
 
@@ -31,6 +32,8 @@ type YahooMentionsResponse = {
   profileJoinedAt?: string;
   circleId?: string;
   createdAt?: number;
+  storageConsent?: boolean;
+  retentionMode?: "long_term" | "temporary";
   error?: string;
 };
 
@@ -52,6 +55,7 @@ export default function YahooCirclePage() {
   const [activeTab, setActiveTab] = useState<Tab>("circle");
   const [circleId, setCircleId] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<number | null>(null);
+  const [storedLongTerm, setStoredLongTerm] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
@@ -74,6 +78,7 @@ export default function YahooCirclePage() {
     });
     if (data.circleId) setCircleId(data.circleId);
     if (data.createdAt) setCreatedAt(data.createdAt);
+    setStoredLongTerm(data.storageConsent === true || data.retentionMode === "long_term");
   }, []);
 
   /**
@@ -89,8 +94,12 @@ export default function YahooCirclePage() {
     setError("");
 
     try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const requestedStorageConsent =
+        searchParams.get("storageConsent") === "1" ||
+        searchParams.get("storageConsent") === "true";
       if (!force) {
-        const cached = readYahooCircleCache(name);
+        const cached = readYahooCircleCache(name, requestedStorageConsent);
         if (cached) {
           applyPayload({
             screenName: cached.screenName,
@@ -105,12 +114,15 @@ export default function YahooCirclePage() {
             profileJoinedAt: cached.profileJoinedAt,
             circleId: cached.circleId,
             createdAt: cached.createdAt,
+            storageConsent: cached.storageConsent,
+            retentionMode: cached.retentionMode,
           });
           return;
         }
       }
 
       const q = new URLSearchParams({ screenName: name, buildCircle: "1" });
+      q.set("storageConsent", requestedStorageConsent ? "1" : "0");
       if (force) q.set("refresh", "1");
       const r = await fetch(`/api/yahoo-mentions?${q.toString()}`, {
         cache: force ? "no-store" : "default",
@@ -124,7 +136,7 @@ export default function YahooCirclePage() {
       const data = (await r.json()) as YahooMentionsResponse;
       if (data.error) { setError(data.error); return; }
       applyPayload(data);
-      writeYahooCircleCache(name, {
+      writeYahooCircleCache(name, requestedStorageConsent, {
         screenName: data.screenName,
         counts: data.counts,
         circleUsers: data.circleUsers,
@@ -137,6 +149,8 @@ export default function YahooCirclePage() {
         profileJoinedAt: data.profileJoinedAt,
         circleId: data.circleId,
         createdAt: data.createdAt,
+        storageConsent: data.storageConsent,
+        retentionMode: data.retentionMode,
       });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t("yahoo.dataFailed"));
@@ -210,21 +224,18 @@ export default function YahooCirclePage() {
 
   return (
     <div
-      className="gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
+      className="md3-app-surface gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
       style={bgAccent ? {
-        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}28 0%, transparent 55%), radial-gradient(ellipse at top, #1a2744 0%, #0a0f1e 60%)`
+        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}20 0%, transparent 55%), radial-gradient(ellipse at 84% 4%, rgba(99, 106, 204, .16), transparent 34rem), #121318`
       } : undefined}
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1440px] mx-auto">
 
         {/* Header */}
-        <header className="tech-panel result-header rounded-2xl mb-5 sm:mb-6 p-4 sm:p-5">
+        <header className="tech-panel result-header rounded-[28px] mb-5 sm:mb-6 p-4 sm:p-6">
           <div className="flex items-center gap-3">
-            <a href={`/${locale}`} className="shrink-0 rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-400 hover:text-cyan-100 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
+            <a href={`/${locale}`} className="md3-tonal-button shrink-0">{t("common.backHome")}</a>
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="hud-label px-2 py-1 rounded-md bg-cyan-400/[0.07] border border-cyan-300/15">
-                {t("yahoo.tag")}
-              </span>
               {circleId && (
                 <button
                   onClick={() => { navigator.clipboard.writeText(circleId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
@@ -260,16 +271,16 @@ export default function YahooCirclePage() {
             {displayedResult && (
               <div className="result-actions grid w-full grid-cols-3 gap-2 xl:w-auto">
                 <button type="button" onClick={() => { void shareCircle(); }} className="btn-primary result-action">
-                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                  <Md3Icon name="share" className="h-4 w-4" />
                   <span>{t("common.share")}</span>
                 </button>
                 <button type="button" onClick={() => { void downloadCanvas(); }} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" /><path d="M5 19h14" /></svg>
-                  <span>{t("common.download").replace(/^⬇️\s*/, "")}</span>
+                  <span>{t("common.download")}</span>
                 </button>
                 <button type="button" onClick={() => { void load(true); }} disabled={refreshing || loading} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50">
                   <svg className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66" /><path d="M20 4v7h-7" /></svg>
-                  <span>{refreshing ? t("yahoo.loading") : t("common.forceRefresh").replace(/^🔄\s*/, "")}</span>
+                  <span>{refreshing ? t("yahoo.loading") : t("common.forceRefresh")}</span>
                 </button>
               </div>
             )}
@@ -296,19 +307,19 @@ export default function YahooCirclePage() {
         {/* Loading */}
         {loading && (
           <div className="card loading-stage rounded-2xl p-6 sm:p-10">
-            <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-[1fr_1.15fr] md:items-center">
+            <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-[1fr_1.1fr] md:items-center">
               <div>
-                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06]">
-                  <div className="h-6 w-6 rounded-full border-2 border-white/10 border-t-cyan-300 animate-spin" />
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#bec2ff]/15 bg-[#3c4278]/35">
+                  <div className="h-6 w-6 rounded-full border-2 border-white/10 border-t-[#bec2ff] animate-spin" />
                 </div>
                 <p className="text-lg font-semibold text-white">{t("yahoo.loading")}</p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">{t("yahoo.loadingSub")}</p>
               </div>
-              <div className="loading-orbit" aria-hidden="true">
-                <span className="loading-orbit-center" />
-                <span className="loading-orbit-node loading-orbit-node-a" />
-                <span className="loading-orbit-node loading-orbit-node-b" />
-                <span className="loading-orbit-node loading-orbit-node-c" />
+              <div className="loading-progress-card" aria-hidden="true">
+                <div className="loading-progress-track"><span /></div>
+                <div className="loading-skeleton-row"><i /><i /><i /></div>
+                <div className="loading-skeleton-line loading-skeleton-line-wide" />
+                <div className="loading-skeleton-line" />
               </div>
             </div>
           </div>
@@ -317,7 +328,7 @@ export default function YahooCirclePage() {
         {/* Error（データが何も出せないときだけ全面表示。既存の描画を消さないため） */}
         {!loading && error && !displayedResult && (
           <div className="card rounded-2xl p-8 text-center">
-            <div className="text-4xl mb-4">😿</div>
+            <Md3Icon name="error" className="mx-auto mb-4 h-10 w-10 text-red-300" />
             <h2 className="text-lg font-bold text-red-400 mb-2">{t("yahoo.error")}</h2>
             <p className="text-gray-400 text-sm">{error}</p>
             <a href={`/${locale}`} className="btn-primary inline-block mt-6 px-6 py-2 rounded-xl text-sm font-medium">{t("common.returnHome")}</a>
@@ -342,18 +353,6 @@ export default function YahooCirclePage() {
                 maxUsers={users.length}
                 showAllOption
               />
-              <div className="card rounded-2xl p-4">
-                <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
-                  <span className="tech-status-dot" />
-                  LIVE DATA PIPELINE
-                </div>
-                <div className="text-xs text-gray-600 leading-relaxed">
-                  {t("yahoo.dataSource")}
-                  <br />
-                  {t("yahoo.inspirationFrom")} <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-400 transition-colors">nareaitter</a>
-                </div>
-              </div>
-
               {/* Find yourself */}
               {displayedResult && (
                 <FindYourself topUsers={displayedResult.topUsers} ownerUsername={username} />
@@ -366,25 +365,25 @@ export default function YahooCirclePage() {
               {/* Tab bar */}
               <div className="tech-tabs tech-tabs-scroll flex flex-nowrap gap-1 mb-4 overflow-x-auto">
                 {([
-                  ["circle", t("yahoo.tabCircle")],
-                  ["list", t("yahoo.tabList")],
-                  ["family", t("extras.tabFamily")],
-                  ["ai", t("extras.tabAI")],
-                  ["value", t("extras.tabValue")],
-                ] as [Tab, string][]).map(([tab, label]) => (
+                  ["circle", t("yahoo.tabCircle"), "bubble"],
+                  ["list", t("yahoo.tabList"), "list"],
+                  ["family", t("extras.tabFamily"), "tree"],
+                  ["ai", t("extras.tabAI"), "sparkle"],
+                  ["value", t("extras.tabValue"), "wallet"],
+                ] as [Tab, string, Md3IconName][]).map(([tab, label, icon]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       activeTab === tab
-                        ? "bg-[#0a84ff]/20 text-white border border-[#0a84ff]/25"
+                        ? "bg-[#3c4278] text-[#dfe0ff] border border-[#bec2ff]/20"
                         : "border border-transparent text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}
-                  >{label}</button>
+                  ><Md3Icon name={icon} className="h-4 w-4" />{label}</button>
                 ))}
               </div>
 
               {activeTab === "circle" && (
-                <div className="card tech-display-frame rounded-2xl p-3 sm:p-5 flex justify-center overflow-x-auto">
+                <div className="card tech-display-frame result-chart-stage grid place-items-center p-2 sm:p-3">
                   <CircleChart
                     result={displayedResult}
                     style={styleConfig}
@@ -411,7 +410,7 @@ export default function YahooCirclePage() {
                             <td className="px-4 py-3 text-gray-500 font-mono text-sm">{i + 1}</td>
                             <td className="px-4 py-3">
                               <a href={`https://x.com/${u.screenName}`} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-3 hover:text-[#1d9bf0] transition-colors">
+                                className="flex items-center gap-3 hover:text-[#bec2ff] transition-colors">
                                 <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden shrink-0">
                                   <AvatarImage
                                     previewUrl={u.avatarUrlPreview}
@@ -443,6 +442,17 @@ export default function YahooCirclePage() {
               {activeTab === "value" && <AccountValuePanel self={self} users={users} />}
 
             </div>
+
+            <footer className="order-3 col-span-full mt-2 flex flex-col gap-2 border-t border-white/10 px-1 pt-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                {t("yahoo.inspirationFrom")} {" "}
+                <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="text-[#bec2ff] underline underline-offset-4 transition-colors hover:text-white">nareaitter</a>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Md3Icon name={storedLongTerm ? "check" : "restart"} className="h-4 w-4 text-[#bec2ff]" />
+                <span><span className="text-slate-400">{t("yahoo.storageLabel")}：</span>{storedLongTerm ? t("yahoo.storageLongTerm") : t("yahoo.storageTemporary")}</span>
+              </span>
+            </footer>
           </div>
         )}
 

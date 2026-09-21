@@ -1,6 +1,6 @@
 import type { CircleUser } from "@/types/circle";
 
-const KEY_PREFIX = "nekocircle-yahoo-v1:";
+const KEY_PREFIX = "nekocircle-yahoo-v2:";
 const TTL_MS = 8 * 60 * 1000;
 
 export type YahooCircleClientCache = {
@@ -16,21 +16,28 @@ export type YahooCircleClientCache = {
   profileJoinedAt?: string;
   circleId?: string;
   createdAt?: number;
+  storageConsent?: boolean;
+  retentionMode?: "long_term" | "temporary";
 };
 
 export function readYahooCircleCache(
   screenName: string,
+  storageConsent: boolean,
 ): YahooCircleClientCache | null {
   if (typeof sessionStorage === "undefined") return null;
   try {
-    const raw = sessionStorage.getItem(KEY_PREFIX + screenName.toLowerCase());
+    const raw = sessionStorage.getItem(
+      `${KEY_PREFIX}${storageConsent ? "long" : "temp"}:${screenName.toLowerCase()}`,
+    );
     if (!raw) return null;
     const parsed = JSON.parse(raw) as {
       t: number;
       data: YahooCircleClientCache;
     };
     if (Date.now() - parsed.t > TTL_MS) {
-      sessionStorage.removeItem(KEY_PREFIX + screenName.toLowerCase());
+      sessionStorage.removeItem(
+        `${KEY_PREFIX}${storageConsent ? "long" : "temp"}:${screenName.toLowerCase()}`,
+      );
       return null;
     }
     return parsed.data;
@@ -41,12 +48,13 @@ export function readYahooCircleCache(
 
 export function writeYahooCircleCache(
   screenName: string,
+  storageConsent: boolean,
   data: YahooCircleClientCache,
 ): void {
   if (typeof sessionStorage === "undefined") return;
   try {
     sessionStorage.setItem(
-      KEY_PREFIX + screenName.toLowerCase(),
+      `${KEY_PREFIX}${storageConsent ? "long" : "temp"}:${screenName.toLowerCase()}`,
       JSON.stringify({ t: Date.now(), data }),
     );
   } catch {

@@ -3,8 +3,19 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import type { AnalysisResult } from "@/lib/circle-convert";
 import { DEFAULT_STYLE, NODE_PALETTES, hexBrightness, sanitizeHex, type StyleConfig } from "@/lib/style";
 import { proxiedImageSrc } from "@/lib/proxied-image-src";
+import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
-type Props = { result: AnalysisResult; style?: StyleConfig; onAccentColor?: (hex: string) => void; circleId?: string };
+type Props = {
+  result: AnalysisResult;
+  style?: StyleConfig;
+  onAccentColor?: (hex: string) => void;
+  circleId?: string;
+  presentation?: "default" | "flat-transparent";
+  interactive?: boolean;
+  centerAvatarCycle?: boolean;
+  showFallbackInitials?: boolean;
+  fallbackLabelMode?: "username" | "alphabet";
+};
 
 /** 通用绘制函数，可传入任意 canvas、sc、W，供预览和高清导出复用 */
 export function renderToCanvas(
@@ -12,7 +23,15 @@ export function renderToCanvas(
   result: AnalysisResult,
   s: StyleConfig,
   imageCache: Map<string, HTMLImageElement>,
-  options: { exportScale?: number; circleId?: string } = {},
+  options: {
+    exportScale?: number;
+    circleId?: string;
+    transparent?: boolean;
+    flat?: boolean;
+    centerAvatarAlpha?: number;
+    showFallbackInitials?: boolean;
+    fallbackLabelMode?: "username" | "alphabet";
+  } = {},
 ) {
   const mul       = SIZE_MUL[s.nodeSize];
   const displayN  = s.displayCount ?? 30;
@@ -38,7 +57,7 @@ export function renderToCanvas(
   const font    = s.font;
 
   // Background
-  {
+  if (!options.transparent) {
     const bg1 = sanitizeHex(s.bgColor1, "#b2b2b4");
     const bg2 = sanitizeHex(s.bgColor2, "#b2b2b4");
     let fill: CanvasGradient | string = bg1;
@@ -69,15 +88,44 @@ export function renderToCanvas(
   const centerBW    = 4 * sc;
   const centerOuter = centerR + centerBW;
 
-  if (s.glowEffect && !isLight) { ctx.shadowColor = accent; ctx.shadowBlur = 22 * sc; }
-  ctx.beginPath(); ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
-  ctx.strokeStyle = accent + "44"; ctx.lineWidth = 2 * sc; ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
-  ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
-  drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName);
-  ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
-  ctx.strokeStyle = accent; ctx.lineWidth = 2 * sc; ctx.stroke();
+  if (!options.flat) {
+    if (s.glowEffect && !isLight) { ctx.shadowColor = accent; ctx.shadowBlur = 22 * sc; }
+    ctx.beginPath(); ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
+    ctx.strokeStyle = accent + "44"; ctx.lineWidth = 2 * sc; ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
+    ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
+  }
+  if (options.centerAvatarAlpha !== undefined) {
+    const centerImage = imageCache.get(result.targetUser.profilePicture);
+    const avatarAlpha = centerImage
+      ? Math.max(0, Math.min(1, options.centerAvatarAlpha))
+      : 0;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = "#34364a";
+    ctx.fillRect(cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+    ctx.globalAlpha = 1 - avatarAlpha;
+    ctx.fillStyle = "#f0eff7";
+    ctx.font = `bold ${Math.floor(centerR * 0.36)}px ${font}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("YOU", cx, cy);
+    if (centerImage && avatarAlpha > 0) {
+      ctx.globalAlpha = avatarAlpha;
+      ctx.drawImage(centerImage, cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  } else {
+    drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName, options.flat, options.showFallbackInitials);
+  }
+  ctx.beginPath(); ctx.arc(cx, cy, options.flat ? centerR : centerOuter, 0, Math.PI * 2);
+  ctx.strokeStyle = options.flat ? "rgba(222,224,255,0.72)" : accent;
+  ctx.lineWidth = options.flat ? Math.max(1.5, 1.6 * sc) : 2 * sc;
+  ctx.stroke();
 
   // Pre-compute reserved rectangles (watermark & circle ID) for label collision
   const reservedRects: { x: number; y: number; w: number; h: number }[] = [];
@@ -133,11 +181,22 @@ export function renderToCanvas(
       const y = cy + Math.sin(angle) * R;
       nodeData.push({ x, y, r: nodeR, idx });
       const color = sanitizeHex(NODE_PALETTES[s.nodeScheme](accent, idx, tier));
-      if (s.glowEffect && !isLight) { ctx.shadowColor = color; ctx.shadowBlur = 8 * sc; }
-      ctx.beginPath(); ctx.arc(x, y, nodeR, 0, Math.PI * 2);
-      ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
-      ctx.shadowBlur = 0;
-      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, item.user.userName);
+      if (!options.flat) {
+        if (s.glowEffect && !isLight) { ctx.shadowColor = color; ctx.shadowBlur = 8 * sc; }
+        ctx.beginPath(); ctx.arc(x, y, nodeR, 0, Math.PI * 2);
+        ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      const fallbackLabel = options.fallbackLabelMode === "alphabet"
+        ? String.fromCharCode(65 + (idx % 26))
+        : item.user.userName;
+      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, fallbackLabel, options.flat, options.showFallbackInitials);
+      if (options.flat) {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,0.24)";
+        ctx.lineWidth = Math.max(1, 1.15 * sc);
+        ctx.stroke();
+      }
       if (s.showRankBadge) {
         const bx = x + nodeR * 0.68, by = y - nodeR * 0.68, br = 8 * sc;
         ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(bx, by, br + 1, 0, Math.PI * 2); ctx.fill();
@@ -432,11 +491,23 @@ function computeScaleForCount(total: number, mul: number): number {
   return Math.min(1.0, lo);
 }
 
-export default function CircleChart({ result, style: styleProp, onAccentColor, circleId }: Props) {
+export default function CircleChart({
+  result,
+  style: styleProp,
+  onAccentColor,
+  circleId,
+  presentation = "default",
+  interactive = true,
+  centerAvatarCycle = false,
+  showFallbackInitials = true,
+  fallbackLabelMode = "username",
+}: Props) {
   const s           = styleProp ?? DEFAULT_STYLE;
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const wrapRef     = useRef<HTMLDivElement>(null);
   const imageCache  = useRef<Map<string, HTMLImageElement>>(new Map());
+  const centerAvatarAlpha = useRef(0);
+  const centerAnimationRaf = useRef<number>(0);
   const [tooltip,    setTooltip]   = useState<{ x: number; y: number; user: (typeof result.topUsers)[0] } | null>(null);
 
   // 根据人数动态计算 sc（缩放比例），人多时整体缩小以放入固定 700px 画布
@@ -449,28 +520,38 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = Math.min(2.5, window.devicePixelRatio || 1);
-    renderToCanvas(canvas, result, s, imageCache.current, { exportScale: dpr, circleId });
+    const flat = presentation === "flat-transparent";
+    renderToCanvas(canvas, result, s, imageCache.current, {
+      exportScale: dpr,
+      circleId,
+      transparent: flat,
+      flat,
+      centerAvatarAlpha: centerAvatarCycle ? centerAvatarAlpha.current : undefined,
+      showFallbackInitials,
+      fallbackLabelMode,
+    });
     // 把图片缓存挂到 canvas 上，供外部下载时复用
     (canvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache = imageCache.current;
-  }, [result, s, mul, displayN, scAdapt, circleId]);
+  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle, showFallbackInitials, fallbackLabelMode]);
 
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {
     imageCache.current.clear();
-  }, [result, s.showAvatars]);
+  }, [result, s.showAvatars, centerAvatarCycle]);
 
   /* ── Load images and draw ── */
   const colorExtracted = useRef(false);
   useEffect(() => { colorExtracted.current = false; }, [result]);
 
   useEffect(() => {
-    if (!s.showAvatars) { draw(); return; }
+    const shouldLoadCenterAvatar = centerAvatarCycle && Boolean(result.targetUser.profilePicture);
+    if (!s.showAvatars && !shouldLoadCenterAvatar) { draw(); return; }
     // Twitter 与 Yahoo 头像统一走带 7 天服务端缓存的图片代理。
     const proxy = (url: string) => proxiedImageSrc(url);
     const centerUrl = result.targetUser.profilePicture;
     const urls = [
-      centerUrl,
-      ...result.topUsers.slice(0, displayN).map(u => u.user.profilePicture),
+      ...(s.showAvatars || shouldLoadCenterAvatar ? [centerUrl] : []),
+      ...(s.showAvatars ? result.topUsers.slice(0, displayN).map(u => u.user.profilePicture) : []),
     ].filter(Boolean);
 
     let cancelled = false;
@@ -512,9 +593,29 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
 
     loadNext();
     return () => { cancelled = true; };
-  }, [result, s.showAvatars, displayN, draw, onAccentColor]);
+  }, [result, s.showAvatars, displayN, draw, onAccentColor, centerAvatarCycle]);
 
   useEffect(() => { draw(); }, [draw]);
+
+  useEffect(() => {
+    if (!centerAvatarCycle) return;
+    const startedAt = performance.now();
+    const cycleMs = 10_000;
+    const frame = (now: number) => {
+      const progress = ((now - startedAt) % cycleMs) / cycleMs;
+      let alpha = 0;
+      if (progress >= 0.3 && progress < 0.42) alpha = (progress - 0.3) / 0.12;
+      else if (progress >= 0.42 && progress < 0.82) alpha = 1;
+      else if (progress >= 0.82 && progress < 0.94) alpha = 1 - (progress - 0.82) / 0.12;
+      if (Math.abs(centerAvatarAlpha.current - alpha) >= 0.015) {
+        centerAvatarAlpha.current = alpha;
+        draw();
+      }
+      centerAnimationRaf.current = requestAnimationFrame(frame);
+    };
+    centerAnimationRaf.current = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(centerAnimationRaf.current);
+  }, [centerAvatarCycle, draw]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current as HTMLCanvasElement & {
@@ -560,40 +661,45 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
   };
 
   return (
-    <div ref={wrapRef} className="relative inline-block w-full max-w-[700px]">
-      <canvas ref={canvasRef} className="rounded-2xl cursor-pointer w-full aspect-square"
+    <div ref={wrapRef} className="relative inline-block w-full max-w-[820px]">
+      <canvas ref={canvasRef} className={`${presentation === "flat-transparent" ? "" : "rounded-2xl"} ${interactive ? "cursor-pointer" : ""} w-full aspect-square`}
         data-circle="true"
-        onMouseMove={handleMouseMove} onMouseLeave={() => setTooltip(null)}
-        onClick={handleClick} />
-      {tooltip && (() => {
+        onMouseMove={interactive ? handleMouseMove : undefined}
+        onMouseLeave={interactive ? () => setTooltip(null) : undefined}
+        onClick={interactive ? handleClick : undefined} />
+      {interactive && tooltip && (() => {
         // Smart positioning: flip left if too close to right edge
         const wrapWidth = wrapRef.current?.clientWidth ?? canvasSize;
-        const flipX = tooltip.x + 200 > wrapWidth;
-        const tipX  = flipX ? tooltip.x - 200 : tooltip.x + 14;
-        const tipY  = Math.max(4, tooltip.y - 20);
+        const wrapHeight = wrapRef.current?.clientHeight ?? canvasSize;
+        const tipWidth = 216;
+        const tipHeight = 218;
+        const flipX = tooltip.x + tipWidth > wrapWidth;
+        const flipY = tooltip.y + tipHeight > wrapHeight;
+        const tipX  = Math.max(4, flipX ? tooltip.x - tipWidth : tooltip.x + 14);
+        const tipY  = Math.max(4, flipY ? tooltip.y - tipHeight - 8 : tooltip.y - 20);
         return (
           <div
-            className="absolute z-50 bg-gray-900/95 border border-white/20 rounded-xl px-4 py-3 shadow-2xl pointer-events-none text-sm min-w-[180px]"
+            className="absolute z-50 bg-[#292a30]/98 border border-white/15 rounded-2xl px-4 py-3 shadow-2xl pointer-events-none text-sm w-[216px]"
             style={{ left: tipX, top: tipY }}
           >
           <div className="font-bold text-white">@{tooltip.user.user.userName}</div>
           <div className="text-gray-400 text-xs mb-2">{tooltip.user.user.name}</div>
           <div className="space-y-1 text-xs">
             {[
-              { label: "💬 Reply", val: tooltip.user.replies, cls: "text-blue-400" },
-              { label: "🔁 Quote", val: tooltip.user.quotes, cls: "text-purple-400" },
-              { label: "📣 Mention", val: tooltip.user.mentions, cls: "text-pink-400" },
-              { label: "🔄 Retweet", val: tooltip.user.retweets, cls: "text-green-400" },
-              { label: "⬆️ 主动分", val: tooltip.user.outboundScore.toFixed(1), cls: "text-cyan-400" },
-              { label: "⬇️ 被动分", val: tooltip.user.inboundScore.toFixed(1), cls: "text-orange-400" },
-            ].map(({ label, val, cls }) => (
+              { icon: "message" as Md3IconName, label: "Reply", val: tooltip.user.replies, cls: "text-blue-300" },
+              { icon: "quote" as Md3IconName, label: "Quote", val: tooltip.user.quotes, cls: "text-purple-300" },
+              { icon: "mention" as Md3IconName, label: "Mention", val: tooltip.user.mentions, cls: "text-pink-300" },
+              { icon: "repeat" as Md3IconName, label: "Retweet", val: tooltip.user.retweets, cls: "text-green-300" },
+              { icon: "north" as Md3IconName, label: "主动分", val: tooltip.user.outboundScore.toFixed(1), cls: "text-cyan-300" },
+              { icon: "south" as Md3IconName, label: "被动分", val: tooltip.user.inboundScore.toFixed(1), cls: "text-orange-300" },
+            ].map(({ icon, label, val, cls }) => (
               <div key={label} className="flex justify-between gap-4">
-                <span className={cls}>{label}</span>
+                <span className={`flex items-center gap-1.5 ${cls}`}><Md3Icon name={icon} className="h-3.5 w-3.5" />{label}</span>
                 <span className="text-white font-medium">{val}</span>
               </div>
             ))}
             <div className="border-t border-white/10 pt-1 flex justify-between gap-4">
-              <span className="text-yellow-400">⭐ Score</span>
+              <span className="text-yellow-300 flex items-center gap-1.5"><Md3Icon name="star" className="h-3.5 w-3.5" />Score</span>
               <span className="text-yellow-400 font-bold">{tooltip.user.score}</span>
             </div>
           </div>
@@ -610,6 +716,8 @@ function drawCircleAvatar(
   cache: Map<string, HTMLImageElement>,
   url: string, x: number, y: number, r: number,
   color: string, showAvatars: boolean, font: string, userName: string,
+  flat = false,
+  showFallbackInitials = true,
 ) {
   ctx.save();
   ctx.beginPath();
@@ -617,17 +725,36 @@ function drawCircleAvatar(
   ctx.clip();
   const img = showAvatars ? cache.get(url) : undefined;
   if (img) {
-    ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+    const match = url.match(/#cell=(\d+)$/);
+    if (match) {
+      const cell = Number(match[1]) % 25;
+      const cellW = img.naturalWidth / 5;
+      const cellH = img.naturalHeight / 5;
+      ctx.drawImage(
+        img,
+        (cell % 5) * cellW,
+        Math.floor(cell / 5) * cellH,
+        cellW,
+        cellH,
+        x - r,
+        y - r,
+        r * 2,
+        r * 2,
+      );
+    } else {
+      ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+    }
   } else {
-    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
     const safeColor = sanitizeHex(color);
-    g.addColorStop(0, safeColor + "dd"); g.addColorStop(1, safeColor + "66");
-    ctx.fillStyle = g; ctx.fill();
-    ctx.fillStyle    = "#fff";
-    ctx.font         = `bold ${Math.floor(r * 0.55)}px ${font}`;
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(userName[0]?.toUpperCase() ?? "?", x, y);
+    ctx.fillStyle = flat ? safeColor + "e8" : safeColor;
+    ctx.fill();
+    if (showFallbackInitials) {
+      ctx.fillStyle    = hexBrightness(safeColor) > 155 ? "#353342" : "#fffafc";
+      ctx.font         = `bold ${Math.floor(r * 0.55)}px ${font}`;
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(userName[0]?.toUpperCase() ?? "?", x, y);
+    }
   }
   ctx.restore();
 }

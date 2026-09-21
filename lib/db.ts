@@ -38,9 +38,21 @@ export function initDb() {
       id          TEXT PRIMARY KEY,
       username    TEXT NOT NULL,
       circle_data TEXT NOT NULL,
+      storage_consent INTEGER NOT NULL DEFAULT 0,
+      consented_at INTEGER,
       created_at  INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_yahoo_circles_username ON yahoo_circles(username);
+    -- ── Public feedback ──
+    CREATE TABLE IF NOT EXISTS feedbacks (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      content     TEXT NOT NULL,
+      contact     TEXT NOT NULL DEFAULT '',
+      locale      TEXT NOT NULL DEFAULT 'zh',
+      status      TEXT NOT NULL DEFAULT 'new',
+      created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status, created_at DESC);
     -- ── Announcements ──
     CREATE TABLE IF NOT EXISTS announcements (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +69,14 @@ export function initDb() {
   // Migrate: add locale column if missing (existing databases)
   try {
     db.exec("ALTER TABLE announcements ADD COLUMN locale TEXT NOT NULL DEFAULT 'all'");
+  } catch { /* column already exists */ }
+  // Migrate existing circles conservatively: old rows did not have explicit
+  // permission, so they remain temporary until a user opts in on a new run.
+  try {
+    db.exec("ALTER TABLE yahoo_circles ADD COLUMN storage_consent INTEGER NOT NULL DEFAULT 0");
+  } catch { /* column already exists */ }
+  try {
+    db.exec("ALTER TABLE yahoo_circles ADD COLUMN consented_at INTEGER");
   } catch { /* column already exists */ }
   db.close();
 }
@@ -131,16 +151,95 @@ export type YahooCircleRow = {
   id: string;
   username: string;
   circle_data: string;    // JSON
+  storage_consent: number;
+  consented_at: number | null;
   created_at: number;
 };
 
-export function createYahooCircle(id: string, username: string, circleData: string): void {
+export function createYahooCircle(
+  id: string,
+  username: string,
+  circleData: string,
+  storageConsent = false,
+): void {
   const db = getDb();
   try {
+    const now = Date.now();
     db.prepare(
-      "INSERT INTO yahoo_circles (id, username, circle_data, created_at) VALUES (?, ?, ?, ?)"
-    ).run(id, username, circleData, Date.now());
+      "INSERT INTO yahoo_circles (id, username, circle_data, storage_consent, consented_at, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(id, username, circleData, storageConsent ? 1 : 0, storageConsent ? now : null, now);
   } finally { db.close(); }
+}
+
+export type TemporaryCircleCleanupSummary = {
+  count: number;
+  bytes: number;
+  oldestCreatedAt: number | null;
+};
+
+export function getTemporaryCircleCleanupSummary(
+  olderThanMs?: number,
+): TemporaryCircleCleanupSummary {
+  const db = getDb();
+  try {
+    const where = olderThanMs === undefined
+      ? "storage_consent = 0"
+      : "storage_consent = 0 AND created_at < ?";
+    const row = (olderThanMs === undefined
+      ? db.prepare(
+          `SELECT COUNT(*) count, COALESCE(SUM(LENGTH(circle_data)), 0) bytes,
+                  MIN(created_at) oldestCreatedAt
+           FROM yahoo_circles WHERE ${where}`,
+        ).get()
+      : db.prepare(
+          `SELECT COUNT(*) count, COALESCE(SUM(LENGTH(circle_data)), 0) bytes,
+                  MIN(created_at) oldestCreatedAt
+           FROM yahoo_circles WHERE ${where}`,
+        ).get(olderThanMs)) as {
+          count: number;
+          bytes: number;
+          oldestCreatedAt: number | null;
+        };
+    return row;
+  } finally {
+    db.close();
+  }
+}
+
+export function cleanupTemporaryYahooCircles(olderThanMs?: number): TemporaryCircleCleanupSummary {
+  const db = getDb();
+  try {
+    const where = olderThanMs === undefined
+      ? "storage_consent = 0"
+      : "storage_consent = 0 AND created_at < ?";
+    const select = db.prepare(
+      `SELECT COUNT(*) count, COALESCE(SUM(LENGTH(circle_data)), 0) bytes,
+              MIN(created_at) oldestCreatedAt
+       FROM yahoo_circles WHERE ${where}`,
+    );
+    const summary = (olderThanMs === undefined
+      ? select.get()
+      : select.get(olderThanMs)) as TemporaryCircleCleanupSummary;
+    if (summary.count > 0) {
+      const remove = db.prepare(`DELETE FROM yahoo_circles WHERE ${where}`);
+      if (olderThanMs === undefined) remove.run();
+      else remove.run(olderThanMs);
+    }
+    return summary;
+  } finally {
+    db.close();
+  }
+}
+
+let lastAutomaticCleanupAt = 0;
+
+export function maybeCleanupTemporaryYahooCircles(
+  retentionMs: number,
+  nowMs = Date.now(),
+): TemporaryCircleCleanupSummary | null {
+  if (nowMs - lastAutomaticCleanupAt < 60 * 60 * 1000) return null;
+  lastAutomaticCleanupAt = nowMs;
+  return cleanupTemporaryYahooCircles(nowMs - retentionMs);
 }
 
 export function getYahooCircle(id: string): YahooCircleRow | undefined {
@@ -150,10 +249,19 @@ export function getYahooCircle(id: string): YahooCircleRow | undefined {
   } finally { db.close(); }
 }
 
-export function findRecentYahooCircle(username: string, ttlMs: number): YahooCircleRow | undefined {
+export function findRecentYahooCircle(
+  username: string,
+  ttlMs: number,
+  storageConsent?: boolean,
+): YahooCircleRow | undefined {
   const db = getDb();
   try {
     const cutoff = Date.now() - ttlMs;
+    if (storageConsent !== undefined) {
+      return db.prepare(
+        "SELECT * FROM yahoo_circles WHERE LOWER(username) = LOWER(?) AND created_at > ? AND storage_consent = ? ORDER BY created_at DESC LIMIT 1"
+      ).get(username, cutoff, storageConsent ? 1 : 0) as YahooCircleRow | undefined;
+    }
     return db.prepare(
       "SELECT * FROM yahoo_circles WHERE LOWER(username) = LOWER(?) AND created_at > ? ORDER BY created_at DESC LIMIT 1"
     ).get(username, cutoff) as YahooCircleRow | undefined;
@@ -169,6 +277,8 @@ export type UnifiedCircle = {
   id: string;
   username: string;
   created_at: number;
+  storage_consent: boolean;
+  consented_at: number | null;
   data: string;
 };
 
@@ -179,7 +289,15 @@ export function getCircleByAnyId(id: string): UnifiedCircle | undefined {
       "SELECT * FROM yahoo_circles WHERE id = ?"
     ).get(id) as YahooCircleRow | undefined;
     if (yh) {
-      return { source: "yahoo", id: yh.id, username: yh.username, created_at: yh.created_at, data: yh.circle_data };
+      return {
+        source: "yahoo",
+        id: yh.id,
+        username: yh.username,
+        created_at: yh.created_at,
+        storage_consent: yh.storage_consent === 1,
+        consented_at: yh.consented_at,
+        data: yh.circle_data,
+      };
     }
     return undefined;
   } finally { db.close(); }
@@ -245,5 +363,51 @@ export function getActiveAnnouncements(locale?: string): AnnouncementRow[] {
       ).all(locale) as AnnouncementRow[];
     }
     return db.prepare("SELECT * FROM announcements WHERE active = 1 ORDER BY pinned DESC, created_at DESC").all() as AnnouncementRow[];
+  } finally { db.close(); }
+}
+
+// ─────────────────────────────────────────────────────────
+// Feedback
+// ─────────────────────────────────────────────────────────
+
+export type FeedbackRow = {
+  id: number;
+  content: string;
+  contact: string;
+  locale: string;
+  status: "new" | "reviewed";
+  created_at: number;
+};
+
+export function createFeedback(content: string, contact: string, locale: string): number {
+  const db = getDb();
+  try {
+    const result = db.prepare(
+      "INSERT INTO feedbacks (content, contact, locale, status, created_at) VALUES (?, ?, ?, 'new', ?)"
+    ).run(content, contact, locale, Date.now());
+    return Number(result.lastInsertRowid);
+  } finally { db.close(); }
+}
+
+export function listFeedbacks(): FeedbackRow[] {
+  const db = getDb();
+  try {
+    return db.prepare(
+      "SELECT * FROM feedbacks ORDER BY CASE status WHEN 'new' THEN 0 ELSE 1 END, created_at DESC"
+    ).all() as FeedbackRow[];
+  } finally { db.close(); }
+}
+
+export function updateFeedbackStatus(id: number, status: FeedbackRow["status"]): void {
+  const db = getDb();
+  try {
+    db.prepare("UPDATE feedbacks SET status = ? WHERE id = ?").run(status, id);
+  } finally { db.close(); }
+}
+
+export function deleteFeedback(id: number): void {
+  const db = getDb();
+  try {
+    db.prepare("DELETE FROM feedbacks WHERE id = ?").run(id);
   } finally { db.close(); }
 }

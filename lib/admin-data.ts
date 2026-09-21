@@ -12,7 +12,7 @@ import { randomBytes } from "node:crypto";
 import { DB_PATH, getDb } from "./db";
 import { CREDENTIAL_KEY_RE, getSettingDef } from "./app-config";
 
-export type TableName = "settings" | "announcements" | "generation_log" | "yahoo_circles";
+export type TableName = "settings" | "announcements" | "generation_log" | "yahoo_circles" | "feedbacks";
 
 export type TableMeta = {
   name: TableName;
@@ -48,11 +48,17 @@ export const TABLE_META: TableMeta[] = [
     description: "已生成圈子的本体，体积最大（单条约数 KB 至数百 KB）。",
     primaryKey: ["id"],
   },
+  {
+    name: "feedbacks",
+    label: "用户反馈",
+    description: "生成页提交的反馈及可选联系方式。",
+    primaryKey: ["id"],
+  },
 ];
 
 const TABLE_BY_NAME = new Map(TABLE_META.map((t) => [t.name, t]));
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
 
 export type ExportBundle = {
   app: "nekocircle";
@@ -358,7 +364,7 @@ export function applyImport(raw: unknown, options: ImportOptions): ImportReport 
           else report.skipped += 1;
         }
 
-        if (meta.name === "yahoo_circles" || meta.name === "announcements") {
+        if (meta.name === "yahoo_circles" || meta.name === "announcements" || meta.name === "feedbacks") {
           // 把 AUTOINCREMENT 计数器对齐到实际数据（显式插入 id 时可能错位）
           try {
             const maxRow = db.prepare(`SELECT MAX(rowid) m FROM ${meta.name}`).get() as {

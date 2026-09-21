@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminNav from "@/components/AdminNav";
+import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
 type Announcement = {
   id: number;
@@ -35,15 +36,6 @@ export default function AdminAnnouncementsPage() {
   // Editing
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditingAnnouncement>({ title: "", content: "", type: "info", locale: "all" });
-
-  // Password change
-  const [showPwForm, setShowPwForm] = useState(false);
-  const [pwOld, setPwOld] = useState("");
-  const [pwNew, setPwNew] = useState("");
-  const [pwConfirm, setPwConfirm] = useState("");
-  const [pwMsg, setPwMsg] = useState("");
-  const [pwErr, setPwErr] = useState("");
-  const [pwSubmitting, setPwSubmitting] = useState(false);
 
   const fetchAnnouncements = () => {
     setLoading(true);
@@ -114,38 +106,17 @@ export default function AdminAnnouncementsPage() {
     fetchAnnouncements();
   };
 
-  const handleChangePassword = async () => {
-    setPwMsg(""); setPwErr("");
-    if (!pwOld || !pwNew || !pwConfirm) { setPwErr("请填写所有字段"); return; }
-    if (pwNew.length < 6) { setPwErr("新密码至少 6 位"); return; }
-    if (pwNew !== pwConfirm) { setPwErr("两次输入的新密码不一致"); return; }
-    setPwSubmitting(true);
-    try {
-      const res = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ oldPassword: pwOld, newPassword: pwNew }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setPwErr(data.error ?? "修改失败"); return; }
-      setPwMsg("密码修改成功！");
-      setPwOld(""); setPwNew(""); setPwConfirm("");
-      setTimeout(() => { setShowPwForm(false); setPwMsg(""); }, 1500);
-    } catch { setPwErr("网络错误"); }
-    finally { setPwSubmitting(false); }
-  };
-
   const typeOptions = [
-    { value: "info", label: "ℹ️ 信息", color: "text-blue-400" },
-    { value: "warning", label: "⚠️ 警告", color: "text-amber-400" },
-    { value: "success", label: "✅ 成功", color: "text-green-400" },
+    { value: "info", label: "信息", icon: "info" as Md3IconName, color: "text-blue-400" },
+    { value: "warning", label: "警告", icon: "warning" as Md3IconName, color: "text-amber-400" },
+    { value: "success", label: "成功", icon: "check" as Md3IconName, color: "text-green-400" },
   ];
 
   const localeOptions = [
-    { value: "all", label: "🌐 所有语言" },
-    { value: "zh", label: "🇨🇳 中文" },
-    { value: "en", label: "🇺🇸 English" },
-    { value: "ja", label: "🇯🇵 日本語" },
+    { value: "all", label: "所有语言" },
+    { value: "zh", label: "中文" },
+    { value: "en", label: "English" },
+    { value: "ja", label: "日本語" },
   ];
 
   return (
@@ -156,7 +127,7 @@ export default function AdminAnnouncementsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">📢 公告管理</h1>
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-white"><Md3Icon name="campaign" className="h-6 w-6 text-[#bec2ff]" />公告管理</h1>
             <p className="text-sm text-gray-500 mt-1">管理首页公告展示</p>
           </div>
           <div className="flex items-center gap-3">
@@ -168,7 +139,7 @@ export default function AdminAnnouncementsPage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError("")} className="text-red-400/50 hover:text-red-400">✕</button>
+            <button onClick={() => setError("")} className="text-red-400/50 hover:text-red-400"><Md3Icon name="close" className="h-4 w-4" /></button>
           </div>
         )}
 
@@ -222,7 +193,7 @@ export default function AdminAnnouncementsPage() {
                         : "bg-white/3 border-white/5 text-gray-500 hover:bg-white/5"
                     }`}
                   >
-                    {opt.label}
+                    <span className="inline-flex items-center gap-1.5"><Md3Icon name={opt.icon} className="h-4 w-4" />{opt.label}</span>
                   </button>
                 ))}
               </div>
@@ -241,7 +212,7 @@ export default function AdminAnnouncementsPage() {
                         : "bg-white/3 border-white/5 text-gray-500 hover:bg-white/5"
                     }`}
                   >
-                    {opt.label}
+                    <span className="inline-flex items-center gap-1.5"><Md3Icon name="language" className="h-4 w-4" />{opt.label}</span>
                   </button>
                 ))}
               </div>
@@ -267,7 +238,7 @@ export default function AdminAnnouncementsPage() {
         {/* List */}
         {!loading && announcements.length === 0 && (
           <div className="card rounded-2xl p-8 text-center">
-            <div className="text-3xl mb-3">📭</div>
+            <Md3Icon name="inbox" className="mx-auto mb-3 h-9 w-9 text-gray-600" />
             <p className="text-gray-500 text-sm">暂无公告</p>
           </div>
         )}
@@ -302,7 +273,7 @@ export default function AdminAnnouncementsPage() {
                               : "bg-white/3 border-white/5 text-gray-500 hover:bg-white/5"
                           }`}
                         >
-                          {opt.label}
+                          <span className="inline-flex items-center gap-1.5"><Md3Icon name={opt.icon} className="h-4 w-4" />{opt.label}</span>
                         </button>
                       ))}
                     </div>
@@ -317,7 +288,7 @@ export default function AdminAnnouncementsPage() {
                               : "bg-white/3 border-white/5 text-gray-500 hover:bg-white/5"
                           }`}
                         >
-                          {opt.label}
+                          <span className="inline-flex items-center gap-1.5"><Md3Icon name="language" className="h-4 w-4" />{opt.label}</span>
                         </button>
                       ))}
                     </div>
@@ -344,13 +315,13 @@ export default function AdminAnnouncementsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="text-sm font-semibold text-white">{a.title}</span>
-                          {a.pinned === 1 && <span className="text-xs" title="置顶">📌</span>}
+                          {a.pinned === 1 && <Md3Icon name="pin" className="h-4 w-4 text-[#bec2ff]" />}
                           <span className={`text-xs px-1.5 py-0.5 rounded border ${
                             a.type === "warning" ? "border-amber-500/30 text-amber-400 bg-amber-500/10"
                             : a.type === "success" ? "border-green-500/30 text-green-400 bg-green-500/10"
                             : "border-blue-500/30 text-blue-400 bg-blue-500/10"
                           }`}>
-                            {a.type === "warning" ? "⚠️ 警告" : a.type === "success" ? "✅ 成功" : "ℹ️ 信息"}
+                            <span className="inline-flex items-center gap-1"><Md3Icon name={a.type === "warning" ? "warning" : a.type === "success" ? "check" : "info"} className="h-3.5 w-3.5" />{a.type === "warning" ? "警告" : a.type === "success" ? "成功" : "信息"}</span>
                           </span>
                           <span className={`text-xs px-1.5 py-0.5 rounded border ${
                             a.active === 1
@@ -360,7 +331,7 @@ export default function AdminAnnouncementsPage() {
                             {a.active === 1 ? "显示中" : "已隐藏"}
                           </span>
                           <span className="text-xs px-1.5 py-0.5 rounded border border-purple-500/30 text-purple-400 bg-purple-500/10">
-                            {a.locale === "zh" ? "🇨🇳 中文" : a.locale === "en" ? "🇺🇸 EN" : a.locale === "ja" ? "🇯🇵 日本語" : "🌐 全部"}
+                            <span className="inline-flex items-center gap-1"><Md3Icon name="language" className="h-3.5 w-3.5" />{a.locale === "zh" ? "中文" : a.locale === "en" ? "EN" : a.locale === "ja" ? "日本語" : "全部"}</span>
                           </span>
                         </div>
                         {a.content && (
@@ -379,26 +350,26 @@ export default function AdminAnnouncementsPage() {
                         onClick={() => { setEditingId(a.id); setEditForm({ title: a.title, content: a.content, type: a.type, locale: a.locale || "all" }); }}
                         className="text-xs text-gray-500 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/5 transition-all"
                       >
-                        ✏️ 编辑
+                        <span className="inline-flex items-center gap-1"><Md3Icon name="edit" className="h-3.5 w-3.5" />编辑</span>
                       </button>
                       <button
                         onClick={() => handleToggleActive(a)}
                         className="text-xs text-gray-500 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/5 transition-all"
                       >
-                        {a.active === 1 ? "🔴 隐藏" : "🟢 显示"}
+                        <span className="inline-flex items-center gap-1"><Md3Icon name={a.active === 1 ? "visibilityOff" : "visibility"} className="h-3.5 w-3.5" />{a.active === 1 ? "隐藏" : "显示"}</span>
                       </button>
                       <button
                         onClick={() => handleTogglePinned(a)}
                         className="text-xs text-gray-500 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/5 transition-all"
                       >
-                        {a.pinned === 1 ? "📌 取消置顶" : "📌 置顶"}
+                        <span className="inline-flex items-center gap-1"><Md3Icon name="pin" className="h-3.5 w-3.5" />{a.pinned === 1 ? "取消置顶" : "置顶"}</span>
                       </button>
                       <div className="flex-1" />
                       <button
                         onClick={() => handleDelete(a.id)}
                         className="text-xs text-red-500/60 hover:text-red-400 px-2.5 py-1 rounded-lg hover:bg-red-500/5 transition-all"
                       >
-                        🗑️ 删除
+                        <span className="inline-flex items-center gap-1"><Md3Icon name="delete" className="h-3.5 w-3.5" />删除</span>
                       </button>
                     </div>
                   </div>
@@ -407,64 +378,6 @@ export default function AdminAnnouncementsPage() {
             ))}
           </div>
         )}
-
-        {/* Password change */}
-        <div className="card rounded-2xl overflow-hidden">
-          <button
-            onClick={() => { setShowPwForm(!showPwForm); setPwErr(""); setPwMsg(""); }}
-            className="w-full px-5 py-4 flex items-center justify-between text-sm font-semibold hover:bg-white/3 transition-colors"
-          >
-            <span>🔑 修改密码</span>
-            <svg className={`w-4 h-4 text-gray-500 transition-transform ${showPwForm ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-          </button>
-          {showPwForm && (
-            <div className="px-5 pb-5 space-y-3 border-t border-white/5 pt-4">
-              {pwMsg && (
-                <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-2.5 text-green-400 text-sm">{pwMsg}</div>
-              )}
-              {pwErr && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 text-red-400 text-sm">{pwErr}</div>
-              )}
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">旧密码</label>
-                <input
-                  type="password"
-                  value={pwOld}
-                  onChange={(e) => setPwOld(e.target.value)}
-                  placeholder="请输入当前密码"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">新密码</label>
-                <input
-                  type="password"
-                  value={pwNew}
-                  onChange={(e) => setPwNew(e.target.value)}
-                  placeholder="至少 6 位"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1.5">确认新密码</label>
-                <input
-                  type="password"
-                  value={pwConfirm}
-                  onChange={(e) => setPwConfirm(e.target.value)}
-                  placeholder="再次输入新密码"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#1d9bf0] transition-colors"
-                />
-              </div>
-              <button
-                onClick={handleChangePassword}
-                disabled={pwSubmitting}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#1d9bf0] hover:bg-[#1a8cd8] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {pwSubmitting ? "修改中..." : "确认修改"}
-              </button>
-            </div>
-          )}
-        </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-700 pt-4">

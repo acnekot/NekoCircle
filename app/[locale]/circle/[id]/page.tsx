@@ -15,12 +15,15 @@ import type { AnalysisResult } from "@/lib/circle-convert";
 import type { CircleUser, SelfProfile } from "@/types/circle";
 import { parseYahooCircleData } from "@/lib/circle-convert";
 import { useTranslation } from "@/components/LocaleProvider";
+import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
 type UnifiedCircle = {
   source: "yahoo";
   id: string;
   username: string;
   created_at: number;
+  storage_consent: boolean;
+  consented_at: number | null;
   data: string;
 };
 
@@ -92,20 +95,20 @@ export default function CirclePreviewPage() {
 
   return (
     <div
-      className="gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
+      className="md3-app-surface gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
       style={bgAccent ? {
-        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}28 0%, transparent 55%), radial-gradient(ellipse at top, #1a2744 0%, #0a0f1e 60%)`
+        background: `radial-gradient(ellipse at 30% 10%, ${bgAccent}20 0%, transparent 55%), radial-gradient(ellipse at 84% 4%, rgba(99, 106, 204, .16), transparent 34rem), #121318`
       } : undefined}
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1440px] mx-auto">
 
         {/* Header */}
-        <div className="tech-panel rounded-2xl flex items-center gap-4 mb-6 px-4 sm:px-5 py-4">
-          <a href={`/${locale}`} className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-500 hover:text-cyan-200 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
+        <div className="tech-panel rounded-[28px] flex items-center gap-4 mb-6 px-4 sm:px-6 py-4 sm:py-5">
+          <a href={`/${locale}`} className="md3-tonal-button shrink-0">{t("common.backHome")}</a>
           {circle && (
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="hud-label px-2 py-1 rounded-md bg-cyan-400/[0.07] border border-cyan-300/15">
+                <span className="hud-label px-3 py-1.5 rounded-full bg-[#3c4278]/70 border border-[#bec2ff]/15">
                   {t("circle.tag")}
                 </span>
                 <button
@@ -137,7 +140,7 @@ export default function CirclePreviewPage() {
         {/* Loading */}
         {loading && (
           <div className="card rounded-2xl p-16 flex flex-col items-center gap-4">
-            <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#1d9bf0] animate-spin" />
+            <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#bec2ff] animate-spin" />
             <div className="text-center">
               <p className="text-white font-medium">{t("circle.loading")}</p>
             </div>
@@ -147,7 +150,7 @@ export default function CirclePreviewPage() {
         {/* Error */}
         {!loading && error && (
           <div className="card rounded-2xl p-8 text-center">
-            <div className="text-4xl mb-4">😿</div>
+            <Md3Icon name="error" className="mx-auto mb-4 h-10 w-10 text-red-300" />
             <h2 className="text-lg font-bold text-red-400 mb-2">{t("circle.error")}</h2>
             <p className="text-gray-400 text-sm">{error}</p>
             <a href={`/${locale}`} className="btn-primary inline-block mt-6 px-6 py-2 rounded-xl text-sm font-medium">{t("common.returnHome")}</a>
@@ -185,7 +188,7 @@ export default function CirclePreviewPage() {
                   className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
                 >
                   <span className="flex items-center justify-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                    <Md3Icon name="share" className="h-4 w-4" />
                     {t("common.share")}
                   </span>
                 </button>
@@ -206,25 +209,25 @@ export default function CirclePreviewPage() {
               {/* Tab bar */}
               <div className="tech-tabs flex flex-wrap gap-1 mb-4">
                 {([
-                  ["circle", t("circle.tabCircle")],
-                  ["list", t("circle.tabList")],
-                  ["family", t("extras.tabFamily")],
-                  ["ai", t("extras.tabAI")],
-                  ["value", t("extras.tabValue")],
-                ] as [Tab, string][]).map(([tab, label]) => (
+                  ["circle", t("circle.tabCircle"), "bubble"],
+                  ["list", t("circle.tabList"), "list"],
+                  ["family", t("extras.tabFamily"), "tree"],
+                  ["ai", t("extras.tabAI"), "sparkle"],
+                  ["value", t("extras.tabValue"), "wallet"],
+                ] as [Tab, string, Md3IconName][]).map(([tab, label, icon]) => (
                   <button key={tab} type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       activeTab === tab
-                        ? "bg-[#0a84ff]/20 text-white border border-[#0a84ff]/25"
+                        ? "bg-[#3c4278] text-[#dfe0ff] border border-[#bec2ff]/20"
                         : "border border-transparent text-slate-500 hover:bg-white/5 hover:text-slate-300"
                     }`}
-                  >{label}</button>
+                  ><Md3Icon name={icon} className="h-4 w-4" />{label}</button>
                 ))}
               </div>
 
               {activeTab === "circle" && (
-                <div className="card tech-display-frame rounded-2xl p-3 sm:p-5 flex justify-center overflow-x-auto">
+                <div className="card tech-display-frame result-chart-stage grid place-items-center p-2 sm:p-3">
                   <CircleChart
                     result={result}
                     style={styleConfig}
@@ -251,7 +254,7 @@ export default function CirclePreviewPage() {
                             <td className="px-4 py-3 text-gray-500 font-mono text-sm">{i + 1}</td>
                             <td className="px-4 py-3">
                               <a href={`https://x.com/${item.user.userName}`} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-3 hover:text-[#1d9bf0] transition-colors">
+                                className="flex items-center gap-3 hover:text-[#bec2ff] transition-colors">
                                 <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden shrink-0">
                                   <AvatarImage
                                     hdUrl={item.user.profilePicture}
@@ -287,6 +290,17 @@ export default function CirclePreviewPage() {
                 <AccountValuePanel self={self} users={circleUsers} />
               )}
             </div>
+
+            <footer className="order-3 col-span-full mt-2 flex flex-col gap-2 border-t border-white/10 px-1 pt-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                {t("yahoo.inspirationFrom")} {" "}
+                <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="text-[#bec2ff] underline underline-offset-4 transition-colors hover:text-white">nareaitter</a>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Md3Icon name={circle?.storage_consent ? "check" : "restart"} className="h-4 w-4 text-[#bec2ff]" />
+                <span><span className="text-slate-400">{t("yahoo.storageLabel")}：</span>{circle?.storage_consent ? t("yahoo.storageLongTerm") : t("yahoo.storageTemporary")}</span>
+              </span>
+            </footer>
           </div>
         )}
       </div>

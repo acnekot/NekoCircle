@@ -25,7 +25,7 @@ function Avatar({ user }: { user: CircleUser }) {
       className="group flex flex-col items-center gap-1.5 min-w-16"
       title={`@${user.screenName}`}
     >
-      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/15 bg-gray-800 group-hover:border-[#1d9bf0] transition-colors">
+      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/15 bg-gray-800 group-hover:border-[#bec2ff] transition-colors">
         <AvatarImage
           previewUrl={user.avatarUrlPreview}
           hdUrl={user.avatarUrl}
@@ -34,7 +34,7 @@ function Avatar({ user }: { user: CircleUser }) {
           fallbackClassName="w-full h-full flex items-center justify-center font-bold text-gray-400"
         />
       </div>
-      <span className="max-w-24 truncate text-[11px] text-gray-400 group-hover:text-[#1d9bf0]">
+      <span className="max-w-24 truncate text-[11px] text-gray-400 group-hover:text-[#bec2ff]">
         @{user.screenName}
       </span>
     </a>
@@ -62,7 +62,7 @@ export default function FamilyTree({ self, users }: Props) {
               <div className="flex flex-wrap justify-center gap-3">
                 {group.relation === "partner" && (
                   <div className="flex flex-col items-center gap-1.5 min-w-16">
-                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#1d9bf0] bg-gray-800">
+                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-[#bec2ff] bg-gray-800">
                       <AvatarImage
                         previewUrl={self.avatarUrlPreview}
                         hdUrl={self.avatarUrl}
@@ -71,7 +71,7 @@ export default function FamilyTree({ self, users }: Props) {
                         fallbackClassName="w-full h-full flex items-center justify-center font-bold text-white"
                       />
                     </div>
-                    <span className="max-w-24 truncate text-[11px] text-[#1d9bf0]">@{self.screenName}</span>
+                    <span className="max-w-24 truncate text-[11px] text-[#bec2ff]">@{self.screenName}</span>
                   </div>
                 )}
                 {group.users.map((user) => <Avatar key={user.id} user={user} />)}

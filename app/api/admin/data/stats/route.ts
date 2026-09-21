@@ -39,6 +39,10 @@ export async function GET() {
 
     /* --- 累计 --- */
     const circles = one<{ c: number }>("SELECT COUNT(*) c FROM yahoo_circles").c;
+    const longTermCircles = one<{ c: number }>(
+      "SELECT COUNT(*) c FROM yahoo_circles WHERE storage_consent = 1",
+    ).c;
+    const temporaryCircles = circles - longTermCircles;
     const generations = one<{ c: number }>("SELECT COUNT(*) c FROM generation_log").c;
     const uniqueUsers = one<{ c: number }>(
       "SELECT COUNT(DISTINCT LOWER(username)) c FROM generation_log",
@@ -137,12 +141,15 @@ export async function GET() {
       source: string;
       id: string | null;
       bytes: number | null;
+      storage_consent: number | null;
     }>(
       `SELECT g.username, g.created_at, g.source,
               (SELECT c.id FROM yahoo_circles c WHERE LOWER(c.username) = LOWER(g.username)
                 ORDER BY c.created_at DESC LIMIT 1) id,
               (SELECT LENGTH(c.circle_data) FROM yahoo_circles c WHERE LOWER(c.username) = LOWER(g.username)
-                ORDER BY c.created_at DESC LIMIT 1) bytes
+                ORDER BY c.created_at DESC LIMIT 1) bytes,
+              (SELECT c.storage_consent FROM yahoo_circles c WHERE LOWER(c.username) = LOWER(g.username)
+                ORDER BY c.created_at DESC LIMIT 1) storage_consent
        FROM generation_log g
        ORDER BY g.created_at DESC
        LIMIT 12`,
@@ -155,6 +162,7 @@ export async function GET() {
         generatedAt: new Date().toISOString(),
         timezone: "UTC+08:00",
         totals: { circles, generations, uniqueUsers, today, last24h, last7d },
+        retention: { longTerm: longTermCircles, temporary: temporaryCircles },
         daily,
         hourly,
         weekdayHour,

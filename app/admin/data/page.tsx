@@ -29,6 +29,14 @@ type ImportReport = {
   dryRun: boolean;
 };
 
+type CleanupState = {
+  retentionHours: number;
+  autoCleanup: boolean;
+  cutoff: number;
+  all: { count: number; bytes: number; oldestCreatedAt: number | null };
+  expired: { count: number; bytes: number; oldestCreatedAt: number | null };
+};
+
 function formatBytes(n: number): string {
   if (!n) return "0 B";
   const units = ["B", "KB", "MB", "GB"];
@@ -55,6 +63,9 @@ async function gunzipToText(bytes: Uint8Array): Promise<string> {
 export default function AdminDataPage() {
   const [meta, setMeta] = useState<Overview | null>(null);
   const [loadingMeta, setLoadingMeta] = useState(true);
+  const [cleanupState, setCleanupState] = useState<CleanupState | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState("");
 
   // 导出
   const [picked, setPicked] = useState<string[]>([]);
@@ -95,9 +106,54 @@ export default function AdminDataPage() {
     }
   }, []);
 
+  const loadCleanup = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/data/cleanup", { cache: "no-store" });
+      if (response.status === 401) {
+        window.location.href = "/admin/login";
+        return;
+      }
+      const data = await response.json();
+      if (response.ok) setCleanupState(data);
+    } catch {
+      setCleanupMessage("无法读取临时数据状态");
+    }
+  }, []);
+
   useEffect(() => {
     loadMeta();
-  }, [loadMeta]);
+    loadCleanup();
+  }, [loadMeta, loadCleanup]);
+
+  const cleanupTemporary = async (scope: "expired" | "all") => {
+    const count = scope === "expired"
+      ? cleanupState?.expired.count ?? 0
+      : cleanupState?.all.count ?? 0;
+    if (!count) return;
+    const wording = scope === "expired" ? "过期临时圈子" : "全部临时圈子";
+    if (!window.confirm(`确定删除 ${count} 个${wording}？已授权长期保存的圈子不会受影响。`)) return;
+    setCleaning(true);
+    setCleanupMessage("");
+    try {
+      const response = await fetch("/api/admin/data/cleanup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          scope,
+          confirm: scope === "all" ? "DELETE_TEMPORARY" : "",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "清理失败");
+      setCleanupMessage(`已清理 ${data.deleted.count} 个临时圈子，释放约 ${formatBytes(data.deleted.bytes)} 数据内容`);
+      setCleanupState(data.state);
+      await loadMeta();
+    } catch (error) {
+      setCleanupMessage(error instanceof Error ? error.message : "清理失败");
+    } finally {
+      setCleaning(false);
+    }
+  };
 
   /**
    * 通过浏览器原生下载导出。
@@ -261,6 +317,63 @@ export default function AdminDataPage() {
             </>
           ) : (
             <div className="text-gray-600 text-sm">读取中…</div>
+          )}
+        </div>
+
+        <div className="card rounded-2xl p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-white">临时数据清理</h2>
+              <p className="mt-1 text-[11px] leading-relaxed text-gray-600">
+                仅清理未授权长期保存的圈子正文；已授权圈子和匿名生成统计不会被删除。
+              </p>
+            </div>
+            <a href="/admin/settings" className="text-[11px] text-[#bec2ff] hover:underline">
+              调整保留策略
+            </a>
+          </div>
+
+          {cleanupState ? (
+            <>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl bg-white/5 px-3 py-3">
+                  <div className="text-[10px] text-gray-600">全部临时圈子</div>
+                  <div className="mt-1 text-xl font-bold tabular-nums text-white">{cleanupState.all.count}</div>
+                </div>
+                <div className="rounded-xl bg-white/5 px-3 py-3">
+                  <div className="text-[10px] text-gray-600">已过期</div>
+                  <div className="mt-1 text-xl font-bold tabular-nums text-amber-300">{cleanupState.expired.count}</div>
+                </div>
+                <div className="rounded-xl bg-white/5 px-3 py-3">
+                  <div className="text-[10px] text-gray-600">临时数据体积</div>
+                  <div className="mt-1 text-xl font-bold tabular-nums text-white">{formatBytes(cleanupState.all.bytes)}</div>
+                </div>
+                <div className="rounded-xl bg-white/5 px-3 py-3">
+                  <div className="text-[10px] text-gray-600">当前策略</div>
+                  <div className="mt-1 text-sm font-semibold text-white">{cleanupState.retentionHours} 小时</div>
+                  <div className="mt-1 text-[10px] text-gray-600">{cleanupState.autoCleanup ? "自动清理开启" : "仅手动清理"}</div>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => cleanupTemporary("expired")}
+                  disabled={cleaning || cleanupState.expired.count === 0}
+                  className="rounded-lg bg-amber-400/15 px-4 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-400/25 disabled:opacity-35"
+                >
+                  {cleaning ? "清理中…" : `清理过期数据（${cleanupState.expired.count}）`}
+                </button>
+                <button
+                  onClick={() => cleanupTemporary("all")}
+                  disabled={cleaning || cleanupState.all.count === 0}
+                  className="rounded-lg border border-red-400/20 px-4 py-2 text-xs text-red-300 transition hover:bg-red-400/10 disabled:opacity-35"
+                >
+                  清理全部临时数据
+                </button>
+                {cleanupMessage && <span className="text-xs text-gray-400">{cleanupMessage}</span>}
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 text-xs text-gray-600">正在读取临时数据状态…</div>
           )}
         </div>
 

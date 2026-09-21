@@ -5,6 +5,7 @@ import {
   type NameplateStyle, type NameplatePosition, type NameplateTextStyle, type NameplateArrange,
 } from "@/lib/style";
 import { useTranslation } from "@/components/LocaleProvider";
+import Md3Icon from "@/components/Md3Icon";
 
 type Props = {
   value: StyleConfig;
@@ -19,7 +20,7 @@ function Toggle({ checked, onToggle }: { checked: boolean; onToggle: () => void 
     <button
       type="button"
       onClick={onToggle}
-      className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-[#1d9bf0]" : "bg-white/10"}`}
+      className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${checked ? "bg-[#bec2ff]" : "bg-white/10"}`}
     >
       <span
         className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : ""}`}
@@ -46,7 +47,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
           type="text"
           value={value}
           onChange={(e) => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && onChange(e.target.value)}
-          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono outline-none focus:border-[#1d9bf0] w-20"
+          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono outline-none focus:border-[#bec2ff] w-20"
           maxLength={7}
         />
       </div>
@@ -68,7 +69,7 @@ function BtnGroup<T extends string>({ options, value, onChange }: {
           type="button"
           onClick={() => onChange(key)}
           className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
-            value === key ? "bg-[#1d9bf0] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"
+            value === key ? "bg-[#bec2ff] text-[#252a60]" : "bg-white/5 text-gray-400 hover:bg-white/10"
           }`}
         >
           {label}
@@ -100,15 +101,16 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
 
   return (
     <div className="card rounded-2xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-white/5 flex items-center gap-2 font-semibold text-sm">
-        🎨 <span>{t("style.title")}</span>
+      <div className="px-5 py-4 border-b border-white/5 flex items-center gap-2.5 font-semibold text-sm">
+        <Md3Icon name="palette" className="h-5 w-5 text-[#bec2ff]" />
+        <span>{t("style.title")}</span>
       </div>
 
       <div className="px-5 pb-5 space-y-6 pt-4">
 
           {/* ── Background ───────────────────────── */}
           <section>
-            <h3 className="text-xs text-gray-400 font-medium mb-3">{t("style.bg")}</h3>
+            <h3 className="text-xs text-gray-400 font-medium mb-3 flex items-center gap-2"><Md3Icon name="wallpaper" className="h-4 w-4" />{t("style.bg")}</h3>
             <div className="grid grid-cols-2 gap-4 mb-3">
               <ColorPicker label={t("style.bgInner")} value={s.bgColor1} onChange={(v) => set("bgColor1", v)} />
               <ColorPicker label={t("style.bgOuter")} value={s.bgColor2} onChange={(v) => set("bgColor2", v)} />
@@ -119,7 +121,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                   key={key}
                   type="button"
                   onClick={() => set("bgGradient", key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${s.bgGradient === key ? "bg-[#1d9bf0] text-white" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${s.bgGradient === key ? "bg-[#bec2ff] text-[#252a60]" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
                 >
                   {t(tKey)}
                 </button>
@@ -129,14 +131,14 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
 
           {/* ── Node size ─────────────────────────── */}
           <section>
-            <h3 className="text-xs text-gray-400 font-medium mb-3">{t("style.nodeSize")}</h3>
+            <h3 className="text-xs text-gray-400 font-medium mb-3 flex items-center gap-2"><Md3Icon name="circle" className="h-4 w-4" />{t("style.nodeSize")}</h3>
             <div className="flex gap-2">
               {NODE_SIZE_KEYS.map(({ key, tKey }) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => set("nodeSize", key)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${s.nodeSize === key ? "border-[#1d9bf0] bg-[#1d9bf0]/10 text-white" : "border-white/10 bg-white/3 text-gray-400 hover:border-white/25"}`}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${s.nodeSize === key ? "border-[#bec2ff] bg-[#3c4278] text-[#dfe0ff]" : "border-white/10 bg-white/3 text-gray-400 hover:border-white/25"}`}
                 >
                   {t(tKey)}
                 </button>
@@ -146,12 +148,12 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
 
           {/* ── Display toggles ───────────────────── */}
           <section>
-            <h3 className="text-xs text-gray-400 font-medium mb-3">{t("style.display")}</h3>
+            <h3 className="text-xs text-gray-400 font-medium mb-3 flex items-center gap-2"><Md3Icon name="visibility" className="h-4 w-4" />{t("style.display")}</h3>
             <div className="space-y-2.5">
               {/* Display count presets */}
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm">{t("style.displayCount")}</div>
+                  <div className="text-sm flex items-center gap-2"><Md3Icon name="group" className="h-4 w-4 text-[#bec2ff]" />{t("style.displayCount")}</div>
                   <div className="text-gray-500 text-xs">{t("style.displayCountCurrent", { n: Math.min(s.displayCount ?? 22, maxUsers) })}</div>
                 </div>
               </div>
@@ -165,7 +167,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                       disabled={maxUsers < n && maxUsers < (n === 7 ? 1 : n === 22 ? 8 : 23)}
                       className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                         active
-                          ? "bg-[#1d9bf0] text-white"
+                          ? "bg-[#bec2ff] text-[#252a60]"
                           : "bg-white/8 text-gray-300 hover:bg-white/15"
                       } disabled:opacity-30 disabled:cursor-not-allowed`}
                     >
@@ -179,7 +181,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                     onClick={() => set("displayCount", maxUsers)}
                     className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                       (s.displayCount ?? 22) >= maxUsers
-                        ? "bg-[#1d9bf0] text-white"
+                        ? "bg-[#bec2ff] text-[#252a60]"
                         : "bg-white/8 text-gray-300 hover:bg-white/15"
                     }`}
                   >
@@ -192,7 +194,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
               <div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm">{t("style.showUsernames")}</div>
+                    <div className="text-sm flex items-center gap-2"><Md3Icon name="badge" className="h-4 w-4 text-[#bec2ff]" />{t("style.showUsernames")}</div>
                     <div className="text-gray-500 text-xs">{t("style.showUsernamesDesc")}</div>
                   </div>
                   <Toggle checked={uc.enabled} onToggle={() => setUname("enabled", !uc.enabled)} />
@@ -313,7 +315,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                         type="range" min={3} max={20} step={1}
                         value={uc.maxLength}
                         onChange={(e) => setUname("maxLength", Number(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#1d9bf0]"
+                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#bec2ff]"
                       />
                     </div>
 
@@ -333,7 +335,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                         type="range" min={0} max={100} step={5}
                         value={Math.round(uc.opacity * 100)}
                         onChange={(e) => setUname("opacity", Number(e.target.value) / 100)}
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#1d9bf0]"
+                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#bec2ff]"
                       />
                     </div>
 
@@ -348,7 +350,10 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
               ].map(({ key, label, desc }) => (
                 <div key={key} className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm">{label}</div>
+                    <div className="text-sm flex items-center gap-2">
+                      <Md3Icon name={key === "showScores" ? "star" : "rank"} className="h-4 w-4 text-[#bec2ff]" />
+                      {label}
+                    </div>
                     <div className="text-gray-500 text-xs">{desc}</div>
                   </div>
                   <Toggle checked={s[key] as boolean} onToggle={() => set(key, !s[key] as StyleConfig[typeof key])} />
@@ -362,8 +367,9 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
             <button
               type="button"
               onClick={() => onChange(DEFAULT_STYLE)}
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="inline-flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
             >
+              <Md3Icon name="restart" className="h-4 w-4" />
               {t("style.reset")}
             </button>
           </div>
