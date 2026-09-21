@@ -19,7 +19,12 @@ export function initDb() {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
-    INSERT OR IGNORE INTO settings VALUES ('admin_password', 'admin123');
+    -- NOTE: the legacy plaintext key 'admin_password' is intentionally NOT
+    -- seeded anymore. It was never read by any code path (login/status/
+    -- change-password all use 'admin_password_hash'), but it leaked a
+    -- misleading admin123 string into every backup. This DELETE migrates
+    -- existing databases restored from older snapshots.
+    DELETE FROM settings WHERE key = 'admin_password';
     -- ── Generation log (tracks every circle generation) ────
     CREATE TABLE IF NOT EXISTS generation_log (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
