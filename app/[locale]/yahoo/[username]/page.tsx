@@ -223,9 +223,6 @@ export default function YahooCirclePage() {
           <div className="flex items-center gap-3">
             <a href={`/${locale}`} className="md3-tonal-button shrink-0">{t("common.backHome")}</a>
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="hud-label px-3 py-1.5 rounded-full bg-[#3c4278]/70 border border-[#bec2ff]/15">
-                {t("yahoo.tag")}
-              </span>
               {circleId && (
                 <button
                   onClick={() => { navigator.clipboard.writeText(circleId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); }}
