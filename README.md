@@ -59,7 +59,7 @@ neko-circle/
 - 计分仅统计 @提及次数，不区分互动方向，不含时间衰减
 - Yahoo 仅索引过去约 30 天的公开推文，私密账号或已删推文无法获取
 - 头像通过代理加载（白名单 `pbs.twimg.com` / `abs.twimg.com`），需配置 `HTTPS_PROXY`
-- 管理员默认密码 `admin123`，生产环境务必修改 `JWT_SECRET` 与管理员密码
+- 管理员密码：首次打开 `/admin/login` 时设置（无预设默认值），存为 bcrypt 哈希；生产环境务必修改 `JWT_SECRET`
 - `data/circle.db` 需持久化挂载，否则重启数据丢失
 - 许可证：AGPL-3.0-or-later
 - 项目基于 [maebahesioru/nareaitter](https://github.com/maebahesioru/nareaitter)，并持续选择性同步适合 NekoCircle 架构的上游功能
