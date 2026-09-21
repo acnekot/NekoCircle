@@ -2,6 +2,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { AnalysisResult } from "@/lib/circle-convert";
 import { DEFAULT_STYLE, NODE_PALETTES, hexBrightness, sanitizeHex, type StyleConfig } from "@/lib/style";
+import { proxiedImageSrc } from "@/lib/proxied-image-src";
 
 type Props = { result: AnalysisResult; style?: StyleConfig; onAccentColor?: (hex: string) => void; circleId?: string };
 
@@ -464,16 +465,8 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
 
   useEffect(() => {
     if (!s.showAvatars) { draw(); return; }
-    // yimg.jp 走 /api/image-proxy（支持 yimg + 正确 Referer），其余走 /api/avatar
-    const proxy = (u: string) => {
-      try {
-        const host = new URL(u).hostname;
-        if (host.endsWith(".yimg.jp") || host.endsWith(".yimg.com")) {
-          return `/api/image-proxy?url=${encodeURIComponent(u)}`;
-        }
-      } catch { /* ignore */ }
-      return `/api/avatar?url=${encodeURIComponent(u)}`;
-    };
+    // Twitter 与 Yahoo 头像统一走带 7 天服务端缓存的图片代理。
+    const proxy = (url: string) => proxiedImageSrc(url);
     const centerUrl = result.targetUser.profilePicture;
     const urls = [
       centerUrl,

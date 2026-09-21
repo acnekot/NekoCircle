@@ -10,6 +10,7 @@ const UPSTREAM_HEADERS: Record<string, string> = {
   "Sec-Fetch-Mode": "no-cors",
   "Sec-Fetch-Site": "cross-site",
 };
+const IMAGE_UPSTREAM_TIMEOUT_MS = 5_000;
 
 /** yimg（Yahoo 的 profileImage）必须带 Referer。前端也使用同一组 Referer */
 export const YIMG_REFERERS = [
@@ -39,6 +40,7 @@ async function fetchYimgImage(url: string): Promise<Response> {
   for (const referer of YIMG_REFERERS) {
     const res = await fetch(url, {
       redirect: "follow",
+      signal: AbortSignal.timeout(IMAGE_UPSTREAM_TIMEOUT_MS),
       headers: {
         Accept: "image/avif,image/webp,image/*,*/*;q=0.8",
         "User-Agent": ua,
@@ -70,6 +72,7 @@ export async function fetchProxiedImageUpstream(rawUrl: string): Promise<{
     : await fetch(target.toString(), {
         redirect: "follow",
         headers: UPSTREAM_HEADERS,
+        signal: AbortSignal.timeout(IMAGE_UPSTREAM_TIMEOUT_MS),
       });
 
   if (!res.ok) {

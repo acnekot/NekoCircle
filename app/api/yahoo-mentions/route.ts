@@ -1,24 +1,18 @@
 import { unstable_cache } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  aggregateMentionTargets,
-  buildYahooAuthorProfileImageMap,
-  fetchMentionsBothParallel,
-  normalizeScreenName,
-  pickSelfProfileImageFromYahoo,
-} from "@/lib/yahoo-realtime-fetch";
+import { normalizeScreenName } from "@/lib/yahoo-realtime-fetch";
 import { fetchBingMentionsSafe } from "@/lib/bing-fetch";
-import {
-  aggregateMergedAuthors,
-  authorAggregateToCountMap,
-  authorSourceMap,
-  mergeMentionTweets,
-} from "@/lib/merge-mentions";
-import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
-import type { CircleUser } from "@/types/circle";
+import { interactionScoresToCircleUsers } from "@/lib/yahoo-to-circle";
 import { resolveCircleAvatarUrl, resolveProfileData } from "@/lib/x-profile-image";
 import { initDb, logGeneration, findRecentYahooCircle, createYahooCircle } from "@/lib/db";
 import { getAppConfig, getSettingValue } from "@/lib/app-config";
+import { fetchFxTwitterInteractionBundle } from "@/lib/providers/fxtwitter";
+import { fetchYahooInteractionBundle } from "@/lib/providers/yahoo";
+import { bingEntriesToInteractionEvents } from "@/lib/providers/bing";
+import { mergeInteractionEvents } from "@/lib/interactions/merge";
+import { normalizeUsername } from "@/lib/interactions/normalize";
+import { scoreInteractions } from "@/lib/interactions/scoring";
+import type { InteractionEvent } from "@/types/interaction";
 import { randomBytes } from "crypto";
 
 /**
@@ -68,47 +62,104 @@ async function buildYahooPayload(
   name: string,
   buildCircle: boolean,
 ): Promise<Record<string, unknown>> {
-  // Yahoo（主）と Bing（補助）を並列に走らせる。
-  // Yahoo 失敗時でも Bing 結果だけで圏を組成できるよう allSettled を使う。
-  const [yahooSettled, bingSettled] = await Promise.allSettled([
-    fetchMentionsBothParallel(name),
-    fetchBingMentionsSafe(name),
+  const totalStartedAt = Date.now();
+  const fxStartedAt = Date.now();
+  const yahooStartedAt = Date.now();
+  const [fxSettled, yahooSettled] = await Promise.allSettled([
+    fetchFxTwitterInteractionBundle(name, "fast").then((value) => ({
+      value,
+      elapsed: Date.now() - fxStartedAt,
+    })),
+    fetchYahooInteractionBundle(name, "fast").then((value) => ({
+      value,
+      elapsed: Date.now() - yahooStartedAt,
+    })),
   ]);
 
-  let yahooFailed = false;
-  let mentionsToYou: Awaited<ReturnType<typeof fetchMentionsBothParallel>>["mentionsToYou"] = [];
-  let mentionsFromYou: Awaited<ReturnType<typeof fetchMentionsBothParallel>>["mentionsFromYou"] = [];
-  if (yahooSettled.status === "fulfilled") {
-    mentionsToYou = yahooSettled.value.mentionsToYou;
-    mentionsFromYou = yahooSettled.value.mentionsFromYou;
-  } else {
-    yahooFailed = true;
-    console.warn("[yahoo] fetch failed, fallback to Bing only:", (yahooSettled.reason as Error)?.message);
+  const fx = fxSettled.status === "fulfilled" ? fxSettled.value.value : null;
+  const yahoo =
+    yahooSettled.status === "fulfilled" ? yahooSettled.value.value : null;
+  const fxFailed = !fx || fx.failures.length === 2;
+  const yahooFailed = !yahoo || yahoo.failures.length === 2;
+
+  const mergeStartedAt = Date.now();
+  let mergedEvents = mergeInteractionEvents([
+    fx?.events ?? [],
+    yahoo?.events ?? [],
+  ]);
+  let mergeElapsed = Date.now() - mergeStartedAt;
+  let scores = scoreInteractions(mergedEvents, name);
+
+  const uniqueMainTweets = new Set(mergedEvents.map((event) => event.tweetId)).size;
+  const needsBing = uniqueMainTweets < 100 || scores.length < 15;
+  let bingEvents: InteractionEvent[] = [];
+  let bingStatus: "ok" | "failed" | "skipped" = "skipped";
+  let bingElapsed = 0;
+  if (needsBing) {
+    const bingStartedAt = Date.now();
+    try {
+      const bingEntries = await fetchBingMentionsSafe(name);
+      bingEvents = bingEntriesToInteractionEvents(bingEntries, name);
+      bingStatus = "ok";
+    } catch (error) {
+      bingStatus = "failed";
+      console.warn("[bing] fallback failed:", error);
+    }
+    bingElapsed = Date.now() - bingStartedAt;
+    const secondMergeStartedAt = Date.now();
+    mergedEvents = mergeInteractionEvents([mergedEvents, bingEvents]);
+    mergeElapsed += Date.now() - secondMergeStartedAt;
+    scores = scoreInteractions(mergedEvents, name);
   }
 
-  const bingEntries =
-    bingSettled.status === "fulfilled" ? bingSettled.value : [];
-
-  if (yahooFailed && bingEntries.length === 0) {
-    // 両方ダメなら諦める（呼び出し側の catch で 502 を返す）
-    throw new Error("both yahoo and bing failed");
+  if (fxFailed && yahooFailed && mergedEvents.length === 0) {
+    throw new Error("all interaction providers failed");
   }
 
-  // tweetId 単位でマージ → 著者単位に集計（source 属性付き）
-  const mergedTweets = mergeMentionTweets(mentionsToYou, bingEntries);
-  const mergedAuthorsAgg = aggregateMergedAuthors(mergedTweets, name);
-  const authorsToYou = authorAggregateToCountMap(mergedAuthorsAgg);
-  const authorsSourceByScreen = authorSourceMap(mergedAuthorsAgg);
+  const self = normalizeUsername(name);
+  const incoming = mergedEvents.filter((event) => event.target === self);
+  const outgoing = mergedEvents.filter((event) => event.author === self);
+  const authorsToYou: Record<string, number> = {};
+  const targetsFromYou: Record<string, number> = {};
+  const sourcesByScreen = new Map<string, Set<string>>();
+  for (const event of mergedEvents) {
+    const other = event.author === self ? event.target : event.author;
+    const aggregate = event.target === self ? authorsToYou : targetsFromYou;
+    aggregate[other] = (aggregate[other] ?? 0) + 1;
+    const sources = sourcesByScreen.get(other) ?? new Set<string>();
+    sources.add(event.source);
+    for (const source of event.sources ?? []) sources.add(source);
+    sourcesByScreen.set(other, sources);
+  }
+  const authorsSourceByScreen = Object.fromEntries(
+    [...sourcesByScreen].map(([screenName, sources]) => [
+      screenName,
+      sources.size > 1 ? "mixed" : [...sources][0],
+    ]),
+  );
 
-  const targetsFromYou = aggregateMentionTargets(mentionsFromYou, name);
+  const timings: Record<string, number> = {
+    fxtwitter:
+      fxSettled.status === "fulfilled"
+        ? fxSettled.value.elapsed
+        : Date.now() - fxStartedAt,
+    yahoo:
+      yahooSettled.status === "fulfilled"
+        ? yahooSettled.value.elapsed
+        : Date.now() - yahooStartedAt,
+    bing: bingElapsed,
+    merge: mergeElapsed,
+  };
 
   const payload: Record<string, unknown> = {
     screenName: name,
     counts: {
-      mentionsToYou: mentionsToYou.length,
-      mentionsFromYou: mentionsFromYou.length,
-      bingMentions: bingEntries.length,
-      mergedUniqueTweets: mergedTweets.length,
+      mentionsToYou: incoming.length,
+      mentionsFromYou: outgoing.length,
+      bingMentions: bingEvents.length,
+      mergedUniqueTweets: new Set(
+        mergedEvents.map((event) => event.tweetId),
+      ).size,
     },
     aggregates: {
       authorsToYou,
@@ -116,33 +167,38 @@ async function buildYahooPayload(
       authorsSourceByScreen,
     },
     sourceStatus: {
-      yahoo: yahooFailed ? "failed" : "ok",
-      bing: bingSettled.status === "fulfilled" ? "ok" : "failed",
+      fxtwitter: fxFailed ? "failed" : fx?.failures.length ? "partial" : "ok",
+      yahoo: yahooFailed ? "failed" : yahoo?.failures.length ? "partial" : "ok",
+      bing: bingStatus,
     },
+    stats: {
+      providers: {
+        fxtwitter: fx?.events.length ?? 0,
+        yahoo: yahoo?.events.length ?? 0,
+        bing: bingEvents.length,
+      },
+      mergedEvents: mergedEvents.length,
+      uniqueUsers: scores.length,
+    },
+    timings,
   };
 
   if (buildCircle) {
-    const yahooPeerImages = buildYahooAuthorProfileImageMap(mentionsToYou);
-    const selfYahoo = pickSelfProfileImageFromYahoo(mentionsFromYou);
-    const [circleUsersRaw, selfHd, profileData] = await Promise.all([
-      yahooAggregatesToCircleUsers(
-        authorsToYou,
-        targetsFromYou,
-        name,
-        yahooPeerImages,
-      ),
+    const avatarStartedAt = Date.now();
+    const previewImages = {
+      ...(yahoo?.peerProfileImages ?? {}),
+      ...(fx?.peerProfileImages ?? {}),
+    };
+    const [circleUsers, selfHd, profileData] = await Promise.all([
+      interactionScoresToCircleUsers(scores, previewImages, 50),
       resolveCircleAvatarUrl(name),
       resolveProfileData(name),
     ]);
-    // CircleUser に source 属性を後付け（Bing 由来は 'bing' / 両方は 'both'）
-    const circleUsers: CircleUser[] = circleUsersRaw.map((u) => {
-      const key = u.screenName.toLowerCase();
-      const source = authorsSourceByScreen[key] ?? "yahoo";
-      return { ...u, source };
-    });
+    timings.avatars = Date.now() - avatarStartedAt;
     payload.circleUsers = circleUsers;
     if (selfHd?.trim()) payload.selfAvatarUrl = selfHd.trim();
-    if (selfYahoo) payload.selfAvatarUrlPreview = selfYahoo;
+    const selfPreview = fx?.selfProfileImage ?? yahoo?.selfProfileImage;
+    if (selfPreview) payload.selfAvatarUrlPreview = selfPreview;
     if (profileData) {
       payload.profileFollowers = profileData.followers;
       payload.profileFollowing = profileData.following;
@@ -152,6 +208,8 @@ async function buildYahooPayload(
     }
   }
 
+  timings.total = Date.now() - totalStartedAt;
+
   return payload;
 }
 
@@ -160,7 +218,7 @@ function getCachedYahooPayload(name: string, buildCircle: boolean) {
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
-      "yahoo-mentions-v2",
+      "yahoo-mentions-v3",
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],

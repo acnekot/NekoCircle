@@ -6,6 +6,9 @@ import { getAppConfig } from "./app-config";
 import tls from "node:tls";
 import https from "node:https";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import { hasRankingConverged } from "./interactions/convergence";
+import { normalizeUsername } from "./interactions/normalize";
+import type { ScanMode } from "@/types/interaction";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { SocksClient } = require("socks") as typeof import("socks");
 
@@ -62,6 +65,10 @@ export const RESULTS_PER_PAGE = 40;
  * （DB > 环境变量 YAHOO_MAX_PAGES > 此处默认）。
  */
 export const MAX_START_PARALLEL_PAGES = 20;
+const ADAPTIVE_BATCH_PAGES = 5;
+const FAST_MAX_ENTRIES = 500;
+const DEEP_MAX_ENTRIES = 3000;
+const YAHOO_REQUEST_TIMEOUT_MS = 12_000;
 /** socks5 代理下降低并发，防止连接池耗尽导致超时。现由后台参数设置控制。 */
 
 const YAHOO_HEADERS: Record<string, string> = {
@@ -72,7 +79,7 @@ const YAHOO_HEADERS: Record<string, string> = {
 };
 
 export function normalizeScreenName(raw: string): string {
-  return raw.trim().replace(/^@+/, "");
+  return normalizeUsername(raw);
 }
 
 function buildSearchParams(
@@ -124,9 +131,13 @@ async function fetchViaSocks5Once(
     proxy: { host: proxyHost, port: proxyPort, type: 5 },
     command: "connect",
     destination: { host, port },
+    timeout: YAHOO_REQUEST_TIMEOUT_MS,
   });
 
   const tlsSocket = tls.connect({ socket: rawSocket, servername: host });
+  tlsSocket.setTimeout(YAHOO_REQUEST_TIMEOUT_MS, () => {
+    tlsSocket.destroy(new Error("Yahoo SOCKS request timeout"));
+  });
   await new Promise<void>((res, rej) => {
     tlsSocket.once("secureConnect", res);
     tlsSocket.once("error", rej);
@@ -191,7 +202,7 @@ async function fetchViaHttpProxy(
       {
         headers: YAHOO_HEADERS,
         agent: new HttpsProxyAgent(proxyUrl),
-        timeout: 30_000,
+        timeout: YAHOO_REQUEST_TIMEOUT_MS,
       },
       (response) => {
         const chunks: Buffer[] = [];
@@ -247,13 +258,18 @@ async function fetchPaginationJson(
 
   let res: Response;
   try {
-    res = await fetch(url, { headers: YAHOO_HEADERS, cache: "no-store" });
+    res = await fetch(url, {
+      headers: YAHOO_HEADERS,
+      cache: "no-store",
+      signal: AbortSignal.timeout(YAHOO_REQUEST_TIMEOUT_MS),
+    });
   } catch (error) {
     if (yahooProxy?.startsWith("https://")) {
       const relayUrl = `${yahooProxy}/pagination?${buildSearchParams(p, opts)}`;
       const relayRes = await fetch(relayUrl, {
         headers: YAHOO_HEADERS,
         cache: "no-store",
+        signal: AbortSignal.timeout(YAHOO_REQUEST_TIMEOUT_MS),
       });
       if (!relayRes.ok) throw new Error(`Yahoo relay HTTP ${relayRes.status}`);
       return relayRes.json() as Promise<YahooPaginationResponse>;
@@ -263,7 +279,11 @@ async function fetchPaginationJson(
   if (!res.ok && yahooProxy?.startsWith("https://")) {
     const relayRes = await fetch(
       `${yahooProxy}/pagination?${buildSearchParams(p, opts)}`,
-      { headers: YAHOO_HEADERS, cache: "no-store" },
+      {
+        headers: YAHOO_HEADERS,
+        cache: "no-store",
+        signal: AbortSignal.timeout(YAHOO_REQUEST_TIMEOUT_MS),
+      },
     );
     if (relayRes.ok) {
       return relayRes.json() as Promise<YahooPaginationResponse>;
@@ -281,22 +301,49 @@ export function getEntries(data: YahooPaginationResponse): YahooRealtimeEntry[] 
 
 export async function fetchByStartParallel(
   p: string,
-  options: { md?: string; maxPages?: number } = {},
+  options: {
+    md?: string;
+    maxPages?: number;
+    maxEntries?: number;
+    batchPages?: number;
+  } = {},
 ): Promise<YahooRealtimeEntry[]> {
   // 配置只读一次，本次抓取期间沿用同一组值（中途变化会让行为难以推断）。
   const appConfig = getAppConfig();
-  const maxPages = options.maxPages ?? appConfig.yahooMaxPages;
-  const parallelChunk = Math.max(1, appConfig.yahooParallelPages);
+  const configuredMaxPages = options.maxPages ?? appConfig.yahooMaxPages;
+  const maxPages = Math.min(
+    configuredMaxPages,
+    (options.maxEntries ?? FAST_MAX_ENTRIES) > FAST_MAX_ENTRIES ? 30 : 20,
+  );
+  const parallelLimit = Math.max(1, appConfig.yahooParallelPages);
+  const batchPages = Math.max(
+    1,
+    options.batchPages ?? ADAPTIVE_BATCH_PAGES,
+  );
+  const maxEntries = Math.max(1, options.maxEntries ?? FAST_MAX_ENTRIES);
 
-  const flat: YahooRealtimeEntry[][] = [];
+  const byId = new Map<string, YahooRealtimeEntry>();
   let fetchedPages = 0;
   let totalAvailable: number | undefined;
+  let previousTop: string[] = [];
+  let stableRounds = 0;
+
+  const addEntries = (entries: YahooRealtimeEntry[]): number => {
+    let added = 0;
+    for (const entry of entries) {
+      if (!entry?.id || byId.has(entry.id)) continue;
+      byId.set(entry.id, entry);
+      added += 1;
+      if (byId.size >= maxEntries) break;
+    }
+    return added;
+  };
 
   // 先单独取第 1 页：响应里的 head.totalResultsAvailable 直接给出总条数，
   // 据此可知还要几页。若一上来就并发整块（8 页），小账号会白白多打 7 个请求，
   // 而这类"注定为空"的请求正是触发 Yahoo 按 IP 限流的主因。
   const first = await fetchPaginationJson(p, { start: 1, md: options.md });
-  flat.push(getEntries(first));
+  addEntries(getEntries(first));
   fetchedPages = 1;
   {
     const total = first.timeline?.head?.totalResultsAvailable;
@@ -307,23 +354,48 @@ export async function fetchByStartParallel(
 
   const neededPages = () =>
     totalAvailable === undefined
-      ? maxPages
-      : Math.max(1, Math.ceil(totalAvailable / RESULTS_PER_PAGE));
+      ? Math.min(maxPages, Math.ceil(maxEntries / RESULTS_PER_PAGE))
+      : Math.max(
+          1,
+          Math.min(
+            Math.ceil(totalAvailable / RESULTS_PER_PAGE),
+            Math.ceil(maxEntries / RESULTS_PER_PAGE),
+          ),
+        );
 
   while (fetchedPages < maxPages) {
     const want = Math.min(neededPages(), maxPages);
     if (fetchedPages >= want) break;
 
-    const size = Math.min(parallelChunk, want - fetchedPages);
+    const size = Math.min(batchPages, want - fetchedPages);
     const starts = Array.from(
       { length: size },
       (_, i) => (fetchedPages + i) * RESULTS_PER_PAGE + 1,
     );
-    const part = await Promise.all(
-      starts.map((start) => fetchPaginationJson(p, { start, md: options.md })),
-    );
+    const settled: PromiseSettledResult<YahooPaginationResponse>[] = [];
+    for (let offset = 0; offset < starts.length; offset += parallelLimit) {
+      settled.push(
+        ...(await Promise.allSettled(
+          starts
+            .slice(offset, offset + parallelLimit)
+            .map((start) =>
+              fetchPaginationJson(p, { start, md: options.md }),
+            ),
+        )),
+      );
+    }
     fetchedPages += size;
+    const part = settled.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
+    for (const result of settled) {
+      if (result.status === "rejected") {
+        console.warn("[yahoo-fetch] page failed:", result.reason);
+      }
+    }
 
+    let received = 0;
+    let added = 0;
     for (const res of part) {
       if (totalAvailable === undefined) {
         const total = res.timeline?.head?.totalResultsAvailable;
@@ -331,22 +403,55 @@ export async function fetchByStartParallel(
           totalAvailable = total;
         }
       }
-      flat.push(getEntries(res));
+      const entries = getEntries(res);
+      received += entries.length;
+      added += addEntries(entries);
     }
 
     // 整块为空说明已到时间线末端。
     if (part.every((res) => getEntries(res).length === 0)) break;
+    if (byId.size >= maxEntries) break;
+
+    const currentTop = topYahooActors([...byId.values()], p);
+    if (
+      previousTop.length > 0 &&
+      hasRankingConverged(previousTop, currentTop)
+    ) {
+      stableRounds += 1;
+    } else {
+      stableRounds = 0;
+    }
+    previousTop = currentTop;
+
+    const addedRatio = received === 0 ? 0 : added / received;
+    if (addedRatio < 0.05 || stableRounds >= 2) break;
   }
 
-  const byId = new Map<string, YahooRealtimeEntry>();
-  for (const entry of flat.flat()) {
-    if (entry?.id && !byId.has(entry.id)) byId.set(entry.id, entry);
-  }
   // 观测点：每次抓取的页数/总量。此前无法看到请求规模，正是限流问题的盲区。
   console.error(
     `[yahoo-fetch] p=${p} pages=${fetchedPages} total=${totalAvailable ?? "?"} entries=${byId.size}`,
   );
   return [...byId.values()];
+}
+
+function topYahooActors(entries: YahooRealtimeEntry[], query: string): string[] {
+  const counts = new Map<string, number>();
+  const outgoing = /^ID:/i.test(query);
+  const self = normalizeUsername(query.replace(/^(?:ID:|@)/i, ""));
+  for (const entry of entries) {
+    const names = outgoing
+      ? (entry.mentions ?? []).map((mention) => mention.screenName ?? "")
+      : [entry.screenName ?? ""];
+    for (const raw of names) {
+      const name = normalizeUsername(raw);
+      if (!name || name === self) continue;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 30)
+    .map(([name]) => name);
 }
 
 export function isOutgoingMentionTweet(
@@ -358,22 +463,26 @@ export function isOutgoingMentionTweet(
 
 export async function fetchMentionsToYou(
   screenName: string,
+  options: { mode?: ScanMode } = {},
 ): Promise<YahooRealtimeEntry[]> {
   const name = normalizeScreenName(screenName);
   if (!name) throw new Error("screenName が空です。");
   const p = `@${name}`;
-  const entries = await fetchByStartParallel(p, {});
-  return entries.slice(0, 10000);
+  const limit = options.mode === "deep" ? DEEP_MAX_ENTRIES : FAST_MAX_ENTRIES;
+  const entries = await fetchByStartParallel(p, { maxEntries: limit });
+  return entries.slice(0, limit);
 }
 
 export async function fetchMentionsFromYou(
   screenName: string,
+  options: { mode?: ScanMode } = {},
 ): Promise<YahooRealtimeEntry[]> {
   const name = normalizeScreenName(screenName);
   if (!name) throw new Error("screenName が空です。");
   const p = `ID:${name}`;
 
-  const firstBatch = await fetchByStartParallel(p, {});
+  const limit = options.mode === "deep" ? DEEP_MAX_ENTRIES : FAST_MAX_ENTRIES;
+  const firstBatch = await fetchByStartParallel(p, { maxEntries: limit });
   const collected: YahooRealtimeEntry[] = [];
   const seen = new Set<string>();
 
@@ -383,27 +492,35 @@ export async function fetchMentionsFromYou(
       if (!isOutgoingMentionTweet(e)) continue;
       seen.add(e.id);
       collected.push(e);
-      if (collected.length >= 10000) return;
+      if (collected.length >= limit) return;
     }
   };
 
   pushFiltered(firstBatch);
-  if (collected.length >= 10000) {
-    return collected.slice(0, 10000);
+  if (collected.length >= limit) {
+    return collected.slice(0, limit);
   }
 
   let cursor = oldestTweetIdInBatch(firstBatch);
 
   let guard = 0;
-  const maxCursorPages = 500;
+  const maxCursorPages = 30;
+  let previousTop = topYahooActors(collected, p);
+  let stableRounds = 0;
 
-  while (collected.length < 10000 && cursor && guard < maxCursorPages) {
+  while (collected.length < limit && cursor && guard < maxCursorPages) {
     guard += 1;
     const data = await fetchPaginationJson(p, { oldestTweetId: cursor });
     const page = getEntries(data);
     if (page.length === 0) break;
 
+    const before = collected.length;
     pushFiltered(page);
+    const added = collected.length - before;
+    const currentTop = topYahooActors(collected, p);
+    if (hasRankingConverged(previousTop, currentTop)) stableRounds += 1;
+    else stableRounds = 0;
+    previousTop = currentTop;
     const next =
       data.timeline?.head?.oldestTweetId ??
       page.at(-1)?.id ??
@@ -411,9 +528,10 @@ export async function fetchMentionsFromYou(
       null;
     if (!next || next === cursor) break;
     cursor = next;
+    if (added / Math.max(1, page.length) < 0.05 || stableRounds >= 2) break;
   }
 
-  return collected.slice(0, 10000);
+  return collected.slice(0, limit);
 }
 
 function oldestTweetIdInBatch(entries: YahooRealtimeEntry[]): string | undefined {
@@ -434,19 +552,35 @@ function oldestTweetIdInBatch(entries: YahooRealtimeEntry[]): string | undefined
   return minId;
 }
 
-export async function fetchMentionsBothParallel(screenName: string): Promise<{
+export async function fetchMentionsBothParallel(
+  screenName: string,
+  options: { mode?: ScanMode } = {},
+): Promise<{
   mentionsToYou: YahooRealtimeEntry[];
   mentionsFromYou: YahooRealtimeEntry[];
+  failures: Array<"inbound" | "outbound">;
 }> {
   const name = normalizeScreenName(screenName);
   if (!name) throw new Error("screenName が空です。");
 
-  const [mentionsToYou, mentionsFromYou] = await Promise.all([
-    fetchMentionsToYou(name),
-    fetchMentionsFromYou(name),
+  const [toResult, fromResult] = await Promise.allSettled([
+    fetchMentionsToYou(name, options),
+    fetchMentionsFromYou(name, options),
   ]);
-
-  return { mentionsToYou, mentionsFromYou };
+  if (toResult.status === "rejected" && fromResult.status === "rejected") {
+    throw new AggregateError(
+      [toResult.reason, fromResult.reason],
+      "Yahoo inbound and outbound requests both failed",
+    );
+  }
+  return {
+    mentionsToYou: toResult.status === "fulfilled" ? toResult.value : [],
+    mentionsFromYou: fromResult.status === "fulfilled" ? fromResult.value : [],
+    failures: [
+      ...(toResult.status === "rejected" ? (["inbound"] as const) : []),
+      ...(fromResult.status === "rejected" ? (["outbound"] as const) : []),
+    ],
+  };
 }
 
 export function aggregateMentionAuthors(

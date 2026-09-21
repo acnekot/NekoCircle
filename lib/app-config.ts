@@ -63,12 +63,12 @@ export const SETTING_DEFS: SettingDef[] = [
     key: "yahoo_max_pages",
     label: "Yahoo 每方向最大页数",
     description:
-      "每页 40 条，去程与回程各最多翻这么多页。调大可减少漏抓，但更容易触发 Yahoo 的 IP 限流。",
+      "每页 40 条，按 5 页一批自适应抓取；排名收敛、新增率过低或达到条数上限时会提前停止。",
     type: "number",
     defaultValue: "20",
     env: ["YAHOO_MAX_PAGES"],
     min: 1,
-    max: 100,
+    max: 30,
     unit: "页",
     group: "抓取",
   },
@@ -88,7 +88,7 @@ export const SETTING_DEFS: SettingDef[] = [
     key: "bing_max_pages",
     label: "Bing 补充最大页数",
     description:
-      "作为 Yahoo 补充的 Bing 搜索页数。设为 0 则完全关闭 Bing 补充（仅用 Yahoo 组成）。",
+      "仅当 FxTwitter 与 Yahoo 合并后不足 100 条唯一推文或 15 个用户时启用。设为 0 可完全关闭。",
     type: "number",
     defaultValue: "5",
     min: 0,
