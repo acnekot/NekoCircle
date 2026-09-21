@@ -5,6 +5,7 @@ import * as https from "https";
 import * as http from "http";
 import { isProxyableHttpsImageUrl } from "@/lib/image-proxy-hosts";
 import { YIMG_REFERERS } from "@/lib/image-proxy-upstream";
+import { resolveCircleAvatarUrl } from "@/lib/x-profile-image";
 
 // 現在は未使用だが、既存挙動を壊さないため残す
 const LEGACY_ALLOWED_PREFIXES = [
@@ -81,8 +82,21 @@ function fetchWithProxy(url: string, referer?: string): Promise<FetchLike> {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const raw = searchParams.get("url");
-  if (!raw) return new NextResponse("missing url", { status: 400 });
+  let raw = searchParams.get("url");
+  const username = searchParams.get("username")?.replace(/^@+/, "").trim();
+  if (!raw && username) {
+    if (!/^[A-Za-z0-9_]{1,15}$/.test(username)) {
+      return new NextResponse("invalid username", { status: 400 });
+    }
+    raw = await resolveCircleAvatarUrl(username);
+    if (!raw) {
+      return new NextResponse("avatar not found", {
+        status: 404,
+        headers: { "Cache-Control": "public, max-age=900" },
+      });
+    }
+  }
+  if (!raw) return new NextResponse("missing url or username", { status: 400 });
 
   // Upgrade Twitter avatar resolution: _normal (48px) / _bigger (73px) → _400x400 (400px)
   const url400 = raw.replace(/_normal(\.\w+)$/, "_400x400$1").replace(/_bigger(\.\w+)$/, "_400x400$1");

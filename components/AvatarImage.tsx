@@ -36,7 +36,11 @@ export default function AvatarImage({
   const [dead, setDead] = useState<string[]>([]);
 
   const candidates: string[] = [];
-  for (const raw of [previewUrl, hdUrl]) {
+  for (const raw of [
+    previewUrl,
+    hdUrl,
+    `/api/avatar?username=${encodeURIComponent(name.replace(/^@+/, ""))}`,
+  ]) {
     const v = raw?.trim();
     if (!v) continue;
     const src = proxiedImageSrc(v);

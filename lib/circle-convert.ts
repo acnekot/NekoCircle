@@ -55,6 +55,14 @@ export type AnalysisResult = {
   weights: ScoringWeights;
 };
 
+function avatarUrlOrLookup(
+  screenName: string,
+  hdUrl?: string,
+  previewUrl?: string,
+): string {
+  return hdUrl ?? previewUrl ?? `/api/avatar?username=${encodeURIComponent(screenName)}`;
+}
+
 /** Yahoo CircleUser[] → CircleChart 所需的 AnalysisResult */
 export function yahooToAnalysisResult(
   self: SelfProfile,
@@ -66,7 +74,11 @@ export function yahooToAnalysisResult(
       id: self.screenName,
       userName: self.screenName,
       name: self.displayName || self.screenName,
-      profilePicture: self.avatarUrl ?? self.avatarUrlPreview ?? "",
+      profilePicture: avatarUrlOrLookup(
+        self.screenName,
+        self.avatarUrl,
+        self.avatarUrlPreview,
+      ),
       followers: 0,
       isBlueVerified: false,
       isProtected: false,
@@ -78,7 +90,11 @@ export function yahooToAnalysisResult(
           id: u.screenName,
           userName: u.screenName,
           name: u.displayName || u.screenName,
-          profilePicture: u.avatarUrl ?? u.avatarUrlPreview ?? "",
+          profilePicture: avatarUrlOrLookup(
+            u.screenName,
+            u.avatarUrl,
+            u.avatarUrlPreview,
+          ),
           followers: 0,
           isBlueVerified: false,
           isProtected: false,
