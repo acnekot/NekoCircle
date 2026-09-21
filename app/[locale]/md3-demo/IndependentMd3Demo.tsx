@@ -66,7 +66,6 @@ export default function IndependentMd3Demo() {
       <main>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
-            <div className={styles.kicker}><i /> PUBLIC SOCIAL SIGNALS</div>
             <h1>{t("home.hero.title1")}<em>{t("home.hero.title2")}</em></h1>
             <p className={styles.lede}>{t("home.hero.desc")}</p>
 

@@ -69,10 +69,7 @@
 }
 
 .heroCopy { max-width: 650px; }
-.kicker { display: inline-flex; align-items: center; gap: 10px; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .16em; }
-.kicker i { width: 9px; height: 9px; border-radius: 50%; background: #73dda0; box-shadow: 0 0 0 5px rgba(115, 221, 160, .09); }
-
-.hero h1 { margin: 25px 0 22px; font-size: clamp(54px, 6.7vw, 92px); font-weight: 780; line-height: .91; letter-spacing: -.072em; }
+.hero h1 { margin: 0 0 22px; font-size: clamp(54px, 6.7vw, 92px); font-weight: 780; line-height: .91; letter-spacing: -.072em; }
 .hero h1 em { display: block; color: var(--primary); font-style: normal; }
 .lede { max-width: 600px; color: var(--muted); font-size: 17px; line-height: 1.75; }
 
