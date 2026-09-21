@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Md3Icon from "@/components/Md3Icon";
@@ -52,9 +53,14 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <svg className="w-7 h-7 text-[#1d9bf0]" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
+            <Image
+              src="/assets/neko-logo.png"
+              alt=""
+              width={36}
+              height={36}
+              priority
+              className="h-9 w-9 rounded-xl border border-[#bec2ff]/20 object-cover shadow-lg shadow-black/20"
+            />
             <span className="text-xl font-bold text-white">NekoCircle</span>
           </div>
           <p className="text-gray-500 text-sm">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { useTranslation } from "@/components/LocaleProvider";
@@ -57,7 +58,9 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
     <div className={styles.page}>
       <header className={styles.header}>
         <a className={styles.brand} href={`/${locale}${landingPath}`} aria-label="NekoCircle">
-          <span className={styles.brandMark} aria-hidden="true"><i /><i /><i /></span>
+          <span className={styles.brandMark} aria-hidden="true">
+            <Image src="/assets/neko-logo.png" alt="" width={48} height={48} priority />
+          </span>
           <span><b>NekoCircle</b><small>social orbit</small></span>
         </a>
 

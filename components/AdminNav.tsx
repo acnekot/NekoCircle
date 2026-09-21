@@ -1,8 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import Md3Icon from "@/components/Md3Icon";
 
 const LINKS = [
   { href: "/admin", label: "概览", exact: true },
@@ -29,7 +29,14 @@ export default function AdminNav() {
     <header className="mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3c4278] text-[#bec2ff]"><Md3Icon name="pet" className="h-5 w-5" /></span>
+          <Image
+            src="/assets/neko-logo.png"
+            alt=""
+            width={40}
+            height={40}
+            priority
+            className="h-10 w-10 rounded-xl border border-[#bec2ff]/20 object-cover shadow-lg shadow-black/20"
+          />
           <h1 className="text-lg font-bold text-white">NekoCircle 管理后台</h1>
         </div>
         <button

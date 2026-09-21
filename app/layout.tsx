@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   metadataBase: metadataBaseFromEnv(),
   title: "X 互动圈生成器 — NekoCircle",
   description: "分析你的 X 互动圈，找出最活跃的互动用户",
+  icons: {
+    icon: "/assets/neko-logo.png",
+    shortcut: "/assets/neko-logo.png",
+    apple: "/assets/neko-logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
