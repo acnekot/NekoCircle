@@ -36,6 +36,8 @@ import type {
   InteractionEvent,
 } from "@/types/interaction";
 
+export const CIRCLE_PAYLOAD_VERSION = 4;
+
 /**
  * 共有の取得パイプライン。
  * ページ（/api/yahoo-mentions）と OG 画像（/api/og/circle）が
@@ -135,6 +137,7 @@ export async function buildYahooPayload(
   };
 
   const payload: Record<string, unknown> = {
+    dataVersion: CIRCLE_PAYLOAD_VERSION,
     screenName: name,
     counts: {
       mentionsToYou: incoming.length,
@@ -173,7 +176,7 @@ export async function buildYahooPayload(
       ...(fx?.peerProfileImages ?? {}),
     };
     const [circleUsers, selfHd, profileData] = await Promise.all([
-      interactionScoresToCircleUsers(scores, previewImages, 50),
+      interactionScoresToCircleUsers(scores, previewImages),
       resolveCircleAvatarUrl(name),
       resolveProfileData(name),
     ]);
@@ -201,7 +204,7 @@ export function getCachedYahooPayload(name: string, buildCircle: boolean) {
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
-      "yahoo-mentions-v3",
+      "yahoo-mentions-v4",
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],

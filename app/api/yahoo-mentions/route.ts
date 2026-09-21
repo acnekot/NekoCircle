@@ -19,7 +19,11 @@ import {
 import {
   randomBytes,
 } from "crypto";
-import { buildYahooPayload, getCachedYahooPayload } from "@/lib/circle-payload";
+import {
+  buildYahooPayload,
+  CIRCLE_PAYLOAD_VERSION,
+  getCachedYahooPayload,
+} from "@/lib/circle-payload";
 
 /**
  * 生成已关闭时返回的 503。
@@ -299,17 +303,19 @@ export async function GET(req: NextRequest) {
         const recent = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs, storageConsent);
         if (recent) {
           const cached = JSON.parse(recent.circle_data);
-          return NextResponse.json({
-            ...cached,
-            circleId: recent.id,
-            createdAt: recent.created_at,
-            ...retentionFields(recent.storage_consent === 1),
-          }, {
-            headers: {
-              "Cache-Control":
-                "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
-            },
-          });
+          if (cached.dataVersion === CIRCLE_PAYLOAD_VERSION) {
+            return NextResponse.json({
+              ...cached,
+              circleId: recent.id,
+              createdAt: recent.created_at,
+              ...retentionFields(recent.storage_consent === 1),
+            }, {
+              headers: {
+                "Cache-Control":
+                  "public, s-maxage=300, stale-while-revalidate=1800, max-age=120",
+              },
+            });
+          }
         }
       } catch { /* DB check non-critical, fall through to fetch */ }
     }

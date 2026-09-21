@@ -6,6 +6,7 @@ import {
 import type { InteractionScore } from "@/lib/interactions/scoring";
 
 const AVATAR_FETCH_CONCURRENCY = 14;
+const AVATAR_ENRICHMENT_LIMIT = 50;
 
 async function mapWithConcurrency<T, R>(
   items: T[],
@@ -88,13 +89,17 @@ function sourceTag(
   return sources[0] ?? "yahoo";
 }
 
-/** 排名完成后只为最终展示用户补充高清头像。 */
+/**
+ * 将完整排名转换为圈子用户。
+ *
+ * 只为前 50 名额外查询高清头像，避免大圈子产生数百次外部请求；其余用户
+ * 保留数据源已有头像，没有头像时由画布显示色块。排名本身不再截断。
+ */
 export async function interactionScoresToCircleUsers(
   scores: readonly InteractionScore[],
   profileImageByScreen: Record<string, string>,
-  limit = 50,
 ): Promise<CircleUser[]> {
-  const rows = scores.slice(0, limit);
+  const rows = [...scores];
   const max = rows[0]?.finalScore || 1;
   const list = await mapWithConcurrency(
     rows,
@@ -113,7 +118,9 @@ export async function interactionScoresToCircleUsers(
           ? derivedHd
           : preview
             ? undefined
-            : await resolveCircleAvatarUrl(row.screenName);
+            : index < AVATAR_ENRICHMENT_LIMIT
+              ? await resolveCircleAvatarUrl(row.screenName)
+              : undefined;
       return {
         id: `interaction-${row.screenName}-${index}`,
         screenName: row.screenName,
@@ -129,7 +136,5 @@ export async function interactionScoresToCircleUsers(
       };
     },
   );
-  return list.filter((user) =>
-    Boolean(user.avatarUrl?.trim() || user.avatarUrlPreview?.trim()),
-  );
+  return list;
 }

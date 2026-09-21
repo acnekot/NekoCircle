@@ -10,6 +10,7 @@ import {
 } from "../lib/interactions/scoring";
 import { fetchProvidersSafely } from "../lib/providers/types";
 import { fxStatusesToInteractionEvents } from "../lib/providers/fxtwitter";
+import { interactionScoresToCircleUsers } from "../lib/yahoo-to-circle";
 import type { InteractionEvent } from "../types/interaction";
 
 test("用户名会去除 @、空白并统一为小写", () => {
@@ -135,4 +136,26 @@ test("FxTwitter v2 的 replying_to 和 mention facets 会转换成正确方向",
       source: "fxtwitter",
     },
   ]);
+});
+
+test("圈子转换会保留全部评分用户而不是只取前 50 名", async () => {
+  const scores = Array.from({ length: 120 }, (_, index) => ({
+    screenName: `user_${index}`,
+    inbound: 120 - index,
+    outbound: 0,
+    inboundCount: 1,
+    outboundCount: 0,
+    interactionCount: 1,
+    balance: 0,
+    finalScore: 120 - index,
+    sources: ["yahoo" as const],
+  }));
+  const previews = Object.fromEntries(
+    scores.map((row) => [row.screenName, `https://example.com/${row.screenName}.jpg`]),
+  );
+
+  const users = await interactionScoresToCircleUsers(scores, previews);
+
+  assert.equal(users.length, 120);
+  assert.equal(users[119]?.screenName, "user_119");
 });
