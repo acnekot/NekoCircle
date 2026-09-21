@@ -18,13 +18,9 @@ type Stats = {
     last24h: number;
     last7d: number;
   };
-  retention: { longTerm: number; temporary: number };
   daily: { date: string; count: number }[];
   hourly: { hour: number; count: number }[];
   weekdayHour: number[][];
-  sources: { source: string; count: number }[];
-  sizeDistribution: { bucket: string; count: number }[];
-  storage: { bytes: number };
 };
 
 const COPY = {
@@ -32,25 +28,21 @@ const COPY = {
     title: "服务状态",
     subtitle: "公开、实时的 NekoCircle 运行与数据概览",
     total: "累计生成", users: "独立用户", circles: "已存圈子",
-    longTerm: "长期保存", temporary: "临时保存", today: "今日",
-    last24h: "近 24 小时", last7d: "近 7 天", authorized: "用户已授权",
-    cleanup: "按保留策略清理", daily: "每日生成量", hourly: "时段分布",
-    source: "数据来源", heat: "星期 × 时段", size: "圈子数据体积",
-    storage: "数据库占用", days30: "近 30 天", days60: "近 60 天",
-    cumulative: "累计", refresh: "刷新", refreshing: "刷新中…",
+    today: "今日", last24h: "近 24 小时", last7d: "近 7 天",
+    daily: "每日生成量", hourly: "时段分布", heat: "星期 × 时段",
+    days30: "近 30 天", days60: "近 60 天",
+    refresh: "刷新", refreshing: "刷新中…",
     updated: "更新时间", loading: "正在读取服务状态…", error: "状态读取失败",
     weekdays: ["日", "一", "二", "三", "四", "五", "六"],
   },
   en: {
     title: "Service status",
-    subtitle: "Public, live overview of NekoCircle activity and storage",
+    subtitle: "Public, live overview of NekoCircle activity",
     total: "Generations", users: "Unique users", circles: "Stored circles",
-    longTerm: "Long-term", temporary: "Temporary", today: "Today",
-    last24h: "Last 24 hours", last7d: "Last 7 days", authorized: "User approved",
-    cleanup: "Retention cleanup", daily: "Daily generations", hourly: "Hourly activity",
-    source: "Data sources", heat: "Weekday × hour", size: "Circle payload sizes",
-    storage: "Database storage", days30: "Last 30 days", days60: "Last 60 days",
-    cumulative: "All time", refresh: "Refresh", refreshing: "Refreshing…",
+    today: "Today", last24h: "Last 24 hours", last7d: "Last 7 days",
+    daily: "Daily generations", hourly: "Hourly activity", heat: "Weekday × hour",
+    days30: "Last 30 days", days60: "Last 60 days",
+    refresh: "Refresh", refreshing: "Refreshing…",
     updated: "Updated", loading: "Loading service status…", error: "Could not load status",
     weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
   },
@@ -58,26 +50,17 @@ const COPY = {
     title: "サービス状況",
     subtitle: "NekoCircle の稼働状況とデータをリアルタイムで公開",
     total: "累計生成", users: "ユニークユーザー", circles: "保存サークル",
-    longTerm: "長期保存", temporary: "一時保存", today: "今日",
-    last24h: "過去 24 時間", last7d: "過去 7 日", authorized: "ユーザー許可済み",
-    cleanup: "保持ポリシーで削除", daily: "日別生成数", hourly: "時間帯分布",
-    source: "データソース", heat: "曜日 × 時間", size: "サークルデータ容量",
-    storage: "DB 使用量", days30: "過去 30 日", days60: "過去 60 日",
-    cumulative: "累計", refresh: "更新", refreshing: "更新中…",
+    today: "今日", last24h: "過去 24 時間", last7d: "過去 7 日",
+    daily: "日別生成数", hourly: "時間帯分布", heat: "曜日 × 時間",
+    days30: "過去 30 日", days60: "過去 60 日",
+    refresh: "更新", refreshing: "更新中…",
     updated: "更新日時", loading: "サービス状況を読み込み中…", error: "状況を取得できません",
     weekdays: ["日", "月", "火", "水", "木", "金", "土"],
   },
 } as const;
 
-function formatBytes(bytes: number): string {
-  if (!bytes) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-  return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function Kpi({ label, value, sub, accent = false }: {
-  label: string; value: number; sub?: string; accent?: boolean;
+function Kpi({ label, value, accent = false }: {
+  label: string; value: number; accent?: boolean;
 }) {
   return (
     <div className="card rounded-[22px] p-4">
@@ -85,7 +68,6 @@ function Kpi({ label, value, sub, accent = false }: {
       <div className={`mt-2 text-2xl font-bold tabular-nums ${accent ? "text-[#bec2ff]" : "text-white"}`}>
         {value.toLocaleString()}
       </div>
-      {sub && <div className="mt-1 text-[10px] text-[#74737d]">{sub}</div>}
     </div>
   );
 }
@@ -129,7 +111,6 @@ export default function StatsPage() {
   const dailyMax = stats ? Math.max(1, ...stats.daily.map((item) => item.count)) : 1;
   const hourlyMax = stats ? Math.max(1, ...stats.hourly.map((item) => item.count)) : 1;
   const heatMax = stats ? Math.max(1, ...stats.weekdayHour.flat()) : 1;
-  const sizeTotal = stats ? Math.max(1, stats.sizeDistribution.reduce((sum, item) => sum + item.count, 0)) : 1;
 
   return (
     <main className="md3-app-surface gradient-bg min-h-screen px-4 py-6 sm:py-8">
@@ -169,12 +150,10 @@ export default function StatsPage() {
 
         {stats && (
           <>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Kpi label={copy.total} value={stats.totals.generations} accent />
               <Kpi label={copy.users} value={stats.totals.uniqueUsers} />
               <Kpi label={copy.circles} value={stats.totals.circles} />
-              <Kpi label={copy.longTerm} value={stats.retention.longTerm} sub={copy.authorized} />
-              <Kpi label={copy.temporary} value={stats.retention.temporary} sub={copy.cleanup} />
               <Kpi label={copy.today} value={stats.totals.today} />
               <Kpi label={copy.last24h} value={stats.totals.last24h} />
               <Kpi label={copy.last7d} value={stats.totals.last7d} />
@@ -191,30 +170,16 @@ export default function StatsPage() {
               <div className="mt-2 flex justify-between text-[10px] text-[#74737d]"><span>{stats.daily[0]?.date.slice(5)}</span><span>{stats.daily.at(-1)?.date.slice(5)}</span></div>
             </Panel>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Panel title={copy.hourly} hint={copy.days30}>
-                <div className="flex h-28 items-end gap-[3px]">
-                  {stats.hourly.map((item) => (
-                    <div key={item.hour} className="group flex h-full flex-1 flex-col justify-end" title={`${item.hour}:00 · ${item.count}`}>
-                      <div className={item.count ? "w-full rounded-t bg-[#73dda0]/65 group-hover:bg-[#73dda0]" : "h-0.5 w-full bg-white/5"} style={item.count ? { height: `${Math.max(4, item.count / hourlyMax * 100)}%` } : undefined} />
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 flex justify-between text-[10px] text-[#74737d]"><span>0</span><span>12</span><span>23</span></div>
-              </Panel>
-
-              <Panel title={copy.source} hint={copy.cumulative}>
-                <div className="space-y-4">
-                  {stats.sources.map((item) => {
-                    const max = Math.max(1, ...stats.sources.map((source) => source.count));
-                    return <div key={item.source}>
-                      <div className="mb-1.5 flex justify-between text-xs"><span>{item.source}</span><span className="text-[#8f8e98]">{item.count.toLocaleString()}</span></div>
-                      <div className="h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-[#bec2ff]" style={{ width: `${item.count / max * 100}%` }} /></div>
-                    </div>;
-                  })}
-                </div>
-              </Panel>
-            </div>
+            <Panel title={copy.hourly} hint={copy.days30}>
+              <div className="flex h-28 items-end gap-[3px]">
+                {stats.hourly.map((item) => (
+                  <div key={item.hour} className="group flex h-full flex-1 flex-col justify-end" title={`${item.hour}:00 · ${item.count}`}>
+                    <div className={item.count ? "w-full rounded-t bg-[#73dda0]/65 group-hover:bg-[#73dda0]" : "h-0.5 w-full bg-white/5"} style={item.count ? { height: `${Math.max(4, item.count / hourlyMax * 100)}%` } : undefined} />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex justify-between text-[10px] text-[#74737d]"><span>0</span><span>12</span><span>23</span></div>
+            </Panel>
 
             <Panel title={copy.heat} hint={copy.days60}>
               <div className="overflow-x-auto">
@@ -229,22 +194,6 @@ export default function StatsPage() {
                 </div>
               </div>
             </Panel>
-
-            <div className="grid gap-6 md:grid-cols-[1.5fr_1fr]">
-              <Panel title={copy.size} hint={`${stats.totals.circles.toLocaleString()} ${copy.circles.toLowerCase()}`}>
-                <div className="space-y-3">
-                  {stats.sizeDistribution.map((item) => <div key={item.bucket} className="flex items-center gap-3">
-                    <span className="w-20 text-xs text-[#a9a7b1]">{item.bucket}</span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-[#f0b7d2]" style={{ width: `${item.count / sizeTotal * 100}%` }} /></div>
-                    <span className="w-8 text-right text-xs tabular-nums text-[#8f8e98]">{item.count}</span>
-                  </div>)}
-                </div>
-              </Panel>
-              <Panel title={copy.storage} hint={copy.cumulative}>
-                <div className="text-4xl font-bold tracking-[-0.05em] text-[#bec2ff]">{formatBytes(stats.storage.bytes)}</div>
-                <p className="mt-3 text-xs leading-6 text-[#8f8e98]">{stats.retention.longTerm.toLocaleString()} {copy.longTerm.toLowerCase()} · {stats.retention.temporary.toLocaleString()} {copy.temporary.toLowerCase()}</p>
-              </Panel>
-            </div>
 
             <footer className="flex flex-wrap items-center justify-between gap-3 pb-6 text-[11px] text-[#74737d]">
               <span>{copy.updated} {new Date(stats.generatedAt).toLocaleString(locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US", { hour12: false })}</span>

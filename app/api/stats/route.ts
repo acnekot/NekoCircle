@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import { DB_PATH, getDb, initDb } from "@/lib/db";
+import { getDb, initDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +26,6 @@ export async function GET() {
       const all = <T,>(sql: string, ...args: unknown[]): T[] => db.prepare(sql).all(...args) as T[];
 
       const circles = one<{ count: number }>("SELECT COUNT(*) count FROM yahoo_circles").count;
-      const longTerm = one<{ count: number }>(
-        "SELECT COUNT(*) count FROM yahoo_circles WHERE storage_consent = 1",
-      ).count;
       const generations = one<{ count: number }>("SELECT COUNT(*) count FROM generation_log").count;
       const uniqueUsers = one<{ count: number }>(
         "SELECT COUNT(DISTINCT LOWER(username)) count FROM generation_log",
@@ -85,42 +81,14 @@ export async function GET() {
         }
       }
 
-      const sources = all<{ source: string; count: number }>(
-        "SELECT source, COUNT(*) count FROM generation_log GROUP BY source ORDER BY count DESC",
-      );
-      const bucketRows = all<{ bucket: string; count: number }>(
-        `SELECT CASE
-           WHEN LENGTH(circle_data) < 10000 THEN '<10KB'
-           WHEN LENGTH(circle_data) < 50000 THEN '10–50KB'
-           WHEN LENGTH(circle_data) < 100000 THEN '50–100KB'
-           WHEN LENGTH(circle_data) < 300000 THEN '100–300KB'
-           ELSE '≥300KB' END bucket,
-           COUNT(*) count
-         FROM yahoo_circles GROUP BY bucket`,
-      );
-      const bucketMap = new Map(bucketRows.map((row) => [row.bucket, row.count]));
-      const sizeDistribution = ["<10KB", "10–50KB", "50–100KB", "100–300KB", "≥300KB"]
-        .map((bucket) => ({ bucket, count: bucketMap.get(bucket) ?? 0 }));
-
-      let databaseBytes = 0;
-      try {
-        databaseBytes = fs.statSync(DB_PATH).size;
-      } catch {
-        databaseBytes = 0;
-      }
-
       return NextResponse.json(
         {
           generatedAt: new Date().toISOString(),
           timezone: "UTC+08:00",
           totals: { circles, generations, uniqueUsers, today, last24h, last7d },
-          retention: { longTerm, temporary: circles - longTerm },
           daily,
           hourly,
           weekdayHour,
-          sources,
-          sizeDistribution,
-          storage: { bytes: databaseBytes },
         },
         { headers: { "cache-control": "public, s-maxage=60, stale-while-revalidate=300" } },
       );
