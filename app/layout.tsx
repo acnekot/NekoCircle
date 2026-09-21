@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "@fontsource/wdxl-lubrifont-sc/400.css";
+import "@fontsource-variable/noto-sans-sc";
 import "@fontsource-variable/m-plus-1-code";
 import { metadataBaseFromEnv } from "@/lib/site-url";
 
