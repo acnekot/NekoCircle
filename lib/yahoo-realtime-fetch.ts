@@ -467,9 +467,14 @@ export async function fetchMentionsToYou(
 ): Promise<YahooRealtimeEntry[]> {
   const name = normalizeScreenName(screenName);
   if (!name) throw new Error("screenName が空です。");
-  const p = `@${name}`;
   const limit = options.mode === "deep" ? DEEP_MAX_ENTRIES : FAST_MAX_ENTRIES;
-  const entries = await fetchByStartParallel(p, { maxEntries: limit });
+  // 自分自身の投稿を検索側で除外する。Yahoo が演算子を解釈できない、または
+  // 一時的に 0 件を返す場合は従来クエリへ戻し、仕様差で入站が全滅しないようにする。
+  const filteredQuery = `@${name} -from:${name}`;
+  let entries = await fetchByStartParallel(filteredQuery, { maxEntries: limit });
+  if (entries.length === 0) {
+    entries = await fetchByStartParallel(`@${name}`, { maxEntries: limit });
+  }
   return entries.slice(0, limit);
 }
 

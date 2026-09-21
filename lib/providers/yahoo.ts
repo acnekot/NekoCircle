@@ -8,6 +8,36 @@ import {
 import { normalizeUsername } from "../interactions/normalize";
 import type { InteractionProvider } from "./types";
 
+function usernameFromXUrl(value: string | undefined): string {
+  if (!value) return "";
+  try {
+    const url = new URL(value, "https://x.com");
+    if (!/(^|\.)(?:x|twitter)\.com$/i.test(url.hostname)) return "";
+    const first = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    return normalizeUsername(first);
+  } catch {
+    return "";
+  }
+}
+
+function yahooEntryAuthor(entry: YahooRealtimeEntry): string {
+  return (
+    normalizeUsername(entry.screenName ?? "") ||
+    usernameFromXUrl(entry.userUrl) ||
+    usernameFromXUrl(entry.url)
+  );
+}
+
+function yahooReplyTargets(entry: YahooRealtimeEntry): string[] {
+  return (entry.replyMentions ?? [])
+    .map((mention) =>
+      normalizeUsername(
+        typeof mention === "string" ? mention : mention.screenName ?? "",
+      ),
+    )
+    .filter(Boolean);
+}
+
 function yahooTimestamp(value: number | undefined): number | undefined {
   if (value === undefined || !Number.isFinite(value)) return undefined;
   return value < 1_000_000_000_000 ? value * 1000 : value;
@@ -22,13 +52,14 @@ export function yahooEntriesToInteractionEvents(
   const events: InteractionEvent[] = [];
 
   for (const entry of mentionsToYou) {
-    const author = normalizeUsername(entry.screenName ?? "");
+    const author = yahooEntryAuthor(entry);
     if (!entry.id || !author || author === self) continue;
+    const isReply = yahooReplyTargets(entry).includes(self);
     events.push({
       tweetId: entry.id,
       author,
       target: self,
-      type: "mention",
+      type: isReply ? "reply" : "mention",
       createdAt: yahooTimestamp(entry.createdAt),
       source: "yahoo",
     });

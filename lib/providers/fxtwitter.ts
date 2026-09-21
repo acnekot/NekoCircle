@@ -24,6 +24,8 @@ type FxReplyTarget = {
 type FxFacet = {
   type?: string;
   original?: string;
+  replacement?: string;
+  display?: string;
 };
 
 type FxStatus = {
@@ -33,7 +35,8 @@ type FxStatus = {
   replying_to?: FxReplyTarget | null;
   quote?: { author?: FxProfile } | null;
   reposted_by?: FxProfile | null;
-  raw_text?: { facets?: FxFacet[] };
+  text?: string;
+  raw_text?: { text?: string; facets?: FxFacet[] };
 };
 
 type FxListResponse = {
@@ -52,14 +55,23 @@ function createdAt(status: FxStatus): number | undefined {
 }
 
 function mentionTargets(status: FxStatus): string[] {
-  return [
-    ...new Set(
-      (status.raw_text?.facets ?? [])
-        .filter((facet) => facet.type === "mention")
-        .map((facet) => normalizeUsername(facet.original ?? ""))
-        .filter(Boolean),
-    ),
-  ];
+  const targets = new Set<string>();
+  for (const facet of status.raw_text?.facets ?? []) {
+    if (facet.type !== "mention") continue;
+    const target = normalizeUsername(
+      facet.original ?? facet.replacement ?? facet.display ?? "",
+    );
+    if (target) targets.add(target);
+  }
+
+  // 部分搜索响应会省略 facets，或只保留正文。正文中的显式 @ 是
+  // 入站检测的重要兜底；用户名规则固定，因此不会吞入普通文本。
+  const text = status.raw_text?.text ?? status.text ?? "";
+  for (const match of text.matchAll(/(^|[^A-Za-z0-9_])@([A-Za-z0-9_]{1,15})\b/g)) {
+    const target = normalizeUsername(match[2] ?? "");
+    if (target) targets.add(target);
+  }
+  return [...targets];
 }
 
 function addEvent(

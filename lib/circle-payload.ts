@@ -36,7 +36,7 @@ import type {
   InteractionEvent,
 } from "@/types/interaction";
 
-export const CIRCLE_PAYLOAD_VERSION = 4;
+export const CIRCLE_PAYLOAD_VERSION = 5;
 
 /**
  * 共有の取得パイプライン。
@@ -104,6 +104,17 @@ export async function buildYahooPayload(
   const self = normalizeUsername(name);
   const incoming = mergedEvents.filter((event) => event.target === self);
   const outgoing = mergedEvents.filter((event) => event.author === self);
+  // 入站数字表示「检测到多少条别人提及你的推文」，按 tweetId 去重。
+  // 同一条回复可能被 Yahoo 识别为 mention、FxTwitter 识别为 reply；按事件数
+  // 会重复计数。反过来，Yahoo 条目偶尔缺少作者字段时无法转成评分事件，仍应
+  // 计入检测数字，避免明明搜到结果却显示 0。
+  const incomingTweetIds = new Set(incoming.map((event) => event.tweetId));
+  for (const entry of yahoo?.mentionsToYou ?? []) {
+    if (!entry.id) continue;
+    const author = normalizeUsername(entry.screenName ?? "");
+    if (author && author === self) continue;
+    incomingTweetIds.add(entry.id);
+  }
   const authorsToYou: Record<string, number> = {};
   const targetsFromYou: Record<string, number> = {};
   const sourcesByScreen = new Map<string, Set<string>>();
@@ -140,7 +151,7 @@ export async function buildYahooPayload(
     dataVersion: CIRCLE_PAYLOAD_VERSION,
     screenName: name,
     counts: {
-      mentionsToYou: incoming.length,
+      mentionsToYou: incomingTweetIds.size,
       mentionsFromYou: outgoing.length,
       bingMentions: bingEvents.length,
       mergedUniqueTweets: new Set(
@@ -204,7 +215,7 @@ export function getCachedYahooPayload(name: string, buildCircle: boolean) {
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
-      "yahoo-mentions-v4",
+      "yahoo-mentions-v5",
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],

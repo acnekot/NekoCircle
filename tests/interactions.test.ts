@@ -10,6 +10,7 @@ import {
 } from "../lib/interactions/scoring";
 import { fetchProvidersSafely } from "../lib/providers/types";
 import { fxStatusesToInteractionEvents } from "../lib/providers/fxtwitter";
+import { yahooEntriesToInteractionEvents } from "../lib/providers/yahoo";
 import { interactionScoresToCircleUsers } from "../lib/yahoo-to-circle";
 import type { InteractionEvent } from "../types/interaction";
 
@@ -134,6 +135,61 @@ test("FxTwitter v2 的 replying_to 和 mention facets 会转换成正确方向",
       type: "reply",
       createdAt: 1_789_900_000_000,
       source: "fxtwitter",
+    },
+  ]);
+});
+
+test("FxTwitter facets 缺失时仍会从正文识别入站 mention", () => {
+  const incoming = fxStatusesToInteractionEvents(
+    [
+      {
+        id: "fx-text-1",
+        author: { screen_name: "Friend" },
+        text: "hello @Self",
+      },
+      {
+        id: "fx-facet-1",
+        author: { screen_name: "Other" },
+        raw_text: {
+          facets: [{ type: "mention", replacement: "@Self" }],
+        },
+      },
+    ],
+    "self",
+    "inbound",
+  );
+
+  assert.deepEqual(
+    incoming.map((event) => [event.tweetId, event.author, event.target]),
+    [
+      ["fx-text-1", "friend", "self"],
+      ["fx-facet-1", "other", "self"],
+    ],
+  );
+});
+
+test("Yahoo 入站会从 URL 补全作者并识别回复", () => {
+  const incoming = yahooEntriesToInteractionEvents(
+    [
+      {
+        id: "yahoo-1",
+        url: "https://x.com/Friend/status/123",
+        replyMentions: ["Self"],
+        inReplyTo: "122",
+      },
+    ],
+    [],
+    "self",
+  );
+
+  assert.deepEqual(incoming, [
+    {
+      tweetId: "yahoo-1",
+      author: "friend",
+      target: "self",
+      type: "reply",
+      createdAt: undefined,
+      source: "yahoo",
     },
   ]);
 });

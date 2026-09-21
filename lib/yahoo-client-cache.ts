@@ -1,6 +1,6 @@
 import type { CircleUser } from "@/types/circle";
 
-const KEY_PREFIX = "nekocircle-yahoo-v3:";
+const KEY_PREFIX = "nekocircle-yahoo-v4:";
 const TTL_MS = 8 * 60 * 1000;
 
 export type YahooCircleClientCache = {

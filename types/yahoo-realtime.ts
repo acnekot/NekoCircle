@@ -2,11 +2,17 @@
 export type YahooRealtimeEntry = {
   id: string;
   displayText?: string;
+  displayTextBody?: string;
   createdAt?: number;
   screenName?: string;
   name?: string;
   profileImage?: string;
   mentions?: { screenName?: string; indices?: number[] }[];
+  replyMentions?: Array<
+    | string
+    | { screenName?: string; indices?: number[] }
+  >;
+  inReplyTo?: string;
   userUrl?: string;
   url?: string;
 };
