@@ -266,60 +266,63 @@ body {
 
 .loading-stage {
   overflow: hidden;
-  background:
-    radial-gradient(circle at 78% 48%, rgba(10,132,255,.11), transparent 28%),
-    rgba(24, 26, 32, 0.78);
+  background: rgba(33, 34, 40, 0.9);
 }
 
-.loading-orbit {
-  position: relative;
-  width: min(100%, 280px);
-  aspect-ratio: 2 / 1;
-  margin-inline: auto;
-  border: 1px solid rgba(100, 210, 255, 0.14);
-  border-radius: 50%;
-  transform: rotate(-8deg);
+.loading-progress-card {
+  display: flex;
+  min-height: 150px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  border-radius: 24px;
+  padding: 24px;
+  background: #292a30;
 }
 
-.loading-orbit::before,
-.loading-orbit::after {
-  content: "";
-  position: absolute;
-  inset: 18%;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: inherit;
-}
-
-.loading-orbit::after { inset: 36%; }
-
-.loading-orbit-center,
-.loading-orbit-node {
-  position: absolute;
-  display: block;
+.loading-progress-track {
+  height: 5px;
+  overflow: hidden;
   border-radius: 999px;
+  background: #454750;
 }
 
-.loading-orbit-center {
-  top: 50%;
-  left: 50%;
-  width: 28px;
-  height: 28px;
-  background: linear-gradient(145deg, #64d2ff, #5e5ce6);
-  box-shadow: 0 0 30px rgba(100, 210, 255, 0.42);
-  transform: translate(-50%, -50%);
+.loading-progress-track span {
+  display: block;
+  width: 44%;
+  height: 100%;
+  border-radius: inherit;
+  background: #bec2ff;
+  animation: loading-progress 1.3s cubic-bezier(.4, 0, .2, 1) infinite;
 }
 
-.loading-orbit-node {
-  width: 11px;
-  height: 11px;
-  background: #98e4ff;
-  box-shadow: 0 0 14px rgba(100, 210, 255, 0.55);
-  animation: pulse 1.5s ease-in-out infinite;
+.loading-skeleton-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 
-.loading-orbit-node-a { top: 9%; left: 27%; }
-.loading-orbit-node-b { right: 7%; top: 54%; animation-delay: .35s; }
-.loading-orbit-node-c { bottom: 7%; left: 36%; animation-delay: .7s; }
+.loading-skeleton-row i,
+.loading-skeleton-line {
+  display: block;
+  height: 38px;
+  border-radius: 12px;
+  background: #34353b;
+  animation: loading-block 1.4s ease-in-out infinite;
+}
+
+.loading-skeleton-line { width: 64%; height: 11px; animation-delay: .16s; }
+.loading-skeleton-line-wide { width: 88%; animation-delay: .08s; }
+
+@keyframes loading-progress {
+  from { transform: translateX(-105%); }
+  to { transform: translateX(240%); }
+}
+
+@keyframes loading-block {
+  0%, 100% { opacity: .45; }
+  50% { opacity: 1; }
+}
 
 .tech-tabs-scroll {
   scrollbar-width: none;

@@ -294,7 +294,7 @@ export default function YahooCirclePage() {
         {/* Loading */}
         {loading && (
           <div className="card loading-stage rounded-2xl p-6 sm:p-10">
-            <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-[1fr_1.15fr] md:items-center">
+            <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-[1fr_1.1fr] md:items-center">
               <div>
                 <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#bec2ff]/15 bg-[#3c4278]/35">
                   <div className="h-6 w-6 rounded-full border-2 border-white/10 border-t-[#bec2ff] animate-spin" />
@@ -302,11 +302,11 @@ export default function YahooCirclePage() {
                 <p className="text-lg font-semibold text-white">{t("yahoo.loading")}</p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-500">{t("yahoo.loadingSub")}</p>
               </div>
-              <div className="loading-orbit" aria-hidden="true">
-                <span className="loading-orbit-center" />
-                <span className="loading-orbit-node loading-orbit-node-a" />
-                <span className="loading-orbit-node loading-orbit-node-b" />
-                <span className="loading-orbit-node loading-orbit-node-c" />
+              <div className="loading-progress-card" aria-hidden="true">
+                <div className="loading-progress-track"><span /></div>
+                <div className="loading-skeleton-row"><i /><i /><i /></div>
+                <div className="loading-skeleton-line loading-skeleton-line-wide" />
+                <div className="loading-skeleton-line" />
               </div>
             </div>
           </div>

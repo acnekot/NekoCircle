@@ -735,15 +735,7 @@ function drawCircleAvatar(
     }
   } else {
     const safeColor = sanitizeHex(color);
-    if (flat) {
-      ctx.fillStyle = safeColor + "e8";
-    } else {
-      const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
-      g.addColorStop(0, blendHex(safeColor, "#f5edf1", 0.34));
-      g.addColorStop(0.58, safeColor);
-      g.addColorStop(1, blendHex(safeColor, "#5d6170", 0.2));
-      ctx.fillStyle = g;
-    }
+    ctx.fillStyle = flat ? safeColor + "e8" : safeColor;
     ctx.fill();
     ctx.fillStyle    = hexBrightness(safeColor) > 155 ? "#353342" : "#fffafc";
     ctx.font         = `bold ${Math.floor(r * 0.55)}px ${font}`;
@@ -752,17 +744,6 @@ function drawCircleAvatar(
     ctx.fillText(userName[0]?.toUpperCase() ?? "?", x, y);
   }
   ctx.restore();
-}
-
-function blendHex(source: string, target: string, amount: number): string {
-  const from = sanitizeHex(source).slice(1);
-  const to = sanitizeHex(target).slice(1);
-  const channels = [0, 2, 4].map((offset) => {
-    const a = Number.parseInt(from.slice(offset, offset + 2), 16);
-    const b = Number.parseInt(to.slice(offset, offset + 2), 16);
-    return Math.round(a + (b - a) * amount).toString(16).padStart(2, "0");
-  });
-  return `#${channels.join("")}`;
 }
 
 function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
