@@ -22,6 +22,8 @@ type UnifiedCircle = {
   id: string;
   username: string;
   created_at: number;
+  storage_consent: boolean;
+  consented_at: number | null;
   data: string;
 };
 
@@ -288,6 +290,17 @@ export default function CirclePreviewPage() {
                 <AccountValuePanel self={self} users={circleUsers} />
               )}
             </div>
+
+            <footer className="order-3 col-span-full mt-2 flex flex-col gap-2 border-t border-white/10 px-1 pt-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                {t("yahoo.inspirationFrom")} {" "}
+                <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="text-[#bec2ff] underline underline-offset-4 transition-colors hover:text-white">nareaitter</a>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Md3Icon name={circle?.storage_consent ? "check" : "restart"} className="h-4 w-4 text-[#bec2ff]" />
+                <span><span className="text-slate-400">{t("yahoo.storageLabel")}：</span>{circle?.storage_consent ? t("yahoo.storageLongTerm") : t("yahoo.storageTemporary")}</span>
+              </span>
+            </footer>
           </div>
         )}
       </div>

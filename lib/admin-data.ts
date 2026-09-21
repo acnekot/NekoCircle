@@ -52,7 +52,7 @@ export const TABLE_META: TableMeta[] = [
 
 const TABLE_BY_NAME = new Map(TABLE_META.map((t) => [t.name, t]));
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export type ExportBundle = {
   app: "nekocircle";

@@ -32,6 +32,8 @@ type YahooMentionsResponse = {
   profileJoinedAt?: string;
   circleId?: string;
   createdAt?: number;
+  storageConsent?: boolean;
+  retentionMode?: "long_term" | "temporary";
   error?: string;
 };
 
@@ -53,6 +55,7 @@ export default function YahooCirclePage() {
   const [activeTab, setActiveTab] = useState<Tab>("circle");
   const [circleId, setCircleId] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState<number | null>(null);
+  const [storedLongTerm, setStoredLongTerm] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
@@ -75,6 +78,7 @@ export default function YahooCirclePage() {
     });
     if (data.circleId) setCircleId(data.circleId);
     if (data.createdAt) setCreatedAt(data.createdAt);
+    setStoredLongTerm(data.storageConsent === true || data.retentionMode === "long_term");
   }, []);
 
   /**
@@ -90,8 +94,12 @@ export default function YahooCirclePage() {
     setError("");
 
     try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const requestedStorageConsent =
+        searchParams.get("storageConsent") === "1" ||
+        searchParams.get("storageConsent") === "true";
       if (!force) {
-        const cached = readYahooCircleCache(name);
+        const cached = readYahooCircleCache(name, requestedStorageConsent);
         if (cached) {
           applyPayload({
             screenName: cached.screenName,
@@ -106,12 +114,15 @@ export default function YahooCirclePage() {
             profileJoinedAt: cached.profileJoinedAt,
             circleId: cached.circleId,
             createdAt: cached.createdAt,
+            storageConsent: cached.storageConsent,
+            retentionMode: cached.retentionMode,
           });
           return;
         }
       }
 
       const q = new URLSearchParams({ screenName: name, buildCircle: "1" });
+      q.set("storageConsent", requestedStorageConsent ? "1" : "0");
       if (force) q.set("refresh", "1");
       const r = await fetch(`/api/yahoo-mentions?${q.toString()}`, {
         cache: force ? "no-store" : "default",
@@ -125,7 +136,7 @@ export default function YahooCirclePage() {
       const data = (await r.json()) as YahooMentionsResponse;
       if (data.error) { setError(data.error); return; }
       applyPayload(data);
-      writeYahooCircleCache(name, {
+      writeYahooCircleCache(name, requestedStorageConsent, {
         screenName: data.screenName,
         counts: data.counts,
         circleUsers: data.circleUsers,
@@ -138,6 +149,8 @@ export default function YahooCirclePage() {
         profileJoinedAt: data.profileJoinedAt,
         circleId: data.circleId,
         createdAt: data.createdAt,
+        storageConsent: data.storageConsent,
+        retentionMode: data.retentionMode,
       });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : t("yahoo.dataFailed"));
@@ -340,18 +353,6 @@ export default function YahooCirclePage() {
                 maxUsers={users.length}
                 showAllOption
               />
-              <div className="card rounded-2xl p-4">
-                <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
-                  <span className="tech-status-dot" />
-                  LIVE DATA PIPELINE
-                </div>
-                <div className="text-xs text-gray-600 leading-relaxed">
-                  {t("yahoo.dataSource")}
-                  <br />
-                  {t("yahoo.inspirationFrom")} <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-400 transition-colors">nareaitter</a>
-                </div>
-              </div>
-
               {/* Find yourself */}
               {displayedResult && (
                 <FindYourself topUsers={displayedResult.topUsers} ownerUsername={username} />
@@ -441,6 +442,17 @@ export default function YahooCirclePage() {
               {activeTab === "value" && <AccountValuePanel self={self} users={users} />}
 
             </div>
+
+            <footer className="order-3 col-span-full mt-2 flex flex-col gap-2 border-t border-white/10 px-1 pt-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                {t("yahoo.inspirationFrom")} {" "}
+                <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="text-[#bec2ff] underline underline-offset-4 transition-colors hover:text-white">nareaitter</a>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Md3Icon name={storedLongTerm ? "check" : "restart"} className="h-4 w-4 text-[#bec2ff]" />
+                <span><span className="text-slate-400">{t("yahoo.storageLabel")}：</span>{storedLongTerm ? t("yahoo.storageLongTerm") : t("yahoo.storageTemporary")}</span>
+              </span>
+            </footer>
           </div>
         )}
 

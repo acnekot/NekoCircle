@@ -22,6 +22,7 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
   const { locale, t } = useTranslation();
   const [username, setUsername] = useState(standaloneDemo ? "acnekot" : "");
   const [circleId, setCircleId] = useState("");
+  const [storageConsent, setStorageConsent] = useState(false);
   const [stats, setStats] = useState<HomeStats | null>(null);
 
   useEffect(() => {
@@ -34,7 +35,11 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
   function generate(event: React.FormEvent) {
     event.preventDefault();
     const name = username.replace(/^@+/, "").trim();
-    if (name) router.push(`/${locale}/yahoo/${encodeURIComponent(name)}`);
+    if (name) {
+      router.push(
+        `/${locale}/yahoo/${encodeURIComponent(name)}?storageConsent=${storageConsent ? "1" : "0"}`,
+      );
+    }
   }
 
   function openCircle() {
@@ -92,6 +97,21 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
                 </button>
               </div>
 
+              <label className={styles.consentOption}>
+                <input
+                  type="checkbox"
+                  checked={storageConsent}
+                  onChange={(event) => setStorageConsent(event.target.checked)}
+                />
+                <span className={styles.consentControl} aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+                </span>
+                <span>
+                  <strong>{t("home.storageConsent.title")}</strong>
+                  <small>{t("home.storageConsent.description")}</small>
+                </span>
+              </label>
+
               <div className={styles.lookupInline}>
                 <div>
                   <small>SAVED RESULT</small>
@@ -145,7 +165,10 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
 
       <footer className={styles.footer}>
         <span>© NekoCircle</span>
-        <a href="https://github.com/acnekot/NekoCircle" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        <span className={styles.footerLinks}>
+          <span>{t("yahoo.inspirationFrom")} <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer">nareaitter ↗</a></span>
+          <a href="https://github.com/acnekot/NekoCircle" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </span>
       </footer>
     </div>
   );

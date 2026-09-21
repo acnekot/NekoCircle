@@ -33,6 +33,8 @@ export function initDb() {
       id          TEXT PRIMARY KEY,
       username    TEXT NOT NULL,
       circle_data TEXT NOT NULL,
+      storage_consent INTEGER NOT NULL DEFAULT 0,
+      consented_at INTEGER,
       created_at  INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_yahoo_circles_username ON yahoo_circles(username);
@@ -52,6 +54,14 @@ export function initDb() {
   // Migrate: add locale column if missing (existing databases)
   try {
     db.exec("ALTER TABLE announcements ADD COLUMN locale TEXT NOT NULL DEFAULT 'all'");
+  } catch { /* column already exists */ }
+  // Migrate existing circles conservatively: old rows did not have explicit
+  // permission, so they remain temporary until a user opts in on a new run.
+  try {
+    db.exec("ALTER TABLE yahoo_circles ADD COLUMN storage_consent INTEGER NOT NULL DEFAULT 0");
+  } catch { /* column already exists */ }
+  try {
+    db.exec("ALTER TABLE yahoo_circles ADD COLUMN consented_at INTEGER");
   } catch { /* column already exists */ }
   db.close();
 }
@@ -126,15 +136,23 @@ export type YahooCircleRow = {
   id: string;
   username: string;
   circle_data: string;    // JSON
+  storage_consent: number;
+  consented_at: number | null;
   created_at: number;
 };
 
-export function createYahooCircle(id: string, username: string, circleData: string): void {
+export function createYahooCircle(
+  id: string,
+  username: string,
+  circleData: string,
+  storageConsent = false,
+): void {
   const db = getDb();
   try {
+    const now = Date.now();
     db.prepare(
-      "INSERT INTO yahoo_circles (id, username, circle_data, created_at) VALUES (?, ?, ?, ?)"
-    ).run(id, username, circleData, Date.now());
+      "INSERT INTO yahoo_circles (id, username, circle_data, storage_consent, consented_at, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(id, username, circleData, storageConsent ? 1 : 0, storageConsent ? now : null, now);
   } finally { db.close(); }
 }
 
@@ -145,10 +163,19 @@ export function getYahooCircle(id: string): YahooCircleRow | undefined {
   } finally { db.close(); }
 }
 
-export function findRecentYahooCircle(username: string, ttlMs: number): YahooCircleRow | undefined {
+export function findRecentYahooCircle(
+  username: string,
+  ttlMs: number,
+  storageConsent?: boolean,
+): YahooCircleRow | undefined {
   const db = getDb();
   try {
     const cutoff = Date.now() - ttlMs;
+    if (storageConsent !== undefined) {
+      return db.prepare(
+        "SELECT * FROM yahoo_circles WHERE LOWER(username) = LOWER(?) AND created_at > ? AND storage_consent = ? ORDER BY created_at DESC LIMIT 1"
+      ).get(username, cutoff, storageConsent ? 1 : 0) as YahooCircleRow | undefined;
+    }
     return db.prepare(
       "SELECT * FROM yahoo_circles WHERE LOWER(username) = LOWER(?) AND created_at > ? ORDER BY created_at DESC LIMIT 1"
     ).get(username, cutoff) as YahooCircleRow | undefined;
@@ -164,6 +191,8 @@ export type UnifiedCircle = {
   id: string;
   username: string;
   created_at: number;
+  storage_consent: boolean;
+  consented_at: number | null;
   data: string;
 };
 
@@ -174,7 +203,15 @@ export function getCircleByAnyId(id: string): UnifiedCircle | undefined {
       "SELECT * FROM yahoo_circles WHERE id = ?"
     ).get(id) as YahooCircleRow | undefined;
     if (yh) {
-      return { source: "yahoo", id: yh.id, username: yh.username, created_at: yh.created_at, data: yh.circle_data };
+      return {
+        source: "yahoo",
+        id: yh.id,
+        username: yh.username,
+        created_at: yh.created_at,
+        storage_consent: yh.storage_consent === 1,
+        consented_at: yh.consented_at,
+        data: yh.circle_data,
+      };
     }
     return undefined;
   } finally { db.close(); }

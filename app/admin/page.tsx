@@ -15,6 +15,10 @@ type Stats = {
     last24h: number;
     last7d: number;
   };
+  retention: {
+    longTerm: number;
+    temporary: number;
+  };
   daily: { date: string; count: number }[];
   hourly: { hour: number; count: number }[];
   weekdayHour: number[][];
@@ -27,6 +31,7 @@ type Stats = {
     source: string;
     id: string | null;
     bytes: number | null;
+    storage_consent: number | null;
   }[];
   storage: {
     path: string;
@@ -164,10 +169,12 @@ export default function AdminDashboardPage() {
         {stats && (
           <>
             {/* KPI */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
               <Kpi label="累计生成" value={stats.totals.generations} accent />
               <Kpi label="独立用户" value={stats.totals.uniqueUsers} />
               <Kpi label="已存圈子" value={stats.totals.circles} />
+              <Kpi label="长期保存" value={stats.retention.longTerm} sub="用户已授权" />
+              <Kpi label="临时保存" value={stats.retention.temporary} sub="可不定期清理" />
               <Kpi label="今日" value={stats.totals.today} />
               <Kpi label="近 24 小时" value={stats.totals.last24h} />
               <Kpi label="近 7 天" value={stats.totals.last7d} />
@@ -394,6 +401,7 @@ export default function AdminDashboardPage() {
                       <th className="font-normal pb-2">用户</th>
                       <th className="font-normal pb-2">时间</th>
                       <th className="font-normal pb-2">来源</th>
+                      <th className="font-normal pb-2">保存方式</th>
                       <th className="font-normal pb-2 text-right">数据量</th>
                       <th className="font-normal pb-2 text-right">圈子</th>
                     </tr>
@@ -413,6 +421,18 @@ export default function AdminDashboardPage() {
                         </td>
                         <td className="py-2 text-gray-500">{formatCST(r.created_at)}</td>
                         <td className="py-2 text-gray-500">{r.source}</td>
+                        <td className="py-2">
+                          {r.id ? (
+                            <span className={r.storage_consent === 1
+                              ? "inline-flex rounded-full bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-300"
+                              : "inline-flex rounded-full bg-amber-400/10 px-2 py-1 text-[10px] text-amber-300"
+                            }>
+                              {r.storage_consent === 1 ? "长期授权" : "临时保存"}
+                            </span>
+                          ) : (
+                            <span className="text-gray-700">—</span>
+                          )}
+                        </td>
                         <td className="py-2 text-gray-500 text-right tabular-nums">
                           {r.bytes ? formatBytes(r.bytes) : "—"}
                         </td>

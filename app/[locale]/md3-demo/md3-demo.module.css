@@ -92,6 +92,27 @@
 .searchRow button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
 .searchRow button:disabled { opacity: .38; cursor: not-allowed; }
 .searchRow svg, .lookup svg { width: 19px; fill: none; stroke: currentColor; stroke-width: 2; }
+.searchPanel > .consentOption {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+  margin: 14px 4px 0;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+.consentOption input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.consentControl { display: grid; width: 22px; height: 22px; place-items: center; border: 2px solid #92909a; border-radius: 6px; background: rgba(18, 19, 24, .7); transition: border-color .16s ease, background .16s ease; }
+.consentControl svg { width: 16px; fill: none; stroke: var(--on-primary); stroke-width: 2.6; opacity: 0; transform: scale(.75); transition: opacity .16s ease, transform .16s ease; }
+.consentOption input:checked + .consentControl { border-color: var(--primary); background: var(--primary); }
+.consentOption input:checked + .consentControl svg { opacity: 1; transform: scale(1); }
+.consentOption input:focus-visible + .consentControl { outline: 2px solid var(--primary); outline-offset: 3px; }
+.consentOption > span:last-child { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.consentOption strong { font-size: 12px; line-height: 1.4; }
+.consentOption small { color: var(--muted); font-size: 10px; line-height: 1.55; }
 .lookupInline { display: grid; grid-template-columns: minmax(120px, auto) minmax(0, 1fr); align-items: center; gap: 18px; margin-top: 17px; padding: 17px 4px 0; border-top: 1px solid rgba(190, 194, 255, .12); }
 .lookupInline > div:first-child { display: flex; flex-direction: column; gap: 3px; }
 .lookupInline small { color: var(--primary); font-size: 8px; font-weight: 750; letter-spacing: .14em; }
@@ -174,6 +195,7 @@
 
 .footer { display: flex; justify-content: space-between; padding-block: 30px; border-top: 1px solid rgba(199,197,207,.08); color: var(--muted); font-size: 11px; }
 .footer a { color: var(--primary); }
+.footerLinks { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px 18px; }
 
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; padding-top: 64px; }
@@ -189,6 +211,8 @@
   .hero h1 { font-size: clamp(48px, 15vw, 68px); }
   .searchRow { grid-template-columns: 1fr; }.searchRow button { justify-content: center; }
   .lookupInline { grid-template-columns: 1fr; gap: 10px; }
+  .footer { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .footerLinks { justify-content: flex-start; }
   .stats div { min-width: 0; flex: 1; padding-right: 14px; }.stats div + div { padding-left: 14px; }
   .circleOnly { width: min(100%, 520px); }
   .sectionIntro { align-items: flex-start; flex-direction: column; gap: 20px; }
