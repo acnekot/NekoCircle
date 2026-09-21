@@ -13,6 +13,7 @@ type Props = {
   presentation?: "default" | "flat-transparent";
   interactive?: boolean;
   centerAvatarCycle?: boolean;
+  showFallbackInitials?: boolean;
 };
 
 /** 通用绘制函数，可传入任意 canvas、sc、W，供预览和高清导出复用 */
@@ -27,6 +28,7 @@ export function renderToCanvas(
     transparent?: boolean;
     flat?: boolean;
     centerAvatarAlpha?: number;
+    showFallbackInitials?: boolean;
   } = {},
 ) {
   const mul       = SIZE_MUL[s.nodeSize];
@@ -105,12 +107,14 @@ export function renderToCanvas(
     ctx.clip();
     ctx.fillStyle = "#34364a";
     ctx.fillRect(cx - centerR, cy - centerR, centerR * 2, centerR * 2);
-    ctx.globalAlpha = 1 - avatarAlpha;
-    ctx.fillStyle = "#f0eff7";
-    ctx.font = `bold ${Math.floor(centerR * 0.36)}px ${font}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("YOU", cx, cy);
+    if (options.showFallbackInitials !== false) {
+      ctx.globalAlpha = 1 - avatarAlpha;
+      ctx.fillStyle = "#f0eff7";
+      ctx.font = `bold ${Math.floor(centerR * 0.36)}px ${font}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("YOU", cx, cy);
+    }
     if (centerImage && avatarAlpha > 0) {
       ctx.globalAlpha = avatarAlpha;
       ctx.drawImage(centerImage, cx - centerR, cy - centerR, centerR * 2, centerR * 2);
@@ -118,7 +122,7 @@ export function renderToCanvas(
     ctx.globalAlpha = 1;
     ctx.restore();
   } else {
-    drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName, options.flat);
+    drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName, options.flat, options.showFallbackInitials);
   }
   ctx.beginPath(); ctx.arc(cx, cy, options.flat ? centerR : centerOuter, 0, Math.PI * 2);
   ctx.strokeStyle = options.flat ? "rgba(222,224,255,0.72)" : accent;
@@ -185,7 +189,7 @@ export function renderToCanvas(
         ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
         ctx.shadowBlur = 0;
       }
-      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, item.user.userName, options.flat);
+      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, item.user.userName, options.flat, options.showFallbackInitials);
       if (options.flat) {
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(255,255,255,0.24)";
@@ -494,6 +498,7 @@ export default function CircleChart({
   presentation = "default",
   interactive = true,
   centerAvatarCycle = false,
+  showFallbackInitials = true,
 }: Props) {
   const s           = styleProp ?? DEFAULT_STYLE;
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -520,10 +525,11 @@ export default function CircleChart({
       transparent: flat,
       flat,
       centerAvatarAlpha: centerAvatarCycle ? centerAvatarAlpha.current : undefined,
+      showFallbackInitials,
     });
     // 把图片缓存挂到 canvas 上，供外部下载时复用
     (canvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache = imageCache.current;
-  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle]);
+  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle, showFallbackInitials]);
 
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {
@@ -707,6 +713,7 @@ function drawCircleAvatar(
   url: string, x: number, y: number, r: number,
   color: string, showAvatars: boolean, font: string, userName: string,
   flat = false,
+  showFallbackInitials = true,
 ) {
   ctx.save();
   ctx.beginPath();
@@ -737,11 +744,13 @@ function drawCircleAvatar(
     const safeColor = sanitizeHex(color);
     ctx.fillStyle = flat ? safeColor + "e8" : safeColor;
     ctx.fill();
-    ctx.fillStyle    = hexBrightness(safeColor) > 155 ? "#353342" : "#fffafc";
-    ctx.font         = `bold ${Math.floor(r * 0.55)}px ${font}`;
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(userName[0]?.toUpperCase() ?? "?", x, y);
+    if (showFallbackInitials) {
+      ctx.fillStyle    = hexBrightness(safeColor) > 155 ? "#353342" : "#fffafc";
+      ctx.font         = `bold ${Math.floor(r * 0.55)}px ${font}`;
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(userName[0]?.toUpperCase() ?? "?", x, y);
+    }
   }
   ctx.restore();
 }

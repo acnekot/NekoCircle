@@ -89,6 +89,7 @@ export default function LiveGeneratedCircle({ screenName }: { screenName: string
         presentation="flat-transparent"
         interactive={false}
         centerAvatarCycle
+        showFallbackInitials={false}
       />
     );
   }
