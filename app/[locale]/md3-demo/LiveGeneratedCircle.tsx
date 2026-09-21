@@ -72,14 +72,27 @@ export default function LiveGeneratedCircle({ screenName }: { screenName: string
       avatarUrl: payload.selfAvatarUrl,
       avatarUrlPreview: payload.selfAvatarUrlPreview,
     };
-    return yahooToAnalysisResult(self, payload.circleUsers, {
+    const anonymizedUsers = payload.circleUsers.map((user, index) => ({
+      ...user,
+      avatarUrl: `/assets/anime-avatar-grid.png#cell=${index % 25}`,
+      avatarUrlPreview: undefined,
+    }));
+    return yahooToAnalysisResult(self, anonymizedUsers, {
       toYou: payload.counts.mentionsToYou,
       fromYou: payload.counts.mentionsFromYou,
     });
   }, [payload]);
 
   if (result) {
-    return <CircleChart result={result} style={LIVE_STYLE} presentation="flat-transparent" />;
+    return (
+      <CircleChart
+        result={result}
+        style={LIVE_STYLE}
+        presentation="flat-transparent"
+        interactive={false}
+        centerAvatarCycle
+      />
+    );
   }
 
   return (

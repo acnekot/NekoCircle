@@ -110,7 +110,6 @@
 }
 .circleOnly {
   width: min(112%, 560px);
-  animation: circleFloat 7s cubic-bezier(.4, 0, .2, 1) infinite;
 }
 .circleOnly canvas { display: block; width: 100% !important; max-width: none !important; height: auto !important; }
 .liveCircleState {
@@ -134,11 +133,6 @@
 }
 .liveCircleError { border: 0; background: var(--tertiary); animation: none; opacity: .72; }
 @keyframes liveCircleSpin { to { transform: rotate(360deg); } }
-
-@keyframes circleFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
 
 .orbitCard { position: relative; z-index: 1; padding: 20px; border-radius: 44px; background: var(--surface-high); box-shadow: 0 24px 70px rgba(0,0,0,.25); }
 .orbitHeader { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 15px; }

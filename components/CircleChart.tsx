@@ -10,6 +10,8 @@ type Props = {
   onAccentColor?: (hex: string) => void;
   circleId?: string;
   presentation?: "default" | "flat-transparent";
+  interactive?: boolean;
+  centerAvatarCycle?: boolean;
 };
 
 /** 通用绘制函数，可传入任意 canvas、sc、W，供预览和高清导出复用 */
@@ -18,7 +20,13 @@ export function renderToCanvas(
   result: AnalysisResult,
   s: StyleConfig,
   imageCache: Map<string, HTMLImageElement>,
-  options: { exportScale?: number; circleId?: string; transparent?: boolean; flat?: boolean } = {},
+  options: {
+    exportScale?: number;
+    circleId?: string;
+    transparent?: boolean;
+    flat?: boolean;
+    centerAvatarAlpha?: number;
+  } = {},
 ) {
   const mul       = SIZE_MUL[s.nodeSize];
   const displayN  = s.displayCount ?? 30;
@@ -83,7 +91,34 @@ export function renderToCanvas(
     ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
     ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
   }
-  drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName, options.flat);
+  if (options.centerAvatarAlpha !== undefined) {
+    const centerImage = s.showAvatars
+      ? imageCache.get(result.targetUser.profilePicture)
+      : undefined;
+    const avatarAlpha = centerImage
+      ? Math.max(0, Math.min(1, options.centerAvatarAlpha))
+      : 0;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = "#34364a";
+    ctx.fillRect(cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+    ctx.globalAlpha = 1 - avatarAlpha;
+    ctx.fillStyle = "#f0eff7";
+    ctx.font = `bold ${Math.floor(centerR * 0.36)}px ${font}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("YOU", cx, cy);
+    if (centerImage && avatarAlpha > 0) {
+      ctx.globalAlpha = avatarAlpha;
+      ctx.drawImage(centerImage, cx - centerR, cy - centerR, centerR * 2, centerR * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  } else {
+    drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName, options.flat);
+  }
   ctx.beginPath(); ctx.arc(cx, cy, options.flat ? centerR : centerOuter, 0, Math.PI * 2);
   ctx.strokeStyle = options.flat ? "rgba(222,224,255,0.72)" : accent;
   ctx.lineWidth = options.flat ? Math.max(1.5, 1.6 * sc) : 2 * sc;
@@ -450,11 +485,21 @@ function computeScaleForCount(total: number, mul: number): number {
   return Math.min(1.0, lo);
 }
 
-export default function CircleChart({ result, style: styleProp, onAccentColor, circleId, presentation = "default" }: Props) {
+export default function CircleChart({
+  result,
+  style: styleProp,
+  onAccentColor,
+  circleId,
+  presentation = "default",
+  interactive = true,
+  centerAvatarCycle = false,
+}: Props) {
   const s           = styleProp ?? DEFAULT_STYLE;
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const wrapRef     = useRef<HTMLDivElement>(null);
   const imageCache  = useRef<Map<string, HTMLImageElement>>(new Map());
+  const centerAvatarAlpha = useRef(0);
+  const centerAnimationRaf = useRef<number>(0);
   const [tooltip,    setTooltip]   = useState<{ x: number; y: number; user: (typeof result.topUsers)[0] } | null>(null);
 
   // 根据人数动态计算 sc（缩放比例），人多时整体缩小以放入固定 700px 画布
@@ -473,10 +518,11 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
       circleId,
       transparent: flat,
       flat,
+      centerAvatarAlpha: centerAvatarCycle ? centerAvatarAlpha.current : undefined,
     });
     // 把图片缓存挂到 canvas 上，供外部下载时复用
     (canvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache = imageCache.current;
-  }, [result, s, mul, displayN, scAdapt, circleId, presentation]);
+  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle]);
 
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {
@@ -540,6 +586,26 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
 
   useEffect(() => { draw(); }, [draw]);
 
+  useEffect(() => {
+    if (!centerAvatarCycle) return;
+    const startedAt = performance.now();
+    const cycleMs = 10_000;
+    const frame = (now: number) => {
+      const progress = ((now - startedAt) % cycleMs) / cycleMs;
+      let alpha = 0;
+      if (progress >= 0.3 && progress < 0.42) alpha = (progress - 0.3) / 0.12;
+      else if (progress >= 0.42 && progress < 0.82) alpha = 1;
+      else if (progress >= 0.82 && progress < 0.94) alpha = 1 - (progress - 0.82) / 0.12;
+      if (Math.abs(centerAvatarAlpha.current - alpha) >= 0.015) {
+        centerAvatarAlpha.current = alpha;
+        draw();
+      }
+      centerAnimationRaf.current = requestAnimationFrame(frame);
+    };
+    centerAnimationRaf.current = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(centerAnimationRaf.current);
+  }, [centerAvatarCycle, draw]);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current as HTMLCanvasElement & {
       _nodes?: { x: number; y: number; r: number; idx: number }[];
@@ -585,11 +651,12 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
 
   return (
     <div ref={wrapRef} className="relative inline-block w-full max-w-[700px]">
-      <canvas ref={canvasRef} className={`${presentation === "flat-transparent" ? "" : "rounded-2xl"} cursor-pointer w-full aspect-square`}
+      <canvas ref={canvasRef} className={`${presentation === "flat-transparent" ? "" : "rounded-2xl"} ${interactive ? "cursor-pointer" : ""} w-full aspect-square`}
         data-circle="true"
-        onMouseMove={handleMouseMove} onMouseLeave={() => setTooltip(null)}
-        onClick={handleClick} />
-      {tooltip && (() => {
+        onMouseMove={interactive ? handleMouseMove : undefined}
+        onMouseLeave={interactive ? () => setTooltip(null) : undefined}
+        onClick={interactive ? handleClick : undefined} />
+      {interactive && tooltip && (() => {
         // Smart positioning: flip left if too close to right edge
         const wrapWidth = wrapRef.current?.clientWidth ?? canvasSize;
         const flipX = tooltip.x + 200 > wrapWidth;
@@ -642,7 +709,25 @@ function drawCircleAvatar(
   ctx.clip();
   const img = showAvatars ? cache.get(url) : undefined;
   if (img) {
-    ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+    const match = url.match(/#cell=(\d+)$/);
+    if (match) {
+      const cell = Number(match[1]) % 25;
+      const cellW = img.naturalWidth / 5;
+      const cellH = img.naturalHeight / 5;
+      ctx.drawImage(
+        img,
+        (cell % 5) * cellW,
+        Math.floor(cell / 5) * cellH,
+        cellW,
+        cellH,
+        x - r,
+        y - r,
+        r * 2,
+        r * 2,
+      );
+    } else {
+      ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+    }
   } else {
     const safeColor = sanitizeHex(color);
     if (flat) {
