@@ -62,6 +62,7 @@ export type StyleConfig = {
   showTitle: boolean;
   watermark: string;
   showWatermark: boolean;
+  showCircleId: boolean;
   displayCount: number;
 };
 
@@ -84,6 +85,7 @@ export const DEFAULT_STYLE: StyleConfig = {
   showTitle: false,
   watermark: "NekoCircle",
   showWatermark: true,
+  showCircleId: true,
   displayCount: 22,
 };
 

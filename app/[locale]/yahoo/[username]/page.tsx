@@ -189,7 +189,10 @@ export default function YahooCirclePage() {
       const cached = (screenCanvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache;
       if (cached) cached.forEach((v, k) => imgCache.set(k, v));
     }
-    renderToCanvas(offscreen, displayedResult, styleConfig, imgCache, { exportScale: EXPORT_SCALE, circleId: circleId ?? undefined });
+    renderToCanvas(offscreen, displayedResult, styleConfig, imgCache, {
+      exportScale: EXPORT_SCALE,
+      circleId: styleConfig.showCircleId ? circleId ?? undefined : undefined,
+    });
     return new Promise((res) => offscreen.toBlob(res, "image/png"));
   };
 

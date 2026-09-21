@@ -554,7 +554,7 @@ export default function CircleChart({
     const flat = presentation === "flat-transparent";
     renderToCanvas(canvas, result, s, imageCache.current, {
       exportScale: dpr,
-      circleId,
+      circleId: s.showCircleId ? circleId : undefined,
       transparent: flat,
       flat,
       centerAvatarAlpha: centerAvatarCycle ? centerAvatarAlpha.current : undefined,

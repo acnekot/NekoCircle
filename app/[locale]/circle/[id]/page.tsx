@@ -79,7 +79,10 @@ export default function CirclePreviewPage() {
       const cached = (screenCanvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache;
       if (cached) cached.forEach((v, k) => imgCache.set(k, v));
     }
-    renderToCanvas(offscreen, result, styleConfig, imgCache, { exportScale: EXPORT_SCALE, circleId });
+    renderToCanvas(offscreen, result, styleConfig, imgCache, {
+      exportScale: EXPORT_SCALE,
+      circleId: styleConfig.showCircleId ? circleId : undefined,
+    });
     return new Promise((res) => offscreen.toBlob(res, "image/png"));
   };
 

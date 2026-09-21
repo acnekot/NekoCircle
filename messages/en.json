@@ -198,6 +198,8 @@
   "style.displayAll": "All",
   "style.showUsernames": "Usernames",
   "style.showUsernamesDesc": "Show @username outside nodes",
+  "style.showCircleId": "Show Circle ID in Image",
+  "style.showCircleIdDesc": "Hide the ID from previews and downloaded images",
   "style.showScores": "Scores",
   "style.showScoresDesc": "Show interaction score",
   "style.showRankBadge": "Rank Badge",

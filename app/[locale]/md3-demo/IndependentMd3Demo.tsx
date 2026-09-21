@@ -24,7 +24,7 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
   const { locale, t } = useTranslation();
   const [username, setUsername] = useState(standaloneDemo ? "acnekot" : "");
   const [circleId, setCircleId] = useState("");
-  const [storageConsent, setStorageConsent] = useState(false);
+  const [storageConsent, setStorageConsent] = useState(true);
   const [stats, setStats] = useState<HomeStats | null>(null);
 
   useEffect(() => {

@@ -198,6 +198,8 @@
   "style.displayAll": "全員",
   "style.showUsernames": "ユーザー名",
   "style.showUsernamesDesc": "ノードの外側に @ユーザー名を表示",
+  "style.showCircleId": "画像内にサークル ID を表示",
+  "style.showCircleIdDesc": "オフにするとプレビューと保存画像から ID を非表示にします",
   "style.showScores": "スコア",
   "style.showScoresDesc": "インタラクションスコアを表示",
   "style.showRankBadge": "ランクバッジ",

@@ -343,15 +343,16 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                 </div>
               </div>
 
-              {/* Scores + Rank badge toggles */}
+              {/* Image metadata, scores + rank badge toggles */}
               {[
-                { key: "showScores"    as const, label: t("style.showScores"),     desc: t("style.showScoresDesc") },
-                { key: "showRankBadge" as const, label: t("style.showRankBadge"),  desc: t("style.showRankBadgeDesc") },
-              ].map(({ key, label, desc }) => (
+                { key: "showCircleId"  as const, label: t("style.showCircleId"),  desc: t("style.showCircleIdDesc"), icon: "badge" as const },
+                { key: "showScores"    as const, label: t("style.showScores"),     desc: t("style.showScoresDesc"), icon: "star" as const },
+                { key: "showRankBadge" as const, label: t("style.showRankBadge"),  desc: t("style.showRankBadgeDesc"), icon: "rank" as const },
+              ].map(({ key, label, desc, icon }) => (
                 <div key={key} className="flex items-center justify-between">
                   <div>
                     <div className="text-sm flex items-center gap-2">
-                      <Md3Icon name={key === "showScores" ? "star" : "rank"} className="h-4 w-4 text-[#bec2ff]" />
+                      <Md3Icon name={icon} className="h-4 w-4 text-[#bec2ff]" />
                       {label}
                     </div>
                     <div className="text-gray-500 text-xs">{desc}</div>
