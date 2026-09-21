@@ -42,6 +42,10 @@ export default function IndependentMd3Demo() {
   }
 
   const languageNames: Record<string, string> = { zh: "中", en: "EN", ja: "日" };
+  const heroTitle = locale === "zh" ? "推特互动圈" : t("home.hero.title2");
+  const heroDescription = locale === "zh"
+    ? t("home.hero.desc").replaceAll("X", "推特")
+    : t("home.hero.desc");
 
   return (
     <div className={styles.page}>
@@ -66,11 +70,11 @@ export default function IndependentMd3Demo() {
       <main>
         <section className={styles.hero}>
           <div className={styles.heroCopy}>
-            <h1>{t("home.hero.title1")}<em>{t("home.hero.title2")}</em></h1>
-            <p className={styles.lede}>{t("home.hero.desc")}</p>
+            <h1>{t("home.hero.title1")}<em>{heroTitle}</em></h1>
+            <p className={styles.lede}>{heroDescription}</p>
 
             <form className={styles.searchPanel} onSubmit={generate}>
-              <label htmlFor="md3-username">X USERNAME</label>
+              <label htmlFor="md3-username">{locale === "zh" ? "推特用户名" : "X USERNAME"}</label>
               <div className={styles.searchRow}>
                 <div className={styles.inputWrap}>
                   <span>@</span>
