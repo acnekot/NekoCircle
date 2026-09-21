@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { gzipSync } from "node:zlib";
 import { initDb } from "@/lib/db";
 import {
   buildExportBundle,
@@ -46,6 +47,30 @@ export async function GET(req: NextRequest) {
     });
 
     const filename = exportFilename();
+
+    // ?gzip=1 返回压缩包（.json.gz）。实测整库导出可压到约 1/3（18.9MB ← 65MB，
+    // 里面大量 ID 类字符串不好压），后台默认走这条路：
+    // 既绕开各层体积上限，也让浏览器下载更快。
+    //
+    // 注意用的是 content-type: application/gzip 而不是 content-encoding: gzip
+    // ——后者会让 Cloudflare 之类的中间层参与解压/再压缩（正是下面 no-transform
+    // 注释里那个坑），而且浏览器会就地解压，拿不到 .gz 文件本身。
+    const asGzip = sp.get("gzip") === "1" || sp.get("gzip") === "true";
+    if (asGzip) {
+      const json = JSON.stringify(bundle, null, 2);
+      const gz = gzipSync(Buffer.from(json, "utf8"), { level: 6 });
+      return new NextResponse(new Uint8Array(gz), {
+        status: 200,
+        headers: {
+          "content-type": "application/gzip",
+          "content-disposition": `attachment; filename="${filename}.gz"`,
+          "cache-control": "no-store, no-transform",
+          // 便于对照压缩比，排查「文件为什么这么小」之类的问题
+          "x-uncompressed-bytes": String(Buffer.byteLength(json, "utf8")),
+        },
+      });
+    }
+
     return new NextResponse(JSON.stringify(bundle, null, 2), {
       status: 200,
       headers: {

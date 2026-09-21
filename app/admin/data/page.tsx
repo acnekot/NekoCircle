@@ -36,6 +36,22 @@ function formatBytes(n: number): string {
   return `${(n / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+/** gzip 魔数（1f 8b）——按内容判定，不看扩展名。 */
+function isGzipBytes(bytes: Uint8Array): boolean {
+  return bytes[0] === 0x1f && bytes[1] === 0x8b;
+}
+
+/**
+ * 浏览器侧解压，仅用于在界面上显示「文件里有哪些表、各多少行」。
+ * 发给服务端的是**原始压缩字节**，不重新压缩——避免无谓的 CPU 与内存开销。
+ */
+async function gunzipToText(bytes: Uint8Array): Promise<string> {
+  const stream = new Blob([bytes as unknown as BlobPart])
+    .stream()
+    .pipeThrough(new DecompressionStream("gzip"));
+  return await new Response(stream).text();
+}
+
 export default function AdminDataPage() {
   const [meta, setMeta] = useState<Overview | null>(null);
   const [loadingMeta, setLoadingMeta] = useState(true);
@@ -43,12 +59,15 @@ export default function AdminDataPage() {
   // 导出
   const [picked, setPicked] = useState<string[]>([]);
   const [includeCredentials, setIncludeCredentials] = useState(false);
+  const [gzipExport, setGzipExport] = useState(true);
   const [exportNote, setExportNote] = useState("");
 
   // 导入
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState("");
   const [bundle, setBundle] = useState<Record<string, unknown> | null>(null);
+  /** 压缩备份的原始字节：直接原样上传，不再序列化成 JSON 信封。 */
+  const [gzBytes, setGzBytes] = useState<Uint8Array | null>(null);
   const [fileSummary, setFileSummary] = useState<{ table: string; rows: number }[]>([]);
   const [fileError, setFileError] = useState("");
   const [exportedAt, setExportedAt] = useState("");
@@ -93,25 +112,47 @@ export default function AdminDataPage() {
     const params = new URLSearchParams();
     if (picked.length) params.set("tables", picked.join(","));
     if (includeCredentials) params.set("credentials", "1");
+    if (gzipExport) params.set("gzip", "1");
     const a = document.createElement("a");
     a.href = `/api/admin/data/export?${params}`;
     a.download = "";
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setExportNote("已开始下载（保存位置由浏览器决定）");
+    setExportNote(
+      gzipExport
+        ? "已开始下载压缩备份（.json.gz，整库体积约可压到 1/3）"
+        : "已开始下载（保存位置由浏览器决定）",
+    );
   };
 
   const onPickFile = async (file: File | undefined) => {
     setReport(null);
     setImportError("");
     setBundle(null);
+    setGzBytes(null);
     setFileSummary([]);
     setFileError("");
     setFileName(file ? file.name : "");
     if (!file) return;
     try {
-      const text = await file.text();
+      // 读成字节而不是 file.text()：要按魔数识别 .gz，
+      // 而 text() 对压缩文件只会吐出乱码。
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const gz = isGzipBytes(bytes);
+      let text: string;
+      if (gz) {
+        if (typeof DecompressionStream === "undefined") {
+          setFileError(
+            "这个浏览器不支持解压 .gz 备份，请改用未压缩的 .json 备份。",
+          );
+          return;
+        }
+        text = await gunzipToText(bytes);
+      } else {
+        text = new TextDecoder().decode(bytes);
+      }
+
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== "object" || parsed.app !== "nekocircle") {
         setFileError("这不是 NekoCircle 的备份文件（app 字段不匹配）。");
@@ -125,23 +166,50 @@ export default function AdminDataPage() {
         })),
       );
       setExportedAt(parsed.exportedAt || "");
-      setBundle(parsed);
+      // 压缩备份：只留原始字节，不再把整个备份包塞进 state
+      // （整库解压后接近 70MB，占着没意义）。
+      if (gz) setGzBytes(bytes);
+      else setBundle(parsed);
     } catch {
-      setFileError("无法解析为 JSON。");
+      setFileError("无法解析为 JSON（若是压缩备份，请确认文件完整）。");
     }
   };
 
   const doImport = async (dryRun: boolean) => {
-    if (!bundle) return;
+    if (!bundle && !gzBytes) return;
     if (mode === "replace" && !confirmReplace && !dryRun) return;
     setImporting(true);
     setImportError("");
     try {
-      const res = await fetch("/api/admin/data/import", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ bundle, mode, confirm: confirmReplace, dryRun }),
-      });
+      // 压缩备份：原样上传字节，参数走 query（解压后不是信封结构）。
+      // 未压缩：沿用 JSON 信封，bundle 作为对象嵌入。
+      const init: RequestInit = gzBytes
+        ? {
+            method: "POST",
+            headers: { "content-type": "application/gzip" },
+            body: gzBytes as unknown as BodyInit,
+          }
+        : {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              bundle,
+              mode,
+              confirm: confirmReplace,
+              dryRun,
+            }),
+          };
+      const params = new URLSearchParams();
+      if (gzBytes) {
+        params.set("mode", mode);
+        if (confirmReplace) params.set("confirm", "1");
+        if (dryRun) params.set("dryRun", "1");
+      }
+      const query = params.toString();
+      const res = await fetch(
+        `/api/admin/data/import${query ? `?${query}` : ""}`,
+        init,
+      );
       if (res.status === 401) {
         window.location.href = "/admin/login";
         return;
@@ -200,7 +268,7 @@ export default function AdminDataPage() {
         <div className="card rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-white mb-1">导出备份</h2>
           <p className="text-[11px] text-gray-600 mb-4">
-            以 JSON 下载，可直接在下方导入回本服务。
+            以 JSON 或压缩备份（.json.gz）下载，两者都能在下方导入回本服务。
           </p>
 
           <div className="space-y-2 mb-4">
@@ -229,6 +297,23 @@ export default function AdminDataPage() {
                 </span>
               </label>
             ))}
+
+            <label className="flex items-start gap-2.5 cursor-pointer group pt-1">
+              <input
+                type="checkbox"
+                checked={gzipExport}
+                onChange={(e) => setGzipExport(e.target.checked)}
+                className="mt-0.5 accent-[#1d9bf0]"
+              />
+              <span>
+                <span className="text-xs text-gray-200 group-hover:text-white">
+                  压缩下载（.json.gz，推荐）
+                </span>
+                <span className="text-[11px] text-gray-600 block">
+                  实测整库可压到约 1/3（取决于数据内容），也更容易再导入回来。
+                </span>
+              </span>
+            </label>
 
             <label className="flex items-start gap-2.5 cursor-pointer group pt-1">
               <input
@@ -274,13 +359,16 @@ export default function AdminDataPage() {
               （否则后台会退化成「谁先登录谁设密码」的状态）。
             </li>
             <li>只接受本应用已知的设置项，备份里的陌生键会被忽略。</li>
-            <li>单个文件上限 64MB。备份过大时，可按表分批导出。</li>
+            <li>
+              支持 <code>.json</code> 与压缩备份 <code>.json.gz</code>（按文件内容识别，
+              不看扩展名）。压缩包不必手动解压。
+            </li>
           </ul>
 
           <input
             ref={fileRef}
             type="file"
-            accept="application/json,.json"
+            accept="application/json,.json,application/gzip,.gz,.json.gz"
             className="hidden"
             onChange={(e) => onPickFile(e.target.files?.[0])}
           />
@@ -288,7 +376,7 @@ export default function AdminDataPage() {
             onClick={() => fileRef.current?.click()}
             className="w-full py-3 rounded-xl border border-dashed border-white/15 hover:border-[#1d9bf0]/50 text-sm text-gray-400 hover:text-white transition-colors mb-3"
           >
-            {fileName ? `已选择：${fileName}` : "选择备份文件（.json）"}
+            {fileName ? `已选择：${fileName}` : "选择备份文件（.json / .json.gz）"}
           </button>
 
           {fileError && (
@@ -297,7 +385,7 @@ export default function AdminDataPage() {
             </div>
           )}
 
-          {bundle && (
+          {(bundle || gzBytes) && (
             <>
               <div className="rounded-xl bg-white/5 p-3 mb-4 space-y-1.5">
                 <div className="text-[11px] text-gray-500 mb-2">

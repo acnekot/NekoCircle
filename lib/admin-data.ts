@@ -8,6 +8,7 @@
  */
 import fs from "fs";
 import path from "path";
+import { randomBytes } from "node:crypto";
 import { DB_PATH, getDb } from "./db";
 import { CREDENTIAL_KEY_RE, getSettingDef } from "./app-config";
 
@@ -158,22 +159,40 @@ export class ImportError extends Error {}
 
 const MAX_ROWS_PER_TABLE = 200_000;
 
-/** 事前快照（仅 replace）。失败不致命，因此不抛出，只记为 null。 */
-function snapshotDatabase(tag: string): string | null {
+/**
+ * 事前快照（仅 replace）。
+ *
+ * 快照是**破坏性操作的最后一道保险**，所以这里不吞异常：失败就抛，由调用方
+ * 决定是中止导入还是降级（见 applyImport）。
+ *
+ * 命名带毫秒 + 随机后缀：`VACUUM INTO` 在目标文件已存在时会直接失败
+ * （`output file already exists`），而原先的文件名只精确到秒——同一秒内两次
+ * 覆盖导入，第二次会**静默拿不到快照**（实测复现）。加上随机后缀后不会撞名。
+ */
+function snapshotDatabase(tag: string): string {
+  const dir = path.resolve(process.cwd(), "..", "..", "backups");
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .replace("Z", "")
+    .slice(0, 23); // 到毫秒
+  const rand = randomBytes(3).toString("hex");
+  const db = getDb();
   try {
-    const dir = path.resolve(process.cwd(), "..", "..", "backups");
-    fs.mkdirSync(dir, { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const dest = path.join(dir, `nekocircle-pre-import-${stamp}-${tag}.db`);
-    const db = getDb();
-    try {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const suffix = attempt === 0 ? "" : `-${attempt}`;
+      const dest = path.join(
+        dir,
+        `nekocircle-pre-import-${stamp}-${rand}${suffix}-${tag}.db`,
+      );
+      if (fs.existsSync(dest)) continue;
       db.prepare("VACUUM INTO ?").run(dest);
-    } finally {
-      db.close();
+      return dest;
     }
-    return dest;
-  } catch {
-    return null;
+    throw new Error("无法生成唯一的快照文件名");
+  } finally {
+    db.close();
   }
 }
 
@@ -236,7 +255,19 @@ export function applyImport(raw: unknown, options: ImportOptions): ImportReport 
   if (!requested.length) throw new ImportError("没有可导入的表。");
 
   // dry-run 连快照都不做（不触碰 DB）
-  const snapshotPath = mode === "replace" && !dryRun ? snapshotDatabase(mode) : null;
+  let snapshotPath: string | null = null;
+  if (mode === "replace" && !dryRun) {
+    try {
+      snapshotPath = snapshotDatabase(mode);
+    } catch (err) {
+      // 拿不到「事前快照」就不做破坏性导入：宁可失败可见，也不要静默丢数据。
+      throw new ImportError(
+        `无法生成导入前的数据库快照，已中止覆盖导入：${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
 
   const db = getDb();
   const reports: TableReport[] = [];
