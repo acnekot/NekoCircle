@@ -14,6 +14,7 @@ type Props = {
   interactive?: boolean;
   centerAvatarCycle?: boolean;
   showFallbackInitials?: boolean;
+  fallbackLabelMode?: "username" | "alphabet";
 };
 
 /** 通用绘制函数，可传入任意 canvas、sc、W，供预览和高清导出复用 */
@@ -29,6 +30,7 @@ export function renderToCanvas(
     flat?: boolean;
     centerAvatarAlpha?: number;
     showFallbackInitials?: boolean;
+    fallbackLabelMode?: "username" | "alphabet";
   } = {},
 ) {
   const mul       = SIZE_MUL[s.nodeSize];
@@ -185,7 +187,10 @@ export function renderToCanvas(
         ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
         ctx.shadowBlur = 0;
       }
-      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, item.user.userName, options.flat, options.showFallbackInitials);
+      const fallbackLabel = options.fallbackLabelMode === "alphabet"
+        ? String.fromCharCode(65 + (idx % 26))
+        : item.user.userName;
+      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, fallbackLabel, options.flat, options.showFallbackInitials);
       if (options.flat) {
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(255,255,255,0.24)";
@@ -495,6 +500,7 @@ export default function CircleChart({
   interactive = true,
   centerAvatarCycle = false,
   showFallbackInitials = true,
+  fallbackLabelMode = "username",
 }: Props) {
   const s           = styleProp ?? DEFAULT_STYLE;
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -522,10 +528,11 @@ export default function CircleChart({
       flat,
       centerAvatarAlpha: centerAvatarCycle ? centerAvatarAlpha.current : undefined,
       showFallbackInitials,
+      fallbackLabelMode,
     });
     // 把图片缓存挂到 canvas 上，供外部下载时复用
     (canvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache = imageCache.current;
-  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle, showFallbackInitials]);
+  }, [result, s, mul, displayN, scAdapt, circleId, presentation, centerAvatarCycle, showFallbackInitials, fallbackLabelMode]);
 
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {

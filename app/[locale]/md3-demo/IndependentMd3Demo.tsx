@@ -61,9 +61,14 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
   const landingPath = standaloneDemo ? "/md3-demo" : "";
   const heroTitle = t("home.hero.title2");
   const heroDescription = t("home.hero.desc");
+  const localeDisplayClass = locale === "zh"
+    ? styles.zhDisplayFont
+    : locale === "ja"
+      ? styles.jaDisplayFont
+      : "";
 
   return (
-    <div className={`${styles.page} ${aldrich.variable}`}>
+    <div className={`${styles.page} ${aldrich.variable} ${localeDisplayClass}`}>
       <header className={styles.header}>
         <a className={styles.brand} href={`/${locale}${landingPath}`} aria-label="NekoCircle">
           <span className={styles.brandMark} aria-hidden="true">
