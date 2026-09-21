@@ -132,27 +132,19 @@ export async function GET() {
     const sizeMap = new Map(sizeBuckets.map((r) => [r.bucket, r.count]));
     const sizeDistribution = bucketOrder.map((b) => ({ bucket: b, count: sizeMap.get(b) ?? 0 }));
 
-    /* --- 最近生成 --- */
-    // 用相关子查询只取「该用户最新的一个圈子」。
-    // 直接 JOIN 会在同一用户有多个圈子时把行数放大。
-    const recent = all<{
+    /* --- 全部已生成圈子 --- */
+    const circlesList = all<{
       username: string;
       created_at: number;
       source: string;
-      id: string | null;
-      bytes: number | null;
-      storage_consent: number | null;
+      id: string;
+      bytes: number;
+      storage_consent: number;
     }>(
-      `SELECT g.username, g.created_at, g.source,
-              (SELECT c.id FROM yahoo_circles c WHERE LOWER(c.username) = LOWER(g.username)
-                ORDER BY c.created_at DESC LIMIT 1) id,
-              (SELECT LENGTH(c.circle_data) FROM yahoo_circles c WHERE LOWER(c.username) = LOWER(g.username)
-                ORDER BY c.created_at DESC LIMIT 1) bytes,
-              (SELECT c.storage_consent FROM yahoo_circles c WHERE LOWER(c.username) = LOWER(g.username)
-                ORDER BY c.created_at DESC LIMIT 1) storage_consent
-       FROM generation_log g
-       ORDER BY g.created_at DESC
-       LIMIT 12`,
+      `SELECT username, created_at, 'yahoo' source, id,
+              LENGTH(circle_data) bytes, storage_consent
+       FROM yahoo_circles
+       ORDER BY created_at DESC`,
     );
 
     const storage = databaseOverview();
@@ -169,7 +161,7 @@ export async function GET() {
         topUsers,
         sources,
         sizeDistribution,
-        recent,
+        circles: circlesList,
         storage,
       },
       { headers: { "cache-control": "no-store" } },

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 const LINKS = [
+  { href: "/admin", label: "概览", exact: true },
   { href: "/admin/settings", label: "参数设置" },
   { href: "/admin/announcements", label: "公告" },
   { href: "/admin/feedback", label: "反馈" },
@@ -15,7 +16,8 @@ export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const isActive = (href: string, exact?: boolean) =>
+    exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
 
   const handleLogout = () => {
     document.cookie = "neko_admin=; path=/; max-age=0";
@@ -61,7 +63,7 @@ export default function AdminNav() {
 
       <nav className="flex flex-wrap gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
         {LINKS.map((l) => {
-          const active = isActive(l.href);
+          const active = isActive(l.href, "exact" in l ? l.exact : false);
           return (
             <Link
               key={l.href}
