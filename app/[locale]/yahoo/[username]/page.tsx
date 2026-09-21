@@ -189,6 +189,25 @@ export default function YahooCirclePage() {
     URL.revokeObjectURL(url);
   };
 
+  const shareCircle = async () => {
+    const cid = circleId ?? "";
+    const pageUrl = cid
+      ? `https://circle.catsuki.cc/${locale}/circle/${cid}`
+      : `${window.location.origin}/${locale}/yahoo/${encodeURIComponent(username)}`;
+    const shareText = `${t("yahoo.shareText1")}\n${t("yahoo.shareText2")} ${pageUrl}\n${t("yahoo.shareText3")}`;
+    try {
+      const blob = await getCanvasBlob();
+      if (blob && navigator.canShare?.({ files: [new File([blob], "circle.png", { type: "image/png" })] })) {
+        await navigator.share({ text: shareText, files: [new File([blob], `yahoo-circle-${username}.png`, { type: "image/png" })] });
+        return;
+      }
+    } catch (e) {
+      if ((e as DOMException)?.name === "AbortError") return;
+    }
+    await downloadCanvas();
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, "_blank");
+  };
+
   return (
     <div
       className="gradient-bg min-h-screen py-5 sm:py-8 px-4 sm:px-6"
@@ -199,10 +218,10 @@ export default function YahooCirclePage() {
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <div className="tech-panel rounded-2xl flex items-center gap-4 mb-6 px-4 sm:px-5 py-4">
-          <a href={`/${locale}`} className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-500 hover:text-cyan-200 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-0.5">
+        <header className="tech-panel result-header rounded-2xl mb-5 sm:mb-6 p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <a href={`/${locale}`} className="shrink-0 rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] px-3 py-2 text-slate-400 hover:text-cyan-100 hover:border-cyan-300/30 transition-colors text-xs font-mono">{t("common.backHome")}</a>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <span className="hud-label px-2 py-1 rounded-md bg-cyan-400/[0.07] border border-cyan-300/15">
                 {t("yahoo.tag")}
               </span>
@@ -221,34 +240,76 @@ export default function YahooCirclePage() {
                 </button>
               )}
             </div>
-            <h1 className="tech-title text-2xl sm:text-3xl font-bold text-white">
+            <LanguageSwitcher />
+          </div>
+
+          <div className="mt-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0">
+              <h1 className="tech-title text-3xl sm:text-4xl font-bold text-white">
               @{username}
-              <span className="text-gray-400 font-normal text-base ml-2">{t("yahoo.circle")}</span>
-            </h1>
-            {counts && (
-              <p className="text-sm text-gray-500 mt-0.5">
-                {createdAt && (
-                  <>
-                    {t("yahoo.generatedAt")} <span className="text-gray-300">{new Date(createdAt).toLocaleString(locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "zh-CN")}</span>
-                    {" · "}
-                  </>
-                )}
-                {t("yahoo.mentionTo")}<span className="text-gray-300">{counts.toYou}</span> {t("yahoo.items")}
-                {" · "}{t("yahoo.mentionFrom")}<span className="text-gray-300">{counts.fromYou}</span> {t("yahoo.items")}
-                {" · "}{t("yahoo.users")}<span className="text-gray-300">{users.length}</span> {t("yahoo.persons")}
-              </p>
+                <span className="ml-2 text-base sm:text-lg font-normal text-slate-400">{t("yahoo.circle")}</span>
+              </h1>
+              {createdAt && (
+                <p className="mt-1.5 flex items-center gap-2 text-xs text-slate-500">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,.55)]" />
+                  {t("yahoo.generatedAt")} <span className="text-slate-300">{new Date(createdAt).toLocaleString(locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "zh-CN")}</span>
+                </p>
+              )}
+            </div>
+
+            {displayedResult && (
+              <div className="result-actions grid w-full grid-cols-3 gap-2 xl:w-auto">
+                <button type="button" onClick={() => { void shareCircle(); }} className="btn-primary result-action">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                  <span>{t("common.share")}</span>
+                </button>
+                <button type="button" onClick={() => { void downloadCanvas(); }} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" /><path d="M5 19h14" /></svg>
+                  <span>{t("common.download").replace(/^⬇️\s*/, "")}</span>
+                </button>
+                <button type="button" onClick={() => { void load(true); }} disabled={refreshing || loading} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50">
+                  <svg className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66" /><path d="M20 4v7h-7" /></svg>
+                  <span>{refreshing ? t("yahoo.loading") : t("common.forceRefresh").replace(/^🔄\s*/, "")}</span>
+                </button>
+              </div>
             )}
           </div>
-          <LanguageSwitcher />
-        </div>
+
+          {counts && (
+            <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="result-stat">
+                <span>{t("yahoo.mentionTo").replace(/[：:]\s*$/, "")}</span>
+                <strong>{counts.toYou}</strong>
+              </div>
+              <div className="result-stat">
+                <span>{t("yahoo.mentionFrom").replace(/[：:]\s*$/, "")}</span>
+                <strong>{counts.fromYou}</strong>
+              </div>
+              <div className="result-stat">
+                <span>{t("yahoo.users").replace(/[：:]\s*$/, "")}</span>
+                <strong>{users.length}</strong>
+              </div>
+            </div>
+          )}
+        </header>
 
         {/* Loading */}
         {loading && (
-          <div className="card rounded-2xl p-16 flex flex-col items-center gap-4">
-            <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#1d9bf0] animate-spin" />
-            <div className="text-center">
-              <p className="text-white font-medium">{t("yahoo.loading")}</p>
-              <p className="text-gray-500 text-sm mt-1">{t("yahoo.loadingSub")}</p>
+          <div className="card loading-stage rounded-2xl p-6 sm:p-10">
+            <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-[1fr_1.15fr] md:items-center">
+              <div>
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.06]">
+                  <div className="h-6 w-6 rounded-full border-2 border-white/10 border-t-cyan-300 animate-spin" />
+                </div>
+                <p className="text-lg font-semibold text-white">{t("yahoo.loading")}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{t("yahoo.loadingSub")}</p>
+              </div>
+              <div className="loading-orbit" aria-hidden="true">
+                <span className="loading-orbit-center" />
+                <span className="loading-orbit-node loading-orbit-node-a" />
+                <span className="loading-orbit-node loading-orbit-node-b" />
+                <span className="loading-orbit-node loading-orbit-node-c" />
+              </div>
             </div>
           </div>
         )}
@@ -281,47 +342,12 @@ export default function YahooCirclePage() {
                 maxUsers={users.length}
                 showAllOption
               />
-              <div className="card rounded-2xl p-4 space-y-2">
-                <button
-                  onClick={async () => {
-                    const cid = circleId ?? "";
-                    const pageUrl = cid
-                      ? `https://circle.catsuki.cc/${locale}/circle/${cid}`
-                      : `${window.location.origin}/${locale}/yahoo/${encodeURIComponent(username)}`;
-                    const shareText = `${t("yahoo.shareText1")}\n${t("yahoo.shareText2")} ${pageUrl}\n${t("yahoo.shareText3")}`;
-                    try {
-                      const blob = await getCanvasBlob();
-                      if (blob && navigator.canShare?.({ files: [new File([blob], "circle.png", { type: "image/png" })] })) {
-                        await navigator.share({ text: shareText, files: [new File([blob], `yahoo-circle-${username}.png`, { type: "image/png" })] });
-                        return;
-                      }
-                    } catch (e) { if ((e as DOMException)?.name === "AbortError") return; }
-                    await downloadCanvas();
-                    const text = encodeURIComponent(shareText);
-                    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
-                  }}
-                  className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
-                >
-                  <span className="flex items-center justify-center gap-1.5">
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                    {t("common.share")}
-                  </span>
-                </button>
-                <button
-                  onClick={downloadCanvas}
-                  className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all"
-                >
-                  {t("common.download")}
-                </button>
-                <button
-                  onClick={() => { void load(true); }}
-                  disabled={refreshing || loading}
-                  title={t("common.forceRefresh")}
-                  className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {refreshing ? t("yahoo.loading") : t("common.forceRefresh")}
-                </button>
-                <div className="text-xs text-gray-600 pt-1 border-t border-white/5 leading-relaxed">
+              <div className="card rounded-2xl p-4">
+                <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400">
+                  <span className="tech-status-dot" />
+                  LIVE DATA PIPELINE
+                </div>
+                <div className="text-xs text-gray-600 leading-relaxed">
                   {t("yahoo.dataSource")}
                   <br />
                   {t("yahoo.inspirationFrom")} <a href="https://github.com/maebahesioru/nareaitter" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-400 transition-colors">nareaitter</a>
@@ -338,7 +364,7 @@ export default function YahooCirclePage() {
             <div className="result-main">
 
               {/* Tab bar */}
-              <div className="tech-tabs flex flex-wrap gap-1 mb-4">
+              <div className="tech-tabs tech-tabs-scroll flex flex-nowrap gap-1 mb-4 overflow-x-auto">
                 {([
                   ["circle", t("yahoo.tabCircle")],
                   ["list", t("yahoo.tabList")],
