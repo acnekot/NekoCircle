@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import DemoCircle from "@/components/DemoCircle";
 import { useTranslation } from "@/components/LocaleProvider";
+import LiveGeneratedCircle from "./LiveGeneratedCircle";
 import styles from "./md3-demo.module.css";
 
 type HomeStats = {
@@ -19,7 +19,7 @@ function Arrow() {
 export default function IndependentMd3Demo() {
   const router = useRouter();
   const { locale, t } = useTranslation();
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState("acnekot");
   const [circleId, setCircleId] = useState("");
   const [stats, setStats] = useState<HomeStats | null>(null);
 
@@ -101,7 +101,7 @@ export default function IndependentMd3Demo() {
           </div>
 
           <div className={styles.orbitColumn} aria-label="Animated interaction circle">
-            <div className={styles.circleOnly}><DemoCircle flat /></div>
+            <div className={styles.circleOnly}><LiveGeneratedCircle screenName="acnekot" /></div>
           </div>
         </section>
 

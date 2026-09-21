@@ -4,7 +4,13 @@ import type { AnalysisResult } from "@/lib/circle-convert";
 import { DEFAULT_STYLE, NODE_PALETTES, hexBrightness, sanitizeHex, type StyleConfig } from "@/lib/style";
 import { proxiedImageSrc } from "@/lib/proxied-image-src";
 
-type Props = { result: AnalysisResult; style?: StyleConfig; onAccentColor?: (hex: string) => void; circleId?: string };
+type Props = {
+  result: AnalysisResult;
+  style?: StyleConfig;
+  onAccentColor?: (hex: string) => void;
+  circleId?: string;
+  presentation?: "default" | "flat-transparent";
+};
 
 /** 通用绘制函数，可传入任意 canvas、sc、W，供预览和高清导出复用 */
 export function renderToCanvas(
@@ -12,7 +18,7 @@ export function renderToCanvas(
   result: AnalysisResult,
   s: StyleConfig,
   imageCache: Map<string, HTMLImageElement>,
-  options: { exportScale?: number; circleId?: string } = {},
+  options: { exportScale?: number; circleId?: string; transparent?: boolean; flat?: boolean } = {},
 ) {
   const mul       = SIZE_MUL[s.nodeSize];
   const displayN  = s.displayCount ?? 30;
@@ -38,7 +44,7 @@ export function renderToCanvas(
   const font    = s.font;
 
   // Background
-  {
+  if (!options.transparent) {
     const bg1 = sanitizeHex(s.bgColor1, "#b2b2b4");
     const bg2 = sanitizeHex(s.bgColor2, "#b2b2b4");
     let fill: CanvasGradient | string = bg1;
@@ -69,15 +75,19 @@ export function renderToCanvas(
   const centerBW    = 4 * sc;
   const centerOuter = centerR + centerBW;
 
-  if (s.glowEffect && !isLight) { ctx.shadowColor = accent; ctx.shadowBlur = 22 * sc; }
-  ctx.beginPath(); ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
-  ctx.strokeStyle = accent + "44"; ctx.lineWidth = 2 * sc; ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
-  ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
-  drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName);
-  ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
-  ctx.strokeStyle = accent; ctx.lineWidth = 2 * sc; ctx.stroke();
+  if (!options.flat) {
+    if (s.glowEffect && !isLight) { ctx.shadowColor = accent; ctx.shadowBlur = 22 * sc; }
+    ctx.beginPath(); ctx.arc(cx, cy, centerOuter + 5 * sc, 0, Math.PI * 2);
+    ctx.strokeStyle = accent + "44"; ctx.lineWidth = 2 * sc; ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(cx, cy, centerOuter, 0, Math.PI * 2);
+    ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.18)"; ctx.fill();
+  }
+  drawCircleAvatar(ctx, imageCache, result.targetUser.profilePicture, cx, cy, centerR, accent, s.showAvatars, font, result.targetUser.userName, options.flat);
+  ctx.beginPath(); ctx.arc(cx, cy, options.flat ? centerR : centerOuter, 0, Math.PI * 2);
+  ctx.strokeStyle = options.flat ? "rgba(222,224,255,0.72)" : accent;
+  ctx.lineWidth = options.flat ? Math.max(1.5, 1.6 * sc) : 2 * sc;
+  ctx.stroke();
 
   // Pre-compute reserved rectangles (watermark & circle ID) for label collision
   const reservedRects: { x: number; y: number; w: number; h: number }[] = [];
@@ -133,11 +143,19 @@ export function renderToCanvas(
       const y = cy + Math.sin(angle) * R;
       nodeData.push({ x, y, r: nodeR, idx });
       const color = sanitizeHex(NODE_PALETTES[s.nodeScheme](accent, idx, tier));
-      if (s.glowEffect && !isLight) { ctx.shadowColor = color; ctx.shadowBlur = 8 * sc; }
-      ctx.beginPath(); ctx.arc(x, y, nodeR, 0, Math.PI * 2);
-      ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
-      ctx.shadowBlur = 0;
-      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, item.user.userName);
+      if (!options.flat) {
+        if (s.glowEffect && !isLight) { ctx.shadowColor = color; ctx.shadowBlur = 8 * sc; }
+        ctx.beginPath(); ctx.arc(x, y, nodeR, 0, Math.PI * 2);
+        ctx.fillStyle = isLight ? "#ffffff" : "rgba(255,255,255,0.15)"; ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      drawCircleAvatar(ctx, imageCache, item.user.profilePicture, x, y, r, color, s.showAvatars, font, item.user.userName, options.flat);
+      if (options.flat) {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,0.24)";
+        ctx.lineWidth = Math.max(1, 1.15 * sc);
+        ctx.stroke();
+      }
       if (s.showRankBadge) {
         const bx = x + nodeR * 0.68, by = y - nodeR * 0.68, br = 8 * sc;
         ctx.fillStyle = "#222"; ctx.beginPath(); ctx.arc(bx, by, br + 1, 0, Math.PI * 2); ctx.fill();
@@ -432,7 +450,7 @@ function computeScaleForCount(total: number, mul: number): number {
   return Math.min(1.0, lo);
 }
 
-export default function CircleChart({ result, style: styleProp, onAccentColor, circleId }: Props) {
+export default function CircleChart({ result, style: styleProp, onAccentColor, circleId, presentation = "default" }: Props) {
   const s           = styleProp ?? DEFAULT_STYLE;
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const wrapRef     = useRef<HTMLDivElement>(null);
@@ -449,10 +467,16 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = Math.min(2.5, window.devicePixelRatio || 1);
-    renderToCanvas(canvas, result, s, imageCache.current, { exportScale: dpr, circleId });
+    const flat = presentation === "flat-transparent";
+    renderToCanvas(canvas, result, s, imageCache.current, {
+      exportScale: dpr,
+      circleId,
+      transparent: flat,
+      flat,
+    });
     // 把图片缓存挂到 canvas 上，供外部下载时复用
     (canvas as HTMLCanvasElement & { _imgCache?: Map<string, HTMLImageElement> })._imgCache = imageCache.current;
-  }, [result, s, mul, displayN, scAdapt, circleId]);
+  }, [result, s, mul, displayN, scAdapt, circleId, presentation]);
 
   /* ── Clear cache when result or avatar toggle changes ── */
   useEffect(() => {
@@ -561,7 +585,7 @@ export default function CircleChart({ result, style: styleProp, onAccentColor, c
 
   return (
     <div ref={wrapRef} className="relative inline-block w-full max-w-[700px]">
-      <canvas ref={canvasRef} className="rounded-2xl cursor-pointer w-full aspect-square"
+      <canvas ref={canvasRef} className={`${presentation === "flat-transparent" ? "" : "rounded-2xl"} cursor-pointer w-full aspect-square`}
         data-circle="true"
         onMouseMove={handleMouseMove} onMouseLeave={() => setTooltip(null)}
         onClick={handleClick} />
@@ -610,6 +634,7 @@ function drawCircleAvatar(
   cache: Map<string, HTMLImageElement>,
   url: string, x: number, y: number, r: number,
   color: string, showAvatars: boolean, font: string, userName: string,
+  flat = false,
 ) {
   ctx.save();
   ctx.beginPath();
@@ -619,10 +644,15 @@ function drawCircleAvatar(
   if (img) {
     ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
   } else {
-    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
     const safeColor = sanitizeHex(color);
-    g.addColorStop(0, safeColor + "dd"); g.addColorStop(1, safeColor + "66");
-    ctx.fillStyle = g; ctx.fill();
+    if (flat) {
+      ctx.fillStyle = safeColor + "d9";
+    } else {
+      const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
+      g.addColorStop(0, safeColor + "dd"); g.addColorStop(1, safeColor + "66");
+      ctx.fillStyle = g;
+    }
+    ctx.fill();
     ctx.fillStyle    = "#fff";
     ctx.font         = `bold ${Math.floor(r * 0.55)}px ${font}`;
     ctx.textAlign    = "center";

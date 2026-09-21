@@ -113,6 +113,27 @@
   animation: circleFloat 7s cubic-bezier(.4, 0, .2, 1) infinite;
 }
 .circleOnly canvas { display: block; width: 100% !important; max-width: none !important; height: auto !important; }
+.liveCircleState {
+  display: grid;
+  min-height: 460px;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  color: var(--muted);
+}
+.liveCircleState small { font-size: 9px; font-weight: 700; letter-spacing: .15em; }
+.liveCircleLoader,
+.liveCircleError {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(190, 194, 255, .15);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: liveCircleSpin 900ms linear infinite;
+}
+.liveCircleError { border: 0; background: var(--tertiary); animation: none; opacity: .72; }
+@keyframes liveCircleSpin { to { transform: rotate(360deg); } }
 
 @keyframes circleFloat {
   0%, 100% { transform: translateY(0); }
