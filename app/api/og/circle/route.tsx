@@ -3,130 +3,89 @@ import { NextRequest } from "next/server";
 import { CircleExportImage, mergeExportStyle } from "@/lib/export-image";
 import { DEFAULT_STYLE } from "@/lib/style";
 import type { AnalysisResult } from "@/lib/circle-convert";
-import { DEFAULT_SCORING_WEIGHTS } from "@/lib/circle-convert";
-import {
-  aggregateMentionAuthors,
-  aggregateMentionTargets,
-  fetchMentionsBothParallel,
-  normalizeScreenName,
-  buildYahooAuthorProfileImageMap,
-  pickSelfProfileImageFromYahoo,
-} from "@/lib/yahoo-realtime-fetch";
-import { yahooAggregatesToCircleUsers } from "@/lib/yahoo-to-circle";
-import { resolveCircleAvatarUrl } from "@/lib/x-profile-image";
-import { unstable_cache } from "next/cache";
+import { parseYahooCircleData } from "@/lib/circle-convert";
+import { getCachedYahooPayload } from "@/lib/circle-payload";
+import { findRecentYahooCircle, getYahooCircle, initDb } from "@/lib/db";
+import { getAppConfig } from "@/lib/app-config";
+import { normalizeScreenName } from "@/lib/yahoo-realtime-fetch";
 
 export const runtime = "nodejs";
 
 const OG_SIZE = 1200;
 
-function buildYahooAnalysisResult(
-  screenName: string,
-  selfAvatar: string,
-  circleUsers: Array<{
-    screenName: string;
-    displayName: string;
-    avatarUrl?: string;
-    avatarUrlPreview?: string;
-    interactionScore: number;
-    interactionCount?: number;
-  }>,
-  toYou: number,
-  fromYou: number,
-): AnalysisResult {
-  return {
-    targetUser: {
-      id: screenName,
-      userName: screenName,
-      name: screenName,
-      profilePicture: selfAvatar,
-      followers: 0,
-      isBlueVerified: false,
-      isProtected: false,
-    },
-    topUsers: circleUsers.map((u) => {
-      const count = u.interactionCount ?? u.interactionScore;
-      return {
-        user: {
-          id: u.screenName,
-          userName: u.screenName,
-          name: u.displayName || u.screenName,
-          profilePicture: u.avatarUrl ?? u.avatarUrlPreview ?? "",
-          followers: 0,
-          isBlueVerified: false,
-          isProtected: false,
-        },
-        replies: 0,
-        quotes: 0,
-        retweets: 0,
-        mentions: count,
-        outboundScore: count / 2,
-        inboundScore: count / 2,
-        score: count,
-      };
-    }),
-    tweetCount: toYou + fromYou,
-    analyzedAt: new Date().toISOString(),
-    weights: DEFAULT_SCORING_WEIGHTS,
-  };
+/**
+ * 描画用データの解決。
+ *
+ * /zh/circle/<id>（共有リンク）… 保存済みの圈子をそのまま使う。
+ *   ページが表示しているデータそのものなので、順位まで必ず一致する。
+ *   保存行が壊れている場合は 404 にフォールバックさせる（502 だと
+ *   一時障害に見えてしまう）。
+ * /zh/yahoo/<name> … ページとまったく同じ順で解決する:
+ *   ① 再利用ウィンドウ内の保存済み圈子
+ *   ② ページと共有しているキャッシュ（yahoo-mentions-v3）
+ *   ③ 取得に失敗したときは最後に保存された圈子
+ *      （ページは stale を返せるので、ここだけ 502 にすると
+ *        カードが壊れて再び不一致になる）
+ */
+async function resolveAnalysisResult(
+  sp: URLSearchParams,
+): Promise<AnalysisResult | null> {
+  initDb();
+
+  const circleId = sp.get("circleId") ?? sp.get("circle");
+  if (circleId) {
+    const row = getYahooCircle(circleId);
+    if (!row) return null;
+    try {
+      return parseYahooCircleData(row.circle_data).analysisResult;
+    } catch {
+      return null;
+    }
+  }
+
+  const raw = sp.get("screenName");
+  if (!raw) return null;
+  const name = normalizeScreenName(raw);
+
+  const reused = findRecentYahooCircle(name, getAppConfig().circleReuseTtlMs);
+  if (reused) return parseYahooCircleData(reused.circle_data).analysisResult;
+
+  const payload = await getCachedYahooPayload(name, true);
+  return parseYahooCircleData(JSON.stringify(payload)).analysisResult;
 }
 
-async function fetchYahooData(name: string) {
-  const { mentionsToYou, mentionsFromYou } = await fetchMentionsBothParallel(name);
-  const authorsToYou = aggregateMentionAuthors(mentionsToYou);
-  const targetsFromYou = aggregateMentionTargets(mentionsFromYou, name);
-  const yahooPeerImages = buildYahooAuthorProfileImageMap(mentionsToYou);
-  const selfYahoo = pickSelfProfileImageFromYahoo(mentionsFromYou);
-  const [circleUsers, selfHd] = await Promise.all([
-    yahooAggregatesToCircleUsers(authorsToYou, targetsFromYou, name, yahooPeerImages),
-    resolveCircleAvatarUrl(name),
-  ]);
-  return {
-    circleUsers,
-    selfAvatar: selfHd?.trim() || selfYahoo || "",
-    toYou: mentionsToYou.length,
-    fromYou: mentionsFromYou.length,
-  };
-}
-
-function getCachedYahooData(name: string) {
-  return unstable_cache(
-    () => fetchYahooData(name),
-    ["yahoo-og-v1", name.toLowerCase()],
-    { revalidate: 300 },
-  )();
+/** 取得に失敗したときの最終手段。ページの stale フォールバックと同じ発想。 */
+function staleAnalysisResult(sp: URLSearchParams): AnalysisResult | null {
+  try {
+    const raw = sp.get("screenName");
+    if (!raw) return null;
+    initDb();
+    const row = findRecentYahooCircle(
+      normalizeScreenName(raw),
+      Number.MAX_SAFE_INTEGER,
+    );
+    return row ? parseYahooCircleData(row.circle_data).analysisResult : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
-  // Satori（next/og）会自己去这个进程取 <img src>。
-  // 走隧道时 req.nextUrl.origin 是 "https://localhost:3000"（scheme 取自
-  // X-Forwarded-Proto，host 被固定成 localhost），而 loopback 的 3000 端口上
-  // 没有 TLS 监听，于是取图全部失败 —— 表现为「公开的 OG 图没有头像」，
-  // 本地直连却正常（因为那是 http）。所以对自身的引用一律固定走 loopback。
+
+  // Satori（@vercel/og）は <img src> を自分のプロセスへ取りに行く。
+  // 走隧道时 req.nextUrl.origin は "https://localhost:3000"（scheme 取自
+  // 绑定地址）なので、ループバックの絶対 URL を自分で組み立てる。
   const origin = `http://127.0.0.1:${req.nextUrl.port || process.env.PORT || 3000}`;
 
   let result: AnalysisResult | null = null;
-
-  const screenName = sp.get("screenName");
-  if (!screenName) return new Response("Missing screenName", { status: 400 });
-  let name: string;
   try {
-    name = normalizeScreenName(screenName);
+    result = await resolveAnalysisResult(sp);
   } catch {
-    return new Response("Invalid screenName", { status: 400 });
-  }
-  try {
-    const data = await getCachedYahooData(name);
-    result = buildYahooAnalysisResult(
-      name,
-      data.selfAvatar,
-      data.circleUsers,
-      data.toYou,
-      data.fromYou,
-    );
-  } catch {
-    return new Response("Failed to fetch Yahoo data", { status: 502 });
+    result = staleAnalysisResult(sp);
+    if (!result) {
+      return new Response("Failed to fetch Yahoo data", { status: 502 });
+    }
   }
 
   if (!result) return new Response("No data", { status: 404 });
@@ -152,3 +111,4 @@ export async function GET(req: NextRequest) {
     },
   );
 }
+

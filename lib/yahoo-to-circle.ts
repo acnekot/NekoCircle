@@ -27,6 +27,14 @@ async function mapWithConcurrency<T, R>(
   return out;
 }
 
+/**
+ * @deprecated 旧パイプライン専用。
+ *
+ * Yahoo の集計値だけから圈子を作るため、fxtwitter 側の人物が抜け落ちる
+ * （実測: 同じ入力でも 30 人 vs 72 人）。ページと OG はどちらも
+ * `lib/circle-payload.ts` → `lib/interactions/*` の共有パイプラインを使う。
+ * ここを再利用すると「ページとカードで順位が違う」不整合が再発する。
+ */
 export async function yahooAggregatesToCircleUsers(
   authorsToYou: Record<string, number>,
   targetsFromYou: Record<string, number>,

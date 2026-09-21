@@ -12,9 +12,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ja: `${decoded} のサークル`,
   };
   const descriptions: Record<string, string> = {
-    zh: `查看 @${decoded} 的 X 互动圈 - NekoCircle (Yahoo 搜索)`,
-    en: `View @${decoded}'s X interaction circle - NekoCircle (Yahoo Search)`,
-    ja: `@${decoded} の X インタラクションサークルを見る - NekoCircle (Yahoo 検索)`,
+    zh: `查看 @${decoded} 的 X 互动圈 - NekoCircle`,
+    en: `View @${decoded}'s X interaction circle - NekoCircle`,
+    ja: `@${decoded} の X インタラクションサークルを見る - NekoCircle`,
   };
 
   const title = titles[locale] ?? titles.zh;
