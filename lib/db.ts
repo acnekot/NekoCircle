@@ -38,6 +38,16 @@ export function initDb() {
       created_at  INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_yahoo_circles_username ON yahoo_circles(username);
+    -- ── Public feedback ──
+    CREATE TABLE IF NOT EXISTS feedbacks (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      content     TEXT NOT NULL,
+      contact     TEXT NOT NULL DEFAULT '',
+      locale      TEXT NOT NULL DEFAULT 'zh',
+      status      TEXT NOT NULL DEFAULT 'new',
+      created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status, created_at DESC);
     -- ── Announcements ──
     CREATE TABLE IF NOT EXISTS announcements (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -277,5 +287,51 @@ export function getActiveAnnouncements(locale?: string): AnnouncementRow[] {
       ).all(locale) as AnnouncementRow[];
     }
     return db.prepare("SELECT * FROM announcements WHERE active = 1 ORDER BY pinned DESC, created_at DESC").all() as AnnouncementRow[];
+  } finally { db.close(); }
+}
+
+// ─────────────────────────────────────────────────────────
+// Feedback
+// ─────────────────────────────────────────────────────────
+
+export type FeedbackRow = {
+  id: number;
+  content: string;
+  contact: string;
+  locale: string;
+  status: "new" | "reviewed";
+  created_at: number;
+};
+
+export function createFeedback(content: string, contact: string, locale: string): number {
+  const db = getDb();
+  try {
+    const result = db.prepare(
+      "INSERT INTO feedbacks (content, contact, locale, status, created_at) VALUES (?, ?, ?, 'new', ?)"
+    ).run(content, contact, locale, Date.now());
+    return Number(result.lastInsertRowid);
+  } finally { db.close(); }
+}
+
+export function listFeedbacks(): FeedbackRow[] {
+  const db = getDb();
+  try {
+    return db.prepare(
+      "SELECT * FROM feedbacks ORDER BY CASE status WHEN 'new' THEN 0 ELSE 1 END, created_at DESC"
+    ).all() as FeedbackRow[];
+  } finally { db.close(); }
+}
+
+export function updateFeedbackStatus(id: number, status: FeedbackRow["status"]): void {
+  const db = getDb();
+  try {
+    db.prepare("UPDATE feedbacks SET status = ? WHERE id = ?").run(status, id);
+  } finally { db.close(); }
+}
+
+export function deleteFeedback(id: number): void {
+  const db = getDb();
+  try {
+    db.prepare("DELETE FROM feedbacks WHERE id = ?").run(id);
   } finally { db.close(); }
 }

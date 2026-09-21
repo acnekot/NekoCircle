@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useTranslation } from "@/components/LocaleProvider";
+import Md3Icon from "@/components/Md3Icon";
 
 type Stats = {
   yahooCircleCount: number;
@@ -74,7 +75,7 @@ export default function StatsPage() {
         {/* Header */}
         <div className="tech-panel rounded-[28px] p-5 sm:p-7 flex items-center justify-between gap-5">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-[-0.04em]">{t("stats.title")}</h1>
+            <h1 className="flex items-center gap-3 text-3xl sm:text-4xl font-bold tracking-[-0.04em]"><Md3Icon name="chart" className="h-8 w-8 text-[#bec2ff]" />{t("stats.title")}</h1>
             <p className="text-[#c7c5cf] text-sm mt-2">{t("stats.subtitle")}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -85,7 +86,7 @@ export default function StatsPage() {
 
         {/* Generation Summary */}
         <div className="card rounded-[28px] p-6">
-          <h2 className="text-base font-semibold mb-4">{t("stats.genOverview")}</h2>
+          <h2 className="mb-4 flex items-center gap-2 text-base font-semibold"><Md3Icon name="globe" className="h-5 w-5 text-[#bec2ff]" />{t("stats.genOverview")}</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-emerald-400 tabular-nums">{stats.generationCounts?.yahoo ?? 0}</div>
@@ -106,7 +107,7 @@ export default function StatsPage() {
 
         {/* Total generation stats */}
         <div className="card rounded-[28px] p-6">
-          <h2 className="text-base font-semibold mb-5">{t("stats.totalStats")}</h2>
+          <h2 className="mb-5 flex items-center gap-2 text-base font-semibold"><Md3Icon name="trend" className="h-5 w-5 text-[#bec2ff]" />{t("stats.totalStats")}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex flex-col items-center gap-1 rounded-2xl bg-[#34353b] border border-white/[0.04] py-4 px-3">
               <span className="text-xs text-gray-500">{t("stats.totalGenCount")}</span>
@@ -129,7 +130,7 @@ export default function StatsPage() {
 
         {/* Unique users */}
         <div className="card rounded-[28px] p-6">
-          <h2 className="text-base font-semibold mb-4">{t("stats.uniqueUsers")}</h2>
+          <h2 className="mb-4 flex items-center gap-2 text-base font-semibold"><Md3Icon name="person" className="h-5 w-5 text-[#bec2ff]" />{t("stats.uniqueUsers")}</h2>
           <div className="flex items-center justify-center">
             <div className="text-center">
               <div className="text-4xl font-bold text-[#bec2ff] tabular-nums">{(stats.yahooUniqueUsers ?? 0).toLocaleString()}</div>

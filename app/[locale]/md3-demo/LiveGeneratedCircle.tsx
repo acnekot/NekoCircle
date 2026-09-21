@@ -26,7 +26,7 @@ const LIVE_STYLE: StyleConfig = {
   accentColor: "#bec2ff",
   nodeScheme: "rainbow",
   nodeSize: "medium",
-  showAvatars: true,
+  showAvatars: false,
   showWatermark: false,
   showLines: false,
   glowEffect: false,
@@ -69,15 +69,13 @@ export default function LiveGeneratedCircle({ screenName }: { screenName: string
     const self: SelfProfile = {
       screenName: payload.screenName,
       displayName: payload.screenName,
-      avatarUrl: payload.selfAvatarUrl,
-      avatarUrlPreview: payload.selfAvatarUrlPreview,
     };
-    const anonymizedUsers = payload.circleUsers.map((user, index) => ({
+    const colorBlockUsers = payload.circleUsers.map((user) => ({
       ...user,
-      avatarUrl: `/assets/anime-avatar-grid.png#cell=${index % 25}`,
+      avatarUrl: undefined,
       avatarUrlPreview: undefined,
     }));
-    return yahooToAnalysisResult(self, anonymizedUsers, {
+    return yahooToAnalysisResult(self, colorBlockUsers, {
       toYou: payload.counts.mentionsToYou,
       fromYou: payload.counts.mentionsFromYou,
     });

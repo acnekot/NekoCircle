@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Md3Icon from "@/components/Md3Icon";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -62,8 +63,9 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="card rounded-2xl p-6">
-          <h2 className="text-base font-semibold text-white mb-5">
-            {mode === "setup" ? "🔑 初始化设置" : "🔐 管理员登录"}
+          <h2 className="mb-5 flex items-center gap-2 text-base font-semibold text-white">
+            <Md3Icon name={mode === "setup" ? "key" : "lock"} className="h-5 w-5 text-[#bec2ff]" />
+            {mode === "setup" ? "初始化设置" : "管理员登录"}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

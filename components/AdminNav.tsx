@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Md3Icon from "@/components/Md3Icon";
 
 const LINKS = [
   { href: "/admin", label: "概览", exact: true },
   { href: "/admin/announcements", label: "公告" },
+  { href: "/admin/feedback", label: "反馈" },
   { href: "/admin/data", label: "数据导出 / 导入" },
   { href: "/admin/settings", label: "参数设置" },
 ] as const;
@@ -27,7 +29,7 @@ export default function AdminNav() {
     <header className="mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5">
-          <span className="text-xl">🐱</span>
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-[#3c4278] text-[#bec2ff]"><Md3Icon name="pet" className="h-5 w-5" /></span>
           <h1 className="text-lg font-bold text-white">NekoCircle 管理后台</h1>
         </div>
         <button

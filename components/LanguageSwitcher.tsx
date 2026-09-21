@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "@/components/LocaleProvider";
 import { LOCALES, type Locale } from "@/lib/i18n";
+import Md3Icon from "@/components/Md3Icon";
 
 const LABELS: Record<Locale, { code: string; name: string }> = {
   zh: { code: "中", name: "中文" },
@@ -64,7 +65,7 @@ export default function LanguageSwitcher() {
             >
               <span className="w-5 text-center text-xs font-semibold">{LABELS[l].code}</span>
               <span>{LABELS[l].name}</span>
-              {l === locale && <span className="ml-auto text-xs">✓</span>}
+              {l === locale && <Md3Icon name="check" className="ml-auto h-4 w-4" />}
             </button>
           ))}
         </div>

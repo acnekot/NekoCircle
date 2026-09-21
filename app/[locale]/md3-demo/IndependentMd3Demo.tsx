@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 import { useTranslation } from "@/components/LocaleProvider";
 import LiveGeneratedCircle from "./LiveGeneratedCircle";
+import FeedbackForm from "./FeedbackForm";
 import styles from "./md3-demo.module.css";
 
 type HomeStats = {
@@ -160,6 +161,8 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
             ))}
           </div>
         </section>
+
+        <FeedbackForm />
 
       </main>
 

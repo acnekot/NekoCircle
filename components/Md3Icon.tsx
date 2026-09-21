@@ -4,7 +4,11 @@ export type Md3IconName =
   | "palette" | "wallpaper" | "circle" | "visibility" | "group" | "badge"
   | "star" | "rank" | "restart" | "bubble" | "list" | "tree" | "sparkle"
   | "wallet" | "search" | "check" | "sad" | "error" | "message" | "quote"
-  | "mention" | "repeat" | "north" | "south" | "share";
+  | "mention" | "repeat" | "north" | "south" | "share"
+  | "info" | "warning" | "pin" | "close" | "pet" | "key" | "lock"
+  | "edit" | "visibilityOff" | "delete" | "language" | "inbox"
+  | "campaign" | "chart" | "globe" | "trend" | "person" | "send"
+  | "feedback";
 
 export default function Md3Icon({ name, className = "h-5 w-5" }: { name: Md3IconName; className?: string }) {
   let content: ReactNode;
@@ -34,6 +38,25 @@ export default function Md3Icon({ name, className = "h-5 w-5" }: { name: Md3Icon
     case "north": content = <path d="M12 20V4m0 0-5 5m5-5 5 5" />; break;
     case "south": content = <path d="M12 4v16m0 0-5-5m5 5 5-5" />; break;
     case "share": content = <><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5" /></>; break;
+    case "info": content = <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7h.01" /></>; break;
+    case "warning": content = <><path d="M12 3 2.8 20h18.4L12 3Z" /><path d="M12 9v5M12 17h.01" /></>; break;
+    case "pin": content = <><path d="m8 4 8 0-1 5 3 3v2H6v-2l3-3-1-5Z" /><path d="M12 14v7" /></>; break;
+    case "close": content = <path d="m6 6 12 12M18 6 6 18" />; break;
+    case "pet": content = <><path d="M7 10 5 5l5 3h4l5-3-2 5a7 7 0 1 1-10 0Z" /><path d="M9.5 13h.01M14.5 13h.01M10 16h4" /></>; break;
+    case "key": content = <><circle cx="8" cy="12" r="4" /><path d="m12 12 9-9M17 7l2 2M15 9l2 2" /></>; break;
+    case "lock": content = <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></>; break;
+    case "edit": content = <><path d="M4 20h4l11-11-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4" /></>; break;
+    case "visibilityOff": content = <><path d="M3 3l18 18M10.6 6.2A10.8 10.8 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.2 2.9M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6c1.2 0 2.3-.2 3.3-.6" /><path d="M9.8 9.8a3 3 0 0 0 4.4 4.4" /></>; break;
+    case "delete": content = <><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14" /><path d="M10 11v6M14 11v6" /></>; break;
+    case "language": content = <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>; break;
+    case "inbox": content = <><path d="M4 5h16v14H4V5Z" /><path d="M4 14h5l1.5 2h3L15 14h5" /></>; break;
+    case "campaign": content = <><path d="m4 13 11-4v8L4 13Z" /><path d="M4 13v5h4v-4M18 10v6M20 8v10" /></>; break;
+    case "chart": content = <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>; break;
+    case "globe": content = <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9c-3-3-4-6-4-9s1-6 4-9Z" /></>; break;
+    case "trend": content = <><path d="m3 17 6-6 4 4 7-8" /><path d="M15 7h5v5" /></>; break;
+    case "person": content = <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>; break;
+    case "send": content = <><path d="m3 11 18-8-7 18-3-7-8-3Z" /><path d="m11 14 4-4" /></>; break;
+    case "feedback": content = <><path d="M4 5h16v12H9l-5 4V5Z" /><path d="M8 9h8M8 13h5" /></>; break;
   }
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
