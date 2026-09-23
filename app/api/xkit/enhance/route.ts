@@ -3,11 +3,15 @@ import { normalizeScreenName } from "@/lib/yahoo-realtime-fetch";
 import { normalizeUsername } from "@/lib/interactions/normalize";
 import { getXKitSession } from "@/lib/xkit/session";
 import { buildYahooPayload } from "@/lib/circle-payload";
+import { getSettingValue } from "@/lib/app-config";
 
 const SESSION_COOKIE = "nekocircle_xkit_session";
 const SCREEN_NAME_RE = /^[A-Za-z0-9_]{1,15}$/;
 
 export async function GET(request: NextRequest) {
+  if (getSettingValue("xkit_beta_visible") !== "true") {
+    return NextResponse.json({ error: "xkit_beta_unavailable" }, { status: 404, headers: { "Cache-Control": "no-store" } });
+  }
   if (process.env.NODE_ENV !== "development" || process.env.XKIT_LOCAL_TEST !== "true") {
     return NextResponse.json({ error: "xkit_beta_unavailable" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }

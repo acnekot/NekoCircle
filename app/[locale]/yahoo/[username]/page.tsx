@@ -65,6 +65,7 @@ export default function YahooCirclePage() {
   const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<InteractionDiagnostics | null>(null);
   const [xkitBetaState, setXkitBetaState] = useState<XKitBetaState>("idle");
+  const [xkitFeatureEnabled, setXkitFeatureEnabled] = useState(false);
   const [xkitBindAvailable, setXkitBindAvailable] = useState(false);
   const [xkitBoundAccount, setXkitBoundAccount] = useState<string | null>(null);
 
@@ -232,8 +233,9 @@ export default function YahooCirclePage() {
     let active = true;
     void fetch("/api/xkit/bind", { cache: "no-store" })
       .then((response) => response.json())
-      .then((data: { available?: boolean; bound?: boolean; accountName?: string }) => {
+      .then((data: { enabled?: boolean; available?: boolean; bound?: boolean; accountName?: string }) => {
         if (!active) return;
+        setXkitFeatureEnabled(data.enabled === true);
         setXkitBindAvailable(data.available === true);
         setXkitBoundAccount(data.bound === true ? data.accountName ?? null : null);
       })
@@ -390,7 +392,7 @@ export default function YahooCirclePage() {
             </div>
           )}
 
-          {displayedResult && (
+          {displayedResult && xkitFeatureEnabled && (
             <section className="mt-3 flex flex-col gap-3 rounded-2xl border border-[#bec2ff]/15 bg-[#3c4278]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-3">
                 <Md3Icon name="sparkle" className="mt-0.5 h-5 w-5 shrink-0 text-[#bec2ff]" />

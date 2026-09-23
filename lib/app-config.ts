@@ -156,6 +156,17 @@ export const SETTING_DEFS: SettingDef[] = [
     offLabel: "仅手动清理",
   },
   {
+    key: "xkit_beta_visible",
+    label: "显示 xKit 临时绑定入口",
+    description:
+      "占位开关：开启后在生成结果页显示 xKit Beta 临时绑定入口；关闭后隐藏入口并停用增强接口。该功能仍仅限本机开发环境使用。",
+    type: "boolean",
+    defaultValue: "false",
+    group: "实验功能",
+    onLabel: "显示入口",
+    offLabel: "隐藏入口",
+  },
+  {
     key: "generation_enabled",
     label: "允许生成新圈子",
     description:

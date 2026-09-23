@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { normalizeUsername } from "@/lib/interactions/normalize";
 import { createXKitSession, deleteXKitSession, getXKitSession } from "@/lib/xkit/session";
 import { verifyXKitCredentials } from "@/lib/xkit/client";
+import { getSettingValue } from "@/lib/app-config";
 
 const SESSION_COOKIE = "nekocircle_xkit_session";
 const SCREEN_NAME_RE = /^[A-Za-z0-9_]{1,15}$/;
@@ -19,9 +20,11 @@ function json(body: Record<string, unknown>, status = 200): NextResponse {
 }
 
 export async function GET(request: NextRequest) {
-  if (!localBindingEnabled(request)) return json({ available: false, bound: false }, 200);
+  const enabled = getSettingValue("xkit_beta_visible") === "true";
+  if (!enabled || !localBindingEnabled(request)) return json({ enabled, available: false, bound: false }, 200);
   const session = getXKitSession(request.cookies.get(SESSION_COOKIE)?.value);
   return json({
+    enabled,
     available: true,
     bound: Boolean(session),
     ...(session ? { accountName: session.accountName, expiresAt: session.expiresAt } : {}),
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (getSettingValue("xkit_beta_visible") !== "true") return json({ error: "xkit_beta_disabled" }, 404);
   if (!localBindingEnabled(request, true)) return json({ error: "xkit_local_only" }, 403);
   try {
     const body = await request.json() as { screenName?: unknown; authToken?: unknown; ct0?: unknown };
