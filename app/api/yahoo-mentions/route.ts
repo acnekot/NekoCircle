@@ -313,8 +313,10 @@ export async function GET(req: NextRequest) {
 
   const buildCircle = parseBuildCircle(sp);
   const storageConsent = parseStorageConsent(sp);
-  if (buildCircle && isLocalXKitTestRequest(req.nextUrl.hostname, sp.get("xkit") === "1")) {
-    return handleLocalXKit(name);
+  const requestedXKit = sp.get("xkit") === "1";
+  if (buildCircle && requestedXKit) {
+    if (isLocalXKitTestRequest(req.nextUrl.hostname, requestedXKit)) return handleLocalXKit(name);
+    return NextResponse.json({ error: "xkit_beta_unavailable" }, { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } });
   }
 
   // 強制再取得はクールダウンもデータキャッシュも迂回する
@@ -421,11 +423,10 @@ export async function POST(req: Request) {
   if (!getAppConfig().generationEnabled) return maintenanceResponse();
 
   const requestUrl = new URL(req.url);
-  if (
-    body.buildCircle === true &&
-    isLocalXKitTestRequest(requestUrl.hostname, body.xkit === true || requestUrl.searchParams.get("xkit") === "1")
-  ) {
-    return handleLocalXKit(name);
+  const requestedXKit = body.xkit === true || requestUrl.searchParams.get("xkit") === "1";
+  if (body.buildCircle === true && requestedXKit) {
+    if (isLocalXKitTestRequest(requestUrl.hostname, requestedXKit)) return handleLocalXKit(name);
+    return NextResponse.json({ error: "xkit_beta_unavailable" }, { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } });
   }
 
   try {

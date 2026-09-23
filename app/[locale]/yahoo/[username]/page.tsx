@@ -35,8 +35,11 @@ type YahooMentionsResponse = InteractionDiagnostics & {
   createdAt?: number;
   storageConsent?: boolean;
   retentionMode?: "long_term" | "temporary";
+  xkit?: { status: "unavailable" | "ok" | "partial"; reason?: string; scannedLikes?: number; elapsedMs?: number };
   error?: string;
 };
+
+type XKitBetaState = "idle" | "loading" | "ok" | "partial" | "unavailable" | "error";
 
 const EMPTY_SELF: SelfProfile = { screenName: "", displayName: "" };
 
@@ -60,6 +63,7 @@ export default function YahooCirclePage() {
   const [copied, setCopied] = useState(false);
   const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<InteractionDiagnostics | null>(null);
+  const [xkitBetaState, setXkitBetaState] = useState<XKitBetaState>("idle");
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
   const handleStyleChange = (s: StyleConfig) => { setStyleConfig(s); saveStyleConfig(s); };
@@ -176,8 +180,41 @@ export default function YahooCirclePage() {
     }
   }, [username, applyPayload, t]);
 
+  const tryXKitBeta = useCallback(async () => {
+    const name = username.replace(/^@+/, "");
+    if (!name || xkitBetaState === "loading") return;
+    setXkitBetaState("loading");
+    try {
+      const storageConsent = new URLSearchParams(window.location.search).get("storageConsent") === "1";
+      const query = new URLSearchParams({ screenName: name, buildCircle: "1", xkit: "1", storageConsent: storageConsent ? "1" : "0" });
+      const response = await fetch(`/api/yahoo-mentions?${query.toString()}`, { cache: "no-store" });
+      const data = (await response.json()) as YahooMentionsResponse;
+      if (!response.ok || data.error) {
+        setXkitBetaState(data.error === "xkit_beta_unavailable" ? "unavailable" : "error");
+        return;
+      }
+      const status = data.xkit?.status ?? "unavailable";
+      setXkitBetaState(status);
+      // An unavailable optional provider must never replace the valid public-data result.
+      if (status === "ok" || status === "partial") {
+        // Beta output is transient; don't associate it with the previously saved public circle.
+        setCircleId(null);
+        applyPayload({
+          ...data,
+          circleId: undefined,
+          createdAt: createdAt ?? undefined,
+          storageConsent: storedLongTerm,
+          retentionMode: storedLongTerm ? "long_term" : "temporary",
+        });
+      }
+    } catch {
+      setXkitBetaState("error");
+    }
+  }, [username, xkitBetaState, applyPayload, circleId, createdAt, storedLongTerm]);
+
   useEffect(() => {
     if (!username) return;
+    setXkitBetaState("idle");
     // ?refresh=1 付きで開かれたら最初から強制再取得
     const sp = new URLSearchParams(window.location.search);
     const force =
@@ -320,6 +357,22 @@ export default function YahooCirclePage() {
                 <strong>{users.length}</strong>
               </div>
             </div>
+          )}
+
+          {displayedResult && (
+            <section className="mt-3 flex flex-col gap-3 rounded-2xl border border-[#bec2ff]/15 bg-[#3c4278]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <Md3Icon name="sparkle" className="mt-0.5 h-5 w-5 shrink-0 text-[#bec2ff]" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-100">{t("yahoo.xkitBetaTitle")}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">{t(`yahoo.xkitBeta.${xkitBetaState}`)}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => { void tryXKitBeta(); }} disabled={xkitBetaState === "loading"} className="result-action shrink-0 border-[#bec2ff]/20 bg-[#3c4278]/35 text-[#dfe0ff] hover:bg-[#3c4278]/60 disabled:cursor-wait disabled:opacity-60">
+                <Md3Icon name="sparkle" className={`h-4 w-4 ${xkitBetaState === "loading" ? "animate-spin" : ""}`} />
+                <span>{xkitBetaState === "loading" ? t("yahoo.xkitBeta.loadingButton") : t("yahoo.xkitBeta.button")}</span>
+              </button>
+            </section>
           )}
         </header>
 
