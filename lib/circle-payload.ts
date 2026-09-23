@@ -35,8 +35,10 @@ import {
 import type {
   InteractionEvent,
 } from "@/types/interaction";
+import { combineConversationAndAffinity } from "@/lib/affinity/scoring";
+import { fetchXKitAffinity } from "@/lib/xkit/client";
 
-export const CIRCLE_PAYLOAD_VERSION = 8;
+export const CIRCLE_PAYLOAD_VERSION = 9;
 
 /**
  * 共有の取得パイプライン。
@@ -46,6 +48,7 @@ export const CIRCLE_PAYLOAD_VERSION = 8;
 export async function buildYahooPayload(
   name: string,
   buildCircle: boolean,
+  enableXKit = false,
 ): Promise<Record<string, unknown>> {
   const totalStartedAt = Date.now();
   const fxStartedAt = Date.now();
@@ -73,10 +76,10 @@ export async function buildYahooPayload(
     yahoo?.events ?? [],
   ]);
   let mergeElapsed = Date.now() - mergeStartedAt;
-  let scores = scoreInteractions(mergedEvents, name);
+  const conversationScores = scoreInteractions(mergedEvents, name);
 
   const uniqueMainTweets = new Set(mergedEvents.map((event) => event.tweetId)).size;
-  const needsBing = uniqueMainTweets < 100 || scores.length < 15;
+  const needsBing = uniqueMainTweets < 100 || conversationScores.length < 15;
   let bingEvents: InteractionEvent[] = [];
   let bingStatus: "ok" | "failed" | "skipped" = "skipped";
   let bingElapsed = 0;
@@ -94,7 +97,6 @@ export async function buildYahooPayload(
     const secondMergeStartedAt = Date.now();
     mergedEvents = mergeInteractionEvents([mergedEvents, bingEvents]);
     mergeElapsed += Date.now() - secondMergeStartedAt;
-    scores = scoreInteractions(mergedEvents, name);
   }
 
   if (fxFailed && yahooFailed && mergedEvents.length === 0) {
@@ -102,6 +104,15 @@ export async function buildYahooPayload(
   }
 
   const self = normalizeUsername(name);
+  const updatedConversationScores = scoreInteractions(mergedEvents, name);
+  let scores = updatedConversationScores;
+  let xkitResult: Awaited<ReturnType<typeof fetchXKitAffinity>> | undefined;
+  if (enableXKit) {
+    xkitResult = await fetchXKitAffinity(name);
+    if (xkitResult.data) {
+      scores = combineConversationAndAffinity(updatedConversationScores, xkitResult.data.peers);
+    }
+  }
   const incoming = mergedEvents.filter((event) => event.target === self);
   const outgoing = mergedEvents.filter((event) => event.author === self);
   // 入站数字表示「检测到多少条别人提及你的推文」，按 tweetId 去重。
@@ -167,6 +178,7 @@ export async function buildYahooPayload(
       fxtwitter: fxFailed ? "failed" : fx?.failures.length ? "partial" : "ok",
       yahoo: yahooFailed ? "failed" : yahoo?.failures.length ? "partial" : "ok",
       bing: bingStatus,
+      ...(enableXKit ? { xkit: xkitResult?.status ?? "unavailable" } : {}),
     },
     stats: {
       providers: {
@@ -191,12 +203,21 @@ export async function buildYahooPayload(
         sources: [...new Set([event.source, ...(event.sources ?? [])])],
       })),
   };
+  if (enableXKit) {
+    payload.xkit = {
+      status: xkitResult?.status ?? "unavailable",
+      reason: xkitResult?.reason,
+      scannedLikes: xkitResult?.data?.scannedLikes ?? 0,
+      elapsedMs: xkitResult?.elapsedMs ?? 0,
+    };
+  }
 
   if (buildCircle) {
     const avatarStartedAt = Date.now();
     const previewImages = {
       ...(yahoo?.peerProfileImages ?? {}),
       ...(fx?.peerProfileImages ?? {}),
+      ...(enableXKit ? xkitResult?.data?.profileImages ?? {} : {}),
     };
     const [circleUsers, selfHd, profileData] = await Promise.all([
       interactionScoresToCircleUsers(scores, previewImages),

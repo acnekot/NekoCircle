@@ -78,3 +78,11 @@ neko-circle/
 - `NEKOCIRCLE_CHECK_INTERVAL_SECONDS`：检查间隔，默认 `20`
 - `NEKOCIRCLE_HEALTH_ATTEMPTS`：连续失败阈值，默认 `3`
 - `NEKOCIRCLE_SHUTDOWN_GRACE_SECONDS`：优雅退出等待时间，默认 `15`
+
+## xKit 本机增强源（实验）
+
+xKit 0.6.0 仅用于本机开发验证。它只能分析 Cookie 所属账号本人，且只在开发服务器、本机请求和显式开启 `XKIT_LOCAL_TEST=true` 时响应。圈子结果不会进入 Next/浏览器共享缓存或 SQLite；缺少凭据、账号不匹配或 xKit 出错时，基础公开数据源仍照常工作。
+
+仅在本机 `.env.local` 配置 `XKIT_LOCAL_TEST=true`、`XKIT_AUTH_TOKEN`、`XKIT_CT0`，可选 `XKIT_SCAN_DEPTH=fast|normal|deep`（默认 fast：最多扫描 300 个点赞；normal 1000；deep 3000）。不要把 Cookie 提交到 Git、后台设置、API 请求、日志或 issue。开发服务器启动后，在圈子地址添加 `?xkit=1` 即可试用；该模式不保存结果，公开生产服务不会启用。
+
+当前 xKit 0.6.0 的点赞公开方法仅返回一页、关注方法不公开 cursor，因此适配器按该版本内部页面接口串行翻页，并对每页使用超时；此实现依赖未公开的 xKit 内部 API。若 X 更改接口或触发限流，增强源会跳过/返回部分结果，不会快速重试。

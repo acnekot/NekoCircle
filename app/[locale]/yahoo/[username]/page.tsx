@@ -102,7 +102,8 @@ export default function YahooCirclePage() {
       const requestedStorageConsent =
         searchParams.get("storageConsent") === "1" ||
         searchParams.get("storageConsent") === "true";
-      if (!force) {
+      const requestedXKit = searchParams.get("xkit") === "1";
+      if (!force && !requestedXKit) {
         const cached = readYahooCircleCache(name, requestedStorageConsent);
         if (cached) {
           applyPayload({
@@ -132,9 +133,10 @@ export default function YahooCirclePage() {
 
       const q = new URLSearchParams({ screenName: name, buildCircle: "1" });
       q.set("storageConsent", requestedStorageConsent ? "1" : "0");
+      if (requestedXKit) q.set("xkit", "1");
       if (force) q.set("refresh", "1");
       const r = await fetch(`/api/yahoo-mentions?${q.toString()}`, {
-        cache: force ? "no-store" : "default",
+        cache: force || requestedXKit ? "no-store" : "default",
       });
       const ct = r.headers.get("content-type") ?? "";
       if (!ct.includes("application/json")) {
@@ -145,7 +147,7 @@ export default function YahooCirclePage() {
       const data = (await r.json()) as YahooMentionsResponse;
       if (data.error) { setError(data.error); return; }
       applyPayload(data);
-      writeYahooCircleCache(name, requestedStorageConsent, {
+      if (!requestedXKit) writeYahooCircleCache(name, requestedStorageConsent, {
         screenName: data.screenName,
         counts: data.counts,
         circleUsers: data.circleUsers,

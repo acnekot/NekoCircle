@@ -4,6 +4,7 @@ import {
   upscaledTwitterProfileImageUrl,
 } from "@/lib/x-profile-image";
 import type { InteractionScore } from "@/lib/interactions/scoring";
+import type { AffinityRankedScore } from "@/lib/affinity/scoring";
 
 const AVATAR_FETCH_CONCURRENCY = 14;
 const AVATAR_ENRICHMENT_LIMIT = 50;
@@ -84,7 +85,11 @@ export async function yahooAggregatesToCircleUsers(
 
 function sourceTag(
   sources: InteractionScore["sources"],
+  affinitySources: Array<"xkit-like" | "xkit-follow"> = [],
 ): NonNullable<CircleUser["source"]> {
+  if (sources.length > 0 && affinitySources.length > 0) return "mixed";
+  if (affinitySources.includes("xkit-like")) return "xkit-like";
+  if (affinitySources.includes("xkit-follow")) return "xkit-follow";
   if (sources.length > 1) return "mixed";
   return sources[0] ?? "yahoo";
 }
@@ -96,7 +101,7 @@ function sourceTag(
  * 保留数据源已有头像，没有头像时由画布显示色块。排名本身不再截断。
  */
 export async function interactionScoresToCircleUsers(
-  scores: readonly InteractionScore[],
+  scores: readonly (InteractionScore | AffinityRankedScore)[],
   profileImageByScreen: Record<string, string>,
 ): Promise<CircleUser[]> {
   const rows = [...scores];
@@ -132,7 +137,7 @@ export async function interactionScoresToCircleUsers(
           Math.round((row.finalScore / max) * 100),
         ),
         interactionCount: row.interactionCount,
-        source: sourceTag(row.sources),
+        source: sourceTag(row.sources, "affinitySources" in row ? row.affinitySources : []),
       };
     },
   );

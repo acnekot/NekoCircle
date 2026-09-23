@@ -11,7 +11,7 @@ export type CircleUser = {
   /** 相手との馴れ合い回数（合算）。API から付くときはサイズ計算に使う */
   interactionCount?: number;
   /** 该用户的主要数据来源；mixed 表示被多个 Provider 同时命中。 */
-  source?: "fxtwitter" | "yahoo" | "bing" | "both" | "mixed";
+  source?: "fxtwitter" | "yahoo" | "bing" | "both" | "mixed" | "xkit-like" | "xkit-follow";
 };
 
 export type SelfProfile = {

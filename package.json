@@ -10,6 +10,7 @@
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "@brainwav/xkit": "0.6.0",
     "@fontsource-variable/m-plus-1-code": "^5.3.0",
     "@fontsource-variable/noto-sans-sc": "^5.3.0",
     "@tailwindcss/postcss": "^4.2.1",
