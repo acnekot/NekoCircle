@@ -17,6 +17,7 @@ import {
   setCachedLikes,
 } from "./cache";
 import type { FollowSignal, LikeSignal, XKitAffinityData, XKitScanDepth } from "@/lib/affinity/types";
+import type { XKitCredentials } from "./session";
 
 const LIKE_LIMITS: Record<XKitScanDepth, number> = { fast: 300, normal: 1000, deep: 3000 };
 const PAGE_SIZE = 20;
@@ -48,11 +49,28 @@ function scanDepth(): XKitScanDepth {
   return value === "normal" || value === "deep" ? value : "fast";
 }
 
-function clientFromEnvironment(): TwitterClient | undefined {
-  const authToken = process.env.XKIT_AUTH_TOKEN?.trim();
-  const ct0 = process.env.XKIT_CT0?.trim();
+function createClient(credentials?: XKitCredentials): TwitterClient | undefined {
+  const authToken = (credentials?.authToken ?? process.env.XKIT_AUTH_TOKEN)?.trim();
+  const ct0 = (credentials?.ct0 ?? process.env.XKIT_CT0)?.trim();
   if (!authToken || !ct0) return undefined;
   return new TwitterClient({ cookies: { authToken, ct0, cookieHeader: null, source: null }, timeoutMs: REQUEST_TIMEOUT_MS });
+}
+
+export async function verifyXKitCredentials(credentials: XKitCredentials): Promise<
+  | { ok: true; accountName: string }
+  | { ok: false; reason: "auth_failed" | "request_failed" }
+> {
+  try {
+    const client = createClient(credentials);
+    if (!client) return { ok: false, reason: "auth_failed" };
+    const identity = await client.getCurrentUser();
+    if (!identity.success || !identity.user?.id || !identity.user.username) {
+      return { ok: false, reason: "auth_failed" };
+    }
+    return { ok: true, accountName: normalizeUsername(identity.user.username) };
+  } catch {
+    return { ok: false, reason: "request_failed" };
+  }
 }
 
 function internal(client: TwitterClient): XKitInternal {
@@ -237,10 +255,11 @@ async function fetchFollowPages(
 export async function fetchXKitAffinity(
   screenName: string,
   now = Date.now(),
+  credentials?: XKitCredentials,
 ): Promise<XKitResult> {
   const startedAt = Date.now();
   try {
-    const client = clientFromEnvironment();
+    const client = createClient(credentials);
     if (!client) return { status: "unavailable", reason: "not_configured", elapsedMs: Date.now() - startedAt };
     const identity = await client.getCurrentUser();
     if (!identity.success || !identity.user?.id || !identity.user.username) {

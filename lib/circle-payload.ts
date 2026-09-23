@@ -37,6 +37,7 @@ import type {
 } from "@/types/interaction";
 import { combineConversationAndAffinity } from "@/lib/affinity/scoring";
 import { fetchXKitAffinity } from "@/lib/xkit/client";
+import type { XKitCredentials } from "@/lib/xkit/session";
 
 export const CIRCLE_PAYLOAD_VERSION = 9;
 
@@ -49,6 +50,7 @@ export async function buildYahooPayload(
   name: string,
   buildCircle: boolean,
   enableXKit = false,
+  xkitCredentials?: XKitCredentials,
 ): Promise<Record<string, unknown>> {
   const totalStartedAt = Date.now();
   const fxStartedAt = Date.now();
@@ -108,7 +110,7 @@ export async function buildYahooPayload(
   let scores = updatedConversationScores;
   let xkitResult: Awaited<ReturnType<typeof fetchXKitAffinity>> | undefined;
   if (enableXKit) {
-    xkitResult = await fetchXKitAffinity(name);
+    xkitResult = await fetchXKitAffinity(name, Date.now(), xkitCredentials);
     if (xkitResult.data) {
       scores = combineConversationAndAffinity(updatedConversationScores, xkitResult.data.peers);
     }
