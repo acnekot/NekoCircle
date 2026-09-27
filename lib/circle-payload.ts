@@ -39,7 +39,7 @@ import { combineConversationAndAffinity } from "@/lib/affinity/scoring";
 import { fetchXKitAffinity } from "@/lib/xkit/client";
 import type { XKitCredentials } from "@/lib/xkit/session";
 
-export const CIRCLE_PAYLOAD_VERSION = 9;
+export const CIRCLE_PAYLOAD_VERSION = 11;
 
 /**
  * 共有の取得パイプライン。
@@ -250,7 +250,7 @@ export function getCachedYahooPayload(name: string, buildCircle: boolean) {
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
-      "yahoo-mentions-v8",
+      `yahoo-mentions-v${CIRCLE_PAYLOAD_VERSION}`,
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],

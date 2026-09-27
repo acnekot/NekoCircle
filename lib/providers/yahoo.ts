@@ -56,11 +56,14 @@ export function yahooEntriesToInteractionEvents(
     const author = yahooEntryAuthor(entry);
     if (!entry.id || !author || author === self) continue;
     const isReply = yahooReplyTargets(entry).includes(self);
+    const targetId = entry.mentions?.find((m) => normalizeUsername(m.screenName ?? "") === self)?.id;
     const text = normalizeInteractionText(entry.displayTextBody ?? entry.displayText);
     events.push({
       tweetId: entry.id,
       author,
       target: self,
+      ...(entry.userId ? { authorId: entry.userId } : {}),
+      ...(targetId ? { targetId } : {}),
       type: isReply ? "reply" : "mention",
       ...(text ? { text } : {}),
       createdAt: yahooTimestamp(entry.createdAt),
@@ -77,10 +80,13 @@ export function yahooEntriesToInteractionEvents(
     );
     const text = normalizeInteractionText(entry.displayTextBody ?? entry.displayText);
     for (const target of targets) {
+      const targetId = entry.mentions?.find((m) => normalizeUsername(m.screenName ?? "") === target)?.id;
       events.push({
         tweetId: entry.id,
         author: self,
         target,
+        ...(entry.userId ? { authorId: entry.userId } : {}),
+        ...(targetId ? { targetId } : {}),
         type: "mention",
         ...(text ? { text } : {}),
         createdAt: yahooTimestamp(entry.createdAt),

@@ -77,6 +77,7 @@ export function scoreInteractions(
     string,
     Omit<InteractionScore, "screenName" | "balance" | "finalScore" | "sources"> & {
       sources: Set<InteractionSource>;
+      screenName: string;
     }
   >();
 
@@ -89,7 +90,10 @@ export function scoreInteractions(
 
     const other = incoming ? author : target;
     if (!other) continue;
-    const row = rows.get(other) ?? {
+    const otherId = incoming ? event.authorId : event.targetId;
+    const identity = otherId ? `id:${otherId}` : `name:${other}`;
+    const row = rows.get(identity) ?? {
+      screenName: other,
       inbound: 0,
       outbound: 0,
       inboundCount: 0,
@@ -108,17 +112,17 @@ export function scoreInteractions(
     row.interactionCount += 1;
     row.sources.add(event.source);
     for (const source of event.sources ?? []) row.sources.add(source);
-    rows.set(other, row);
+    rows.set(identity, row);
   }
 
-  return [...rows.entries()]
-    .map(([screenName, row]): InteractionScore => {
+  return [...rows.values()]
+    .map((row): InteractionScore => {
       const total =
         row.inbound * INBOUND_DIRECTION_WEIGHT +
         row.outbound * OUTBOUND_DIRECTION_WEIGHT;
       const balance = calculateBalance(row.inbound, row.outbound);
       return {
-        screenName,
+        screenName: row.screenName,
         inbound: row.inbound,
         outbound: row.outbound,
         inboundCount: row.inboundCount,

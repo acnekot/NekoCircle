@@ -3,12 +3,13 @@ import type {
   InteractionSource,
 } from "@/types/interaction";
 import { normalizeUsername } from "./normalize";
+import { reconcileIdentities } from "./identity";
 
 function eventKey(event: InteractionEvent): string {
   return [
     event.tweetId.trim(),
-    normalizeUsername(event.author),
-    normalizeUsername(event.target),
+    event.authorId ? `id:${event.authorId}` : normalizeUsername(event.author),
+    event.targetId ? `id:${event.targetId}` : normalizeUsername(event.target),
     event.type,
   ].join("|");
 }
@@ -22,12 +23,13 @@ export function mergeInteractionEvents(
     InteractionEvent & { sources: InteractionSource[] }
   >();
 
-  for (const group of groups) {
+  for (const group of [reconcileIdentities(groups.flatMap((items) => [...items]))]) {
     for (const raw of group) {
       const tweetId = raw.tweetId.trim();
       const author = normalizeUsername(raw.author);
       const target = normalizeUsername(raw.target);
       if (!tweetId || !author || !target || author === target) continue;
+      if (raw.authorId && raw.authorId === raw.targetId) continue;
 
       const normalized: InteractionEvent = {
         ...raw,
