@@ -149,29 +149,31 @@ export function renderToCanvas(
   // Pre-compute reserved rectangles (watermark & circle ID) for label collision
   const reservedRects: { x: number; y: number; w: number; h: number }[] = [];
   if (s.showWatermark) {
-    const _fs  = Math.round(13 * sc);
-    const _fs2 = Math.round(10 * sc);
+    const cornerSc = 1;
+    const _fs  = Math.round(13 * cornerSc);
+    const _fs2 = Math.round(10 * cornerSc);
     ctx.font = `bold ${_fs}px ${font}`;
     const _tw1 = ctx.measureText("NekoCircle").width;
     ctx.font = `${_fs2}px ${font}`;
     const _tw2 = ctx.measureText("circle.catsuki.cc").width;
     const _tw  = Math.max(_tw1, _tw2);
-    const _padX = 10 * sc, _padY = 5 * sc, _lineGap = 3 * sc;
+    const _padX = 10 * cornerSc, _padY = 5 * cornerSc, _lineGap = 3 * cornerSc;
     const _rh = _fs + _lineGap + _fs2 + _padY * 2;
     const _rw = _tw + _padX * 2;
-    const _rx = 14 * sc, _ry = W - 14 * sc - _rh;
-    reservedRects.push({ x: _rx - 6 * sc, y: _ry - 6 * sc, w: _rw + 12 * sc, h: _rh + 12 * sc });
+    const _rx = 14 * cornerSc, _ry = W - 14 * cornerSc - _rh;
+    reservedRects.push({ x: _rx - 6 * cornerSc, y: _ry - 6 * cornerSc, w: _rw + 12 * cornerSc, h: _rh + 12 * cornerSc });
   }
   if (options.circleId) {
-    const _idFs = Math.round(13 * sc);
+    const cornerSc = 1;
+    const _idFs = Math.round(13 * cornerSc);
     ctx.font = `bold ${_idFs}px ${font}`;
     const _tw = ctx.measureText(options.circleId).width;
-    const _idPadX = 10 * sc, _idPadY = 6 * sc;
+    const _idPadX = 10 * cornerSc, _idPadY = 6 * cornerSc;
     const _idRw = _tw + _idPadX * 2;
     const _idRh = _idFs + _idPadY * 2;
-    const _idRx = W - 14 * sc - _idRw;
-    const _idRy = W - 14 * sc - _idRh;
-    reservedRects.push({ x: _idRx - 6 * sc, y: _idRy - 6 * sc, w: _idRw + 12 * sc, h: _idRh + 12 * sc });
+    const _idRx = W - 14 * cornerSc - _idRw;
+    const _idRy = W - 14 * cornerSc - _idRh;
+    reservedRects.push({ x: _idRx - 6 * cornerSc, y: _idRy - 6 * cornerSc, w: _idRw + 12 * cornerSc, h: _idRh + 12 * cornerSc });
   }
 
   // Ring nodes
@@ -236,8 +238,7 @@ export function renderToCanvas(
       // ── Nameplate (username label) ──
       if (uc.enabled) {
         const drawNameplate = () => {
-          const labelText = "@" + item.user.userName.slice(0, uc.maxLength)
-            + (item.user.userName.length > uc.maxLength ? "…" : "");
+          const labelText = "@" + item.user.userName.replace(/^@+/, "");
 
           // Font size mapping
           const fsMap: Record<string, number> = { small: 6, medium: 7.5, large: 9 };
@@ -255,15 +256,23 @@ export function renderToCanvas(
           const pillW = textW + padX * 2;
           const pillH = labelFs + padY * 2;
 
-          // Position: above or below avatar
+          // Position: above, below, or directly over the avatar. Clamp the
+          // horizontal label to the canvas so long handles stay fully visible.
           let pillX: number, pillY: number;
           if (uc.position === "above") {
             pillX = x - pillW / 2;
-            pillY = y - nodeR - pillH - 1.5 * sc;
+            pillY = y - drawNodeR - pillH - 1.5 * sc;
+          } else if (uc.position === "overlay") {
+            pillX = x - pillW / 2;
+            pillY = y + drawR * 0.35 - pillH / 2;
           } else {
             pillX = x - pillW / 2;
-            pillY = y + nodeR + 1.5 * sc;
+            pillY = y + drawNodeR + 1.5 * sc;
           }
+          const edgeMargin = 4 * sc;
+          pillX = Math.max(edgeMargin, Math.min(W - edgeMargin - pillW, pillX));
+          pillY = Math.max(edgeMargin, Math.min(W - edgeMargin - pillH, pillY));
+          const labelCenterX = pillX + pillW / 2;
 
           // Check collision with reserved areas
           const labelRect = { x: pillX, y: pillY, w: pillW, h: pillH };
@@ -274,13 +283,11 @@ export function renderToCanvas(
           if (overlaps) return;
 
           // Radial arrange: rotate canvas so text follows the angle from center
-          if (uc.arrange === "radial") {
+          if (uc.arrange === "radial" && uc.position !== "overlay") {
             const radAngle = Math.atan2(y - cy, x - cx);
             ctx.save();
-            const centerY = uc.position === "above"
-              ? y - nodeR - pillH / 2 - 1.5 * sc
-              : y + nodeR + pillH / 2 + 1.5 * sc;
-            ctx.translate(x, centerY);
+            const centerY = pillY + pillH / 2;
+            ctx.translate(labelCenterX, centerY);
             // Flip text if on the left side so it's always readable
             const rot = radAngle + Math.PI / 2;
             const needFlip = rot > Math.PI / 2 + 0.01 || rot < -Math.PI / 2 - 0.01;
@@ -324,7 +331,7 @@ export function renderToCanvas(
             ctx.font = fontStr;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(labelText, x, pillY + pillH / 2);
+            ctx.fillText(labelText, labelCenterX, pillY + pillH / 2);
           }
         };
 
@@ -363,19 +370,20 @@ export function renderToCanvas(
 
   // Watermark
   if (s.showWatermark) {
+    const cornerSc = 1;
     const wm1 = "NekoCircle";
     const wm2 = "circle.catsuki.cc";
-    const fs = Math.round(13 * sc);
-    const fs2 = Math.round(10 * sc);
+    const fs = Math.round(13 * cornerSc);
+    const fs2 = Math.round(10 * cornerSc);
     ctx.font = `bold ${fs}px ${font}`;
     const tw1 = ctx.measureText(wm1).width;
     ctx.font = `${fs2}px ${font}`;
     const tw2 = ctx.measureText(wm2).width;
     const tw = Math.max(tw1, tw2);
-    const padX = 10 * sc, padY = 5 * sc;
-    const lineGap = 3 * sc;
+    const padX = 10 * cornerSc, padY = 5 * cornerSc;
+    const lineGap = 3 * cornerSc;
     const rh = fs + lineGap + fs2 + padY * 2;
-    const rx = 14 * sc, ry = W - 14 * sc - rh;
+    const rx = 14 * cornerSc, ry = W - 14 * cornerSc - rh;
     const rw = tw + padX * 2;
     ctx.fillStyle = isLight ? "rgba(0,0,0,0.72)" : "rgba(255,255,255,0.82)";
     pill(ctx, rx, ry, rw, rh, 4 * sc); ctx.fill();
@@ -391,15 +399,16 @@ export function renderToCanvas(
 
   // Circle ID (bottom-right, single line, same size as watermark title)
   if (options.circleId) {
+    const cornerSc = 1;
     const idStr = options.circleId;
-    const idFs = Math.round(13 * sc);
+    const idFs = Math.round(13 * cornerSc);
     ctx.font = `bold ${idFs}px ${font}`;
     const tw = ctx.measureText(idStr).width;
-    const idPadX = 10 * sc, idPadY = 6 * sc;
+    const idPadX = 10 * cornerSc, idPadY = 6 * cornerSc;
     const idRw = tw + idPadX * 2;
     const idRh = idFs + idPadY * 2;
-    const idRx = W - 14 * sc - idRw;
-    const idRy = W - 14 * sc - idRh;
+    const idRx = W - 14 * cornerSc - idRw;
+    const idRy = W - 14 * cornerSc - idRh;
     ctx.fillStyle = isLight ? "rgba(0,0,0,0.72)" : "rgba(255,255,255,0.82)";
     pill(ctx, idRx, idRy, idRw, idRh, 4 * sc); ctx.fill();
     ctx.textAlign = "left"; ctx.textBaseline = "top";
@@ -582,6 +591,15 @@ export default function CircleChart({
     // Twitter 与 Yahoo 头像统一走带 7 天服务端缓存的图片代理。
     const proxy = (url: string) => proxiedImageSrc(url);
     const centerUrl = result.targetUser.profilePicture;
+    const sourcesByPrimary = new Map<string, string[]>();
+    const registerSources = (primary: string, fallbacks: string[] = []) => {
+      if (!primary) return;
+      sourcesByPrimary.set(primary, [...new Set([primary, ...fallbacks].filter(Boolean))]);
+    };
+    registerSources(centerUrl, result.targetUser.profilePictureFallbacks);
+    for (const item of result.topUsers.slice(0, displayN)) {
+      registerSources(item.user.profilePicture, item.user.profilePictureFallbacks);
+    }
     const urls = [
       ...(s.showAvatars || shouldLoadCenterAvatar ? [centerUrl] : []),
       ...(s.showAvatars ? result.topUsers.slice(0, displayN).map(u => u.user.profilePicture) : []),
@@ -601,6 +619,8 @@ export default function CircleChart({
         const url = urls[idx++];
         if (imageCache.current.has(url)) { loadNext(); continue; }
         active++;
+        const candidates = sourcesByPrimary.get(url) ?? [url];
+        let candidateIndex = 0;
         const img = new Image();
         img.crossOrigin = "anonymous";
         const done = () => {
@@ -619,8 +639,14 @@ export default function CircleChart({
           }
           done();
         };
-        img.onerror = done;
-        img.src = proxy(url);
+        img.onerror = () => {
+          if (cancelled) return;
+          candidateIndex++;
+          const nextCandidate = candidates[candidateIndex];
+          if (nextCandidate) img.src = proxy(nextCandidate);
+          else done();
+        };
+        img.src = proxy(candidates[0] ?? url);
       }
     };
 

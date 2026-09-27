@@ -29,6 +29,8 @@ export type SettingDef = {
   /** 布尔值的补充说明（开/关各代表什么） */
   onLabel?: string;
   offLabel?: string;
+  /** 敏感值只允许写入，后台接口不会回传明文。 */
+  secret?: boolean;
 };
 
 /**
@@ -156,15 +158,93 @@ export const SETTING_DEFS: SettingDef[] = [
     offLabel: "仅手动清理",
   },
   {
-    key: "xkit_beta_visible",
-    label: "显示 xKit 临时绑定入口",
+    key: "stats_generation_offset",
+    label: "累计生成基数",
     description:
-      "占位开关：开启后在生成结果页显示 xKit Beta 临时绑定入口；关闭后隐藏入口并停用增强接口。该功能仍仅限本机开发环境使用。",
+      "用于补回丢失的历史统计。页面显示的累计生成数 = 此基数 + 当前数据库中的生成记录数；今日和趋势图不受影响。",
+    type: "number",
+    defaultValue: "0",
+    min: 0,
+    max: 2_000_000_000,
+    unit: "次",
+    group: "统计修复",
+  },
+  {
+    key: "stats_unique_users_offset",
+    label: "独立用户基数",
+    description:
+      "用于补回丢失的历史独立用户数。页面显示值 = 此基数 + 当前数据库能统计到的独立用户数。由于旧用户名已丢失，无法自动排除之后重复出现的老用户。",
+    type: "number",
+    defaultValue: "0",
+    min: 0,
+    max: 2_000_000_000,
+    unit: "人",
+    group: "统计修复",
+  },
+  {
+    key: "github_backup_enabled",
+    label: "自动同步长期数据",
+    description:
+      "开启后，每次产生已授权长期保存的圈子时，会合并触发一次 GitHub 备份。建议使用私有仓库。",
     type: "boolean",
     defaultValue: "false",
-    group: "实验功能",
-    onLabel: "显示入口",
-    offLabel: "隐藏入口",
+    env: ["GITHUB_BACKUP_ENABLED"],
+    group: "GitHub 备份",
+    onLabel: "自动同步已开启",
+    offLabel: "仅手动同步",
+  },
+  {
+    key: "github_backup_owner",
+    label: "仓库所有者",
+    description: "GitHub 用户名或组织名。",
+    type: "text",
+    defaultValue: "",
+    env: ["GITHUB_BACKUP_OWNER"],
+    group: "GitHub 备份",
+    placeholder: "acnekot",
+  },
+  {
+    key: "github_backup_repo",
+    label: "仓库名称",
+    description: "用于保存备份的 GitHub 仓库，不要填写完整网址。建议使用私有仓库。",
+    type: "text",
+    defaultValue: "",
+    env: ["GITHUB_BACKUP_REPO"],
+    group: "GitHub 备份",
+    placeholder: "NekoCircle-Backup",
+  },
+  {
+    key: "github_backup_branch",
+    label: "备份分支",
+    description: "目标分支必须已经存在。",
+    type: "text",
+    defaultValue: "main",
+    env: ["GITHUB_BACKUP_BRANCH"],
+    group: "GitHub 备份",
+    placeholder: "main",
+  },
+  {
+    key: "github_backup_path",
+    label: "备份文件路径",
+    description:
+      "仓库内的 .json.gz 文件路径。备份只包含已授权长期保存的圈子，并可在数据管理页解压后合并导入。",
+    type: "text",
+    defaultValue: "backups/nekocircle-long-term.json.gz",
+    env: ["GITHUB_BACKUP_PATH"],
+    group: "GitHub 备份",
+    placeholder: "backups/nekocircle-long-term.json.gz",
+  },
+  {
+    key: "github_backup_token",
+    label: "GitHub 访问令牌",
+    description:
+      "使用仅对目标仓库具有 Contents 读写权限的 fine-grained token。令牌只保存在服务器数据库或环境变量中，界面不会回传明文。",
+    type: "text",
+    defaultValue: "",
+    env: ["GITHUB_BACKUP_TOKEN"],
+    group: "GitHub 备份",
+    placeholder: "github_pat_…",
+    secret: true,
   },
   {
     key: "generation_enabled",
@@ -196,7 +276,8 @@ export function getSettingDef(key: string): SettingDef | undefined {
 }
 
 /** 敏感 key（导出时默认排除） */
-export const CREDENTIAL_KEY_RE = /^admin_password/i;
+export const CREDENTIAL_KEY_RE = /^(?:admin_password|github_backup_token)/i;
+export const SECRET_SETTING_MASK = "********";
 
 /* ------------------------------------------------------------------ */
 /* 读取                                                               */
@@ -315,6 +396,8 @@ export type AppConfig = {
   temporaryRetentionMs: number;
   temporaryAutoCleanup: boolean;
   generationEnabled: boolean;
+  statsGenerationOffset: number;
+  statsUniqueUsersOffset: number;
 };
 
 export function getAppConfig(): AppConfig {
@@ -331,6 +414,8 @@ export function getAppConfig(): AppConfig {
     temporaryRetentionMs: num("temporary_retention_hours") * 60 * 60 * 1000,
     temporaryAutoCleanup: bool("temporary_auto_cleanup"),
     generationEnabled: bool("generation_enabled"),
+    statsGenerationOffset: num("stats_generation_offset"),
+    statsUniqueUsersOffset: num("stats_unique_users_offset"),
   };
 }
 

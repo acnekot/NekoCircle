@@ -24,6 +24,7 @@ import {
   CIRCLE_PAYLOAD_VERSION,
   getCachedYahooPayload,
 } from "@/lib/circle-payload";
+import { scheduleGitHubLongTermBackup } from "@/lib/github-backup";
 
 /**
  * 生成已关闭时返回的 503。
@@ -67,32 +68,7 @@ type Body = {
   storageConsent?: boolean;
   refresh?: boolean;
   force?: boolean;
-  xkit?: boolean;
 };
-
-function isLocalXKitTestRequest(hostname: string, requested: boolean): boolean {
-  if (!requested || !getAppConfig().generationEnabled) return false;
-  if (process.env.NODE_ENV !== "development" || process.env.XKIT_LOCAL_TEST !== "true") return false;
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  return host === "localhost" || host === "127.0.0.1" || host === "::1";
-}
-
-function noStoreJson(payload: Record<string, unknown>): NextResponse {
-  return NextResponse.json(payload, { headers: { "Cache-Control": "no-store, max-age=0" } });
-}
-
-/** Local-only xKit preview deliberately bypasses shared caches and circle persistence. */
-async function handleLocalXKit(name: string): Promise<NextResponse> {
-  try {
-    return noStoreJson(await buildYahooPayload(name, true, true));
-  } catch {
-    // Never serialize provider errors here: xKit errors may contain request headers.
-    return NextResponse.json(
-      { error: "数据获取失败，请稍后重试。" },
-      { status: 502, headers: { "Cache-Control": "no-store, max-age=0" } },
-    );
-  }
-}
 
 function parseStorageConsent(searchParams: URLSearchParams, body?: Body): boolean {
   if (body) return body.storageConsent === true;
@@ -113,6 +89,7 @@ function persistCircle(
   }
   createYahooCircle(circleId, name, JSON.stringify(payload), storageConsent);
   logGeneration("yahoo", name);
+  if (storageConsent) scheduleGitHubLongTermBackup();
 }
 
 function retentionFields(storageConsent: boolean) {
@@ -313,11 +290,6 @@ export async function GET(req: NextRequest) {
 
   const buildCircle = parseBuildCircle(sp);
   const storageConsent = parseStorageConsent(sp);
-  const requestedXKit = sp.get("xkit") === "1";
-  if (buildCircle && requestedXKit) {
-    if (isLocalXKitTestRequest(req.nextUrl.hostname, requestedXKit)) return handleLocalXKit(name);
-    return NextResponse.json({ error: "xkit_beta_unavailable" }, { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } });
-  }
 
   // 強制再取得はクールダウンもデータキャッシュも迂回する
   if (parseForce(sp)) {
@@ -421,13 +393,6 @@ export async function POST(req: Request) {
   }
 
   if (!getAppConfig().generationEnabled) return maintenanceResponse();
-
-  const requestUrl = new URL(req.url);
-  const requestedXKit = body.xkit === true || requestUrl.searchParams.get("xkit") === "1";
-  if (body.buildCircle === true && requestedXKit) {
-    if (isLocalXKitTestRequest(requestUrl.hostname, requestedXKit)) return handleLocalXKit(name);
-    return NextResponse.json({ error: "xkit_beta_unavailable" }, { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } });
-  }
 
   try {
     const wantCircle = body.buildCircle === true;

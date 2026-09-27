@@ -37,6 +37,15 @@ function sanitizeColor(value: unknown, fallback: string) {
   return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
 }
 
+function colorWithOpacity(color: string, opacity: number) {
+  const value = sanitizeColor(color, "#000000");
+  const alpha = Math.max(0, Math.min(1, opacity));
+  const r = Number.parseInt(value.slice(1, 3), 16);
+  const g = Number.parseInt(value.slice(3, 5), 16);
+  const b = Number.parseInt(value.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function sanitizeEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return typeof value === "string" && allowed.includes(value as T) ? (value as T) : fallback;
 }
@@ -283,9 +292,60 @@ export function CircleExportImage({
           const x = center + Math.cos(angle) * R;
           const y = center + Math.sin(angle) * R;
           const color = nodeColor(style.accentColor, idx, tier, style.nodeScheme);
-          const labelX = center + Math.cos(angle) * (R + nodeR + 22 * scale);
-          const labelY = center + Math.sin(angle) * (R + nodeR + 22 * scale);
-          const scoreY = labelY + (style.usernameConfig.enabled ? 22 : 0);
+          const uc = style.usernameConfig;
+          const labelText = `@${item.user.userName.replace(/^@+/, "")}`;
+          const labelFontSize = ({ small: 12, medium: 15, large: 18 } as const)[uc.fontSize] * scale;
+          const labelPadX = 5 * scale;
+          const labelPadY = 2 * scale;
+          const labelWidth = Math.max(36 * scale, labelText.length * labelFontSize * 0.62 + labelPadX * 2);
+          const labelHeight = labelFontSize + labelPadY * 2;
+          const labelGap = 2 * scale;
+          const edgeMargin = 7 * scale;
+          const labelCenterX = Math.max(
+            edgeMargin + labelWidth / 2,
+            Math.min(size - edgeMargin - labelWidth / 2, x),
+          );
+          const labelTop = uc.position === "above"
+            ? y - nodeR - labelHeight - labelGap
+            : uc.position === "overlay"
+              ? y + r * 0.35 - labelHeight / 2
+              : y + nodeR + labelGap;
+          const scoreY = uc.enabled && uc.position === "below"
+            ? labelTop + labelHeight + 5 * scale
+            : y + nodeR + 5 * scale;
+          const radialRotation = (() => {
+            if (uc.arrange !== "radial" || uc.position === "overlay") return undefined;
+            let degrees = (angle * 180) / Math.PI + 90;
+            if (degrees > 90 && degrees < 270) degrees += 180;
+            return `rotate(${degrees}deg)`;
+          })();
+          const nameplate = uc.enabled ? (
+            <div
+              style={{
+                position: "absolute",
+                left: labelCenterX - labelWidth / 2,
+                top: labelTop,
+                width: labelWidth,
+                height: labelHeight,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                whiteSpace: "nowrap",
+                borderRadius: uc.style === "pill" ? labelHeight / 2 : uc.style === "rect" ? 3 * scale : 0,
+                backgroundColor: uc.style === "bare" ? "transparent" : colorWithOpacity(uc.bgColor, uc.opacity),
+                border: uc.style === "bare"
+                  ? "none"
+                  : `1px solid ${isLight ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.25)"}`,
+                color: uc.textColor,
+                fontSize: labelFontSize,
+                fontWeight: uc.textStyle === "bold" ? 700 : 400,
+                fontStyle: uc.textStyle === "italic" ? "italic" : "normal",
+                transform: radialRotation,
+              }}
+            >
+              {labelText}
+            </div>
+          ) : null;
 
           return (
             <div
@@ -299,6 +359,8 @@ export function CircleExportImage({
                 display: "flex",
               }}
             >
+              {uc.zIndex === "below" ? nameplate : null}
+
               <div
                 style={{
                   position: "absolute",
@@ -365,28 +427,13 @@ export function CircleExportImage({
                 </div>
               ) : null}
 
-              {style.usernameConfig.enabled ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: labelX - 90 * scale,
-                    top: labelY - 10 * scale,
-                    width: 180 * scale,
-                    textAlign: "center",
-                    fontSize: (17 - tier) * scale,
-                    fontWeight: 700,
-                    color: isLight ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.8)",
-                  }}
-                >
-                  {`@${item.user.userName.slice(0, 12)}`}
-                </div>
-              ) : null}
+              {uc.zIndex === "above" ? nameplate : null}
 
               {style.showScores ? (
                 <div
                   style={{
                     position: "absolute",
-                    left: labelX - 50 * scale,
+                    left: x - 50 * scale,
                     top: scoreY + 6 * scale,
                     width: 100 * scale,
                     textAlign: "center",

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import AnnouncementBanner from "@/components/AnnouncementBanner";
+import AnnouncementBanner, { type Announcement } from "@/components/AnnouncementBanner";
 import { useTranslation } from "@/components/LocaleProvider";
 import LiveGeneratedCircle from "./LiveGeneratedCircle";
 import FeedbackForm from "./FeedbackForm";
@@ -19,7 +19,13 @@ function Arrow() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-5 5 5-5 5" /></svg>;
 }
 
-export default function IndependentMd3Demo({ standaloneDemo = true }: { standaloneDemo?: boolean }) {
+export default function IndependentMd3Demo({
+  standaloneDemo = true,
+  initialAnnouncements = [],
+}: {
+  standaloneDemo?: boolean;
+  initialAnnouncements?: Announcement[];
+}) {
   const router = useRouter();
   const { locale, t } = useTranslation();
   const [username, setUsername] = useState(standaloneDemo ? "acnekot" : "");
@@ -80,7 +86,11 @@ export default function IndependentMd3Demo({ standaloneDemo = true }: { standalo
           <div className={styles.heroCopy}>
             <h1>{t("home.hero.title1")}<em>{heroTitle}</em></h1>
             <p className={styles.lede}>{heroDescription}</p>
-            {!standaloneDemo && <div className={styles.announcements}><AnnouncementBanner /></div>}
+            {!standaloneDemo && (
+              <div className={styles.announcements}>
+                <AnnouncementBanner initialAnnouncements={initialAnnouncements} />
+              </div>
+            )}
 
             <form className={styles.searchPanel} onSubmit={generate}>
               <label htmlFor="md3-username">{t("home.form.usernameLabel")}</label>

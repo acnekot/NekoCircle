@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import {
   getAppConfig,
+  getSettingDef,
   getSettingValue,
   isOverridden,
   resetSettingValue,
   saveSettingValue,
   SETTING_DEFS,
+  SECRET_SETTING_MASK,
 } from "@/lib/app-config";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,8 @@ type ItemDTO = {
   source: "db" | "env" | "default";
   override: boolean;
   defaultValue: string;
+  secret?: boolean;
+  hasValue?: boolean;
 };
 
 function sourceOf(key: string): "db" | "env" | "default" {
@@ -47,6 +51,7 @@ export async function GET() {
     const items: ItemDTO[] = SETTING_DEFS.map((d) => {
       const value = getSettingValue(d.key);
       const source = sourceOf(d.key);
+      const hasValue = value.trim() !== "";
       return {
         key: d.key,
         label: d.label,
@@ -62,10 +67,14 @@ export async function GET() {
         env: d.env,
         // 代理 URL 里可能嵌着凭据，没必要显示在界面上，
         // 因此文本值原样返回，但把密码部分遮蔽掉
-        value: value.replace(/(\/\/[^/@\s]*):[^/@\s]*@/, "$1:***@"),
+        value: d.secret && hasValue
+          ? SECRET_SETTING_MASK
+          : value.replace(/(\/\/[^/@\s]*):[^/@\s]*@/, "$1:***@"),
         source,
         override: source === "db",
         defaultValue: d.defaultValue,
+        secret: d.secret,
+        hasValue,
       };
     });
 
@@ -105,6 +114,7 @@ export async function PUT(req: Request) {
 
     for (const [key, value] of Object.entries(updates)) {
       try {
+        if (getSettingDef(key)?.secret && value === SECRET_SETTING_MASK) continue;
         saveSettingValue(key, value);
         saved.push(key);
       } catch (err) {

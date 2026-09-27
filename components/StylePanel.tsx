@@ -245,6 +245,7 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                         options={[
                           { key: "below", label: t("style.uname.posBelow") },
                           { key: "above", label: t("style.uname.posAbove") },
+                          { key: "overlay", label: t("style.uname.posOverlay") },
                         ]}
                         value={uc.position}
                         onChange={(v) => setUname("position", v)}
@@ -302,20 +303,6 @@ export default function StylePanel({ value: s, onChange, maxUsers = 50, showAllO
                         ]}
                         value={uc.zIndex}
                         onChange={(v) => setUname("zIndex", v)}
-                      />
-                    </div>
-
-                    {/* Max length slider */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs text-gray-500">{t("style.uname.maxLength")}</span>
-                        <span className="text-xs text-gray-300 tabular-nums">{uc.maxLength}</span>
-                      </div>
-                      <input
-                        type="range" min={3} max={20} step={1}
-                        value={uc.maxLength}
-                        onChange={(e) => setUname("maxLength", Number(e.target.value))}
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 accent-[#bec2ff]"
                       />
                     </div>
 

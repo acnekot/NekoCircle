@@ -7,6 +7,7 @@ export type TwitterUser = {
   userName: string;
   name: string;
   profilePicture: string;
+  profilePictureFallbacks?: string[];
   followers: number;
   isBlueVerified: boolean;
   isProtected: boolean;
@@ -55,12 +56,17 @@ export type AnalysisResult = {
   weights: ScoringWeights;
 };
 
-function avatarUrlOrLookup(
+function avatarUrlCandidates(
   screenName: string,
   hdUrl?: string,
   previewUrl?: string,
-): string {
-  return hdUrl ?? previewUrl ?? `/api/avatar?username=${encodeURIComponent(screenName)}`;
+): { primary: string; fallbacks: string[] } {
+  const candidates = [...new Set([
+    hdUrl?.trim(),
+    previewUrl?.trim(),
+    `/api/avatar?username=${encodeURIComponent(screenName.replace(/^@+/, ""))}`,
+  ].filter((value): value is string => Boolean(value)))];
+  return { primary: candidates[0]!, fallbacks: candidates.slice(1) };
 }
 
 /** Yahoo CircleUser[] → CircleChart 所需的 AnalysisResult */
@@ -69,32 +75,37 @@ export function yahooToAnalysisResult(
   users: CircleUser[],
   counts: { toYou: number; fromYou: number },
 ): AnalysisResult {
+  const orderedUsers = [...users].sort(
+    (a, b) =>
+      b.interactionScore - a.interactionScore ||
+      (b.interactionCount ?? 0) - (a.interactionCount ?? 0) ||
+      a.screenName.localeCompare(b.screenName),
+  );
+  const selfAvatar = avatarUrlCandidates(
+    self.screenName,
+    self.avatarUrl,
+    self.avatarUrlPreview,
+  );
   return {
     targetUser: {
       id: self.screenName,
       userName: self.screenName,
       name: self.displayName || self.screenName,
-      profilePicture: avatarUrlOrLookup(
-        self.screenName,
-        self.avatarUrl,
-        self.avatarUrlPreview,
-      ),
+      profilePicture: selfAvatar.primary,
+      profilePictureFallbacks: selfAvatar.fallbacks,
       followers: 0,
       isBlueVerified: false,
       isProtected: false,
     },
-    topUsers: users.map((u) => {
-      const count = u.interactionCount ?? u.interactionScore;
+    topUsers: orderedUsers.map((u) => {
+      const avatar = avatarUrlCandidates(u.screenName, u.avatarUrl, u.avatarUrlPreview);
       return {
         user: {
           id: u.screenName,
           userName: u.screenName,
           name: u.displayName || u.screenName,
-          profilePicture: avatarUrlOrLookup(
-            u.screenName,
-            u.avatarUrl,
-            u.avatarUrlPreview,
-          ),
+          profilePicture: avatar.primary,
+          profilePictureFallbacks: avatar.fallbacks,
           followers: 0,
           isBlueVerified: false,
           isProtected: false,
@@ -102,10 +113,10 @@ export function yahooToAnalysisResult(
         replies: 0,
         quotes: 0,
         retweets: 0,
-        mentions: count,
-        outboundScore: count / 2,
-        inboundScore: count / 2,
-        score: count,
+        mentions: u.interactionCount ?? 0,
+        outboundScore: (u.interactionCount ?? 0) / 2,
+        inboundScore: (u.interactionCount ?? 0) / 2,
+        score: u.interactionScore,
       };
     }),
     tweetCount: counts.toYou + counts.fromYou,

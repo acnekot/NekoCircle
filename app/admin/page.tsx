@@ -19,6 +19,11 @@ type Stats = {
     longTerm: number;
     temporary: number;
   };
+  offsets?: {
+    generations: number;
+    uniqueUsers: number;
+    recordedGenerations: number;
+  };
   daily: { date: string; count: number }[];
   hourly: { hour: number; count: number }[];
   weekdayHour: number[][];
@@ -121,7 +126,15 @@ export default function AdminDashboardPage() {
         window.location.href = "/admin/login";
         return;
       }
-      const data = await res.json();
+      const responseText = await res.text();
+      let data: Stats & { error?: string };
+      try {
+        data = JSON.parse(responseText) as Stats & { error?: string };
+      } catch {
+        throw new Error(
+          `统计接口返回了非 JSON 内容（HTTP ${res.status}），请刷新页面；若持续出现，请检查服务器日志。`,
+        );
+      }
       if (!res.ok) throw new Error(data.error || "读取失败");
       setStats(data);
       setError("");
@@ -258,7 +271,7 @@ export default function AdminDashboardPage() {
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-gray-300">{s.source}</span>
                             <span className="text-gray-500 tabular-nums">
-                              {s.count} · {((s.count / stats.totals.generations) * 100).toFixed(0)}%
+                              {s.count} · {((s.count / Math.max(stats.offsets?.recordedGenerations ?? stats.totals.generations, 1)) * 100).toFixed(0)}%
                             </span>
                           </div>
                           <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "@/components/LocaleProvider";
 import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 
-type Announcement = {
+export type Announcement = {
   id: number;
   title: string;
   content: string;
@@ -37,20 +37,26 @@ function addDismissedId(id: number) {
   } catch { /* ignore */ }
 }
 
-export default function AnnouncementBanner() {
+export default function AnnouncementBanner({
+  initialAnnouncements = [],
+}: {
+  initialAnnouncements?: Announcement[];
+}) {
   const { locale, t } = useTranslation();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setDismissed(getDismissedIds());
+    if (initialAnnouncements.length > 0) return;
+
     fetch(`/api/announcements?locale=${locale}`)
       .then((r) => r.json())
       .then((data: Announcement[]) => {
         if (Array.isArray(data)) setAnnouncements(data);
       })
       .catch(() => {});
-  }, [locale]);
+  }, [initialAnnouncements.length, locale]);
 
   const visible = announcements.filter((a) => !dismissed.has(a.id));
   if (visible.length === 0) return null;

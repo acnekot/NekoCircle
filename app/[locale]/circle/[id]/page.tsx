@@ -17,6 +17,8 @@ import { parseYahooCircleData } from "@/lib/circle-convert";
 import { useTranslation } from "@/components/LocaleProvider";
 import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 import type { InteractionDiagnostics } from "@/types/interaction";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { getShareUrl } from "@/lib/share-link";
 
 type UnifiedCircle = {
   source: "yahoo";
@@ -45,6 +47,7 @@ export default function CirclePreviewPage() {
   const [bgAccent, setBgAccent] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("circle");
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<InteractionDiagnostics | null>(null);
 
@@ -176,10 +179,26 @@ export default function CirclePreviewPage() {
                 maxUsers={result.topUsers.length}
                 showAllOption
               />
-              <div className="card rounded-2xl p-4 space-y-2">
+            <div className="card rounded-2xl p-4 space-y-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await copyTextToClipboard(getShareUrl(`/${locale}/circle/${circleId}`, window.location.origin));
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 1800);
+                    } catch { /* Browser clipboard is unavailable. */ }
+                  }}
+                  className="w-full py-2 rounded-xl text-sm font-medium bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10 transition-all"
+                >
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Md3Icon name="share" className="h-4 w-4" />
+                    {linkCopied ? t("common.linkCopied") : t("common.copyLink")}
+                  </span>
+                </button>
                 <button
                   onClick={async () => {
-                    const pageUrl = `https://circle.catsuki.cc/${locale}/circle/${circleId}`;
+                    const pageUrl = getShareUrl(`/${locale}/circle/${circleId}`, window.location.origin);
                     const shareText = `${t("circle.shareText1")}\n${t("circle.shareText2")} ${pageUrl}\n${t("circle.shareText3")}`;
                     try {
                       const blob = await getCanvasBlob();

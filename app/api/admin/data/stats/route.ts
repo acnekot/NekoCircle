@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb, initDb } from "@/lib/db";
 import { databaseOverview } from "@/lib/admin-data";
+import { getAppConfig } from "@/lib/app-config";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,26 @@ function todayKey(): string {
 }
 
 export async function GET() {
-  initDb();
-  const db = getDb();
+  try {
+    initDb();
+  } catch (err) {
+    console.error("[admin:data:stats] database initialization failed:", err);
+    return NextResponse.json(
+      { error: "无法初始化统计数据库，请检查服务端数据库状态。" },
+      { status: 500 },
+    );
+  }
+
+  let db: ReturnType<typeof getDb>;
+  try {
+    db = getDb();
+  } catch (err) {
+    console.error("[admin:data:stats] database open failed:", err);
+    return NextResponse.json(
+      { error: "无法打开统计数据库，请检查服务端数据库状态。" },
+      { status: 500 },
+    );
+  }
   try {
     const nowMs = Date.now();
 
@@ -43,8 +62,10 @@ export async function GET() {
       "SELECT COUNT(*) c FROM yahoo_circles WHERE storage_consent = 1",
     ).c;
     const temporaryCircles = circles - longTermCircles;
-    const generations = one<{ c: number }>("SELECT COUNT(*) c FROM generation_log").c;
-    const uniqueUsers = one<{ c: number }>(
+    const config = getAppConfig();
+    const recordedGenerations = one<{ c: number }>("SELECT COUNT(*) c FROM generation_log").c;
+    const generations = config.statsGenerationOffset + recordedGenerations;
+    const uniqueUsers = config.statsUniqueUsersOffset + one<{ c: number }>(
       "SELECT COUNT(DISTINCT LOWER(username)) c FROM generation_log",
     ).c;
     const today = one<{ c: number }>(
@@ -154,6 +175,11 @@ export async function GET() {
         generatedAt: new Date().toISOString(),
         timezone: "UTC+08:00",
         totals: { circles, generations, uniqueUsers, today, last24h, last7d },
+        offsets: {
+          generations: config.statsGenerationOffset,
+          uniqueUsers: config.statsUniqueUsersOffset,
+          recordedGenerations,
+        },
         retention: { longTerm: longTermCircles, temporary: temporaryCircles },
         daily,
         hourly,

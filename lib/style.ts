@@ -4,7 +4,7 @@ export type FontChoice = "sans-serif" | "serif" | "monospace";
 export type NodeSize = "small" | "medium" | "large";
 
 export type NameplateStyle = "pill" | "rect" | "bare";
-export type NameplatePosition = "below" | "above";
+export type NameplatePosition = "below" | "above" | "overlay";
 export type NameplateTextStyle = "bold" | "normal" | "italic";
 export type NameplateArrange = "horizontal" | "radial";
 
@@ -27,7 +27,9 @@ export const DEFAULT_USERNAME: UsernameConfig = {
   style: "pill",
   bgColor: "#ffffff",
   opacity: 1,
-  maxLength: 10,
+  // Kept for backwards compatibility with saved style data. Usernames are
+  // rendered in full; the renderer no longer truncates to this value.
+  maxLength: 64,
   position: "below",
   zIndex: "above",
   fontSize: "medium",

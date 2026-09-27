@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, initDb } from "@/lib/db";
+import { getAppConfig } from "@/lib/app-config";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,9 @@ export async function GET() {
       const one = <T,>(sql: string, ...args: unknown[]): T => db.prepare(sql).get(...args) as T;
       const all = <T,>(sql: string, ...args: unknown[]): T[] => db.prepare(sql).all(...args) as T[];
 
-      const generations = one<{ count: number }>("SELECT COUNT(*) count FROM generation_log").count;
-      const uniqueUsers = one<{ count: number }>(
+      const config = getAppConfig();
+      const generations = config.statsGenerationOffset + one<{ count: number }>("SELECT COUNT(*) count FROM generation_log").count;
+      const uniqueUsers = config.statsUniqueUsersOffset + one<{ count: number }>(
         "SELECT COUNT(DISTINCT LOWER(username)) count FROM generation_log",
       ).count;
       const today = one<{ count: number }>(

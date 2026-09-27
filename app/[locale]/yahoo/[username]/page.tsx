@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import CircleChart, { renderToCanvas } from "@/components/CircleChart";
 import StylePanel from "@/components/StylePanel";
 import FindYourself from "@/components/FindYourself";
@@ -18,6 +17,8 @@ import { readYahooCircleCache, writeYahooCircleCache } from "@/lib/yahoo-client-
 import { useTranslation } from "@/components/LocaleProvider";
 import Md3Icon, { type Md3IconName } from "@/components/Md3Icon";
 import type { InteractionDiagnostics } from "@/types/interaction";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { getShareUrl } from "@/lib/share-link";
 
 type Tab = "circle" | "list" | "family" | "value" | "data";
 
@@ -36,11 +37,8 @@ type YahooMentionsResponse = InteractionDiagnostics & {
   createdAt?: number;
   storageConsent?: boolean;
   retentionMode?: "long_term" | "temporary";
-  xkit?: { status: "unavailable" | "ok" | "partial"; reason?: string; scannedLikes?: number; elapsedMs?: number };
   error?: string;
 };
-
-type XKitBetaState = "idle" | "loading" | "ok" | "partial" | "unavailable" | "error";
 
 const EMPTY_SELF: SelfProfile = { screenName: "", displayName: "" };
 
@@ -62,12 +60,9 @@ export default function YahooCirclePage() {
   const [createdAt, setCreatedAt] = useState<number | null>(null);
   const [storedLongTerm, setStoredLongTerm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [highlightedUsername, setHighlightedUsername] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<InteractionDiagnostics | null>(null);
-  const [xkitBetaState, setXkitBetaState] = useState<XKitBetaState>("idle");
-  const [xkitFeatureEnabled, setXkitFeatureEnabled] = useState(false);
-  const [xkitBindAvailable, setXkitBindAvailable] = useState(false);
-  const [xkitBoundAccount, setXkitBoundAccount] = useState<string | null>(null);
 
   useEffect(() => { setStyleConfig(loadStyleConfig()); }, []);
   const handleStyleChange = (s: StyleConfig) => { setStyleConfig(s); saveStyleConfig(s); };
@@ -110,8 +105,7 @@ export default function YahooCirclePage() {
       const requestedStorageConsent =
         searchParams.get("storageConsent") === "1" ||
         searchParams.get("storageConsent") === "true";
-      const requestedXKit = searchParams.get("xkit") === "1";
-      if (!force && !requestedXKit) {
+      if (!force) {
         const cached = readYahooCircleCache(name, requestedStorageConsent);
         if (cached) {
           applyPayload({
@@ -141,10 +135,9 @@ export default function YahooCirclePage() {
 
       const q = new URLSearchParams({ screenName: name, buildCircle: "1" });
       q.set("storageConsent", requestedStorageConsent ? "1" : "0");
-      if (requestedXKit) q.set("xkit", "1");
       if (force) q.set("refresh", "1");
       const r = await fetch(`/api/yahoo-mentions?${q.toString()}`, {
-        cache: force || requestedXKit ? "no-store" : "default",
+        cache: force ? "no-store" : "default",
       });
       const ct = r.headers.get("content-type") ?? "";
       if (!ct.includes("application/json")) {
@@ -155,7 +148,7 @@ export default function YahooCirclePage() {
       const data = (await r.json()) as YahooMentionsResponse;
       if (data.error) { setError(data.error); return; }
       applyPayload(data);
-      if (!requestedXKit) writeYahooCircleCache(name, requestedStorageConsent, {
+      writeYahooCircleCache(name, requestedStorageConsent, {
         screenName: data.screenName,
         counts: data.counts,
         circleUsers: data.circleUsers,
@@ -184,70 +177,8 @@ export default function YahooCirclePage() {
     }
   }, [username, applyPayload, t]);
 
-  const tryXKitBeta = useCallback(async () => {
-    const name = username.replace(/^@+/, "");
-    if (!name || xkitBetaState === "loading") return;
-    setXkitBetaState("loading");
-    try {
-      const query = new URLSearchParams({ screenName: name });
-      const response = await fetch(`/api/xkit/enhance?${query.toString()}`, { cache: "no-store" });
-      const data = (await response.json()) as YahooMentionsResponse;
-      if (!response.ok || data.error) {
-        if (data.error === "xkit_not_bound") {
-          setXkitBoundAccount(null);
-          setXkitBetaState("idle");
-        } else {
-          setXkitBetaState(data.error === "xkit_beta_unavailable" ? "unavailable" : "error");
-        }
-        return;
-      }
-      const status = data.xkit?.status ?? "unavailable";
-      setXkitBetaState(status);
-      // An unavailable optional provider must never replace the valid public-data result.
-      if (status === "ok" || status === "partial") {
-        // Beta output is transient; don't associate it with the previously saved public circle.
-        setCircleId(null);
-        applyPayload({
-          ...data,
-          circleId: undefined,
-          createdAt: createdAt ?? undefined,
-          storageConsent: storedLongTerm,
-          retentionMode: storedLongTerm ? "long_term" : "temporary",
-        });
-      }
-    } catch {
-      setXkitBetaState("error");
-    }
-  }, [username, xkitBetaState, applyPayload, circleId, createdAt, storedLongTerm]);
-
-  const unbindXKit = useCallback(async () => {
-    try {
-      await fetch("/api/xkit/bind", { method: "DELETE", cache: "no-store" });
-    } finally {
-      setXkitBoundAccount(null);
-      setXkitBetaState("idle");
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void fetch("/api/xkit/bind", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((data: { enabled?: boolean; available?: boolean; bound?: boolean; accountName?: string }) => {
-        if (!active) return;
-        setXkitFeatureEnabled(data.enabled === true);
-        setXkitBindAvailable(data.available === true);
-        setXkitBoundAccount(data.bound === true ? data.accountName ?? null : null);
-      })
-      .catch(() => {
-        if (active) setXkitBindAvailable(false);
-      });
-    return () => { active = false; };
-  }, [username]);
-
   useEffect(() => {
     if (!username) return;
-    setXkitBetaState("idle");
     // ?refresh=1 付きで開かれたら最初から強制再取得
     const sp = new URLSearchParams(window.location.search);
     const force =
@@ -293,10 +224,9 @@ export default function YahooCirclePage() {
   };
 
   const shareCircle = async () => {
-    const cid = circleId ?? "";
-    const pageUrl = cid
-      ? `https://circle.catsuki.cc/${locale}/circle/${cid}`
-      : `${window.location.origin}/${locale}/yahoo/${encodeURIComponent(username)}`;
+    const pageUrl = circleId
+      ? getShareUrl(`/${locale}/circle/${circleId}`, window.location.origin)
+      : getShareUrl(`/${locale}/yahoo/${encodeURIComponent(username)}`, window.location.origin);
     const shareText = `${t("yahoo.shareText1")}\n${t("yahoo.shareText2")} ${pageUrl}\n${t("yahoo.shareText3")}`;
     try {
       const blob = await getCanvasBlob();
@@ -358,10 +288,23 @@ export default function YahooCirclePage() {
             </div>
 
             {displayedResult && (
-              <div className="result-actions grid w-full grid-cols-3 gap-2 xl:w-auto">
+              <div className="result-actions grid w-full grid-cols-2 gap-2 sm:grid-cols-4 xl:w-auto">
                 <button type="button" onClick={() => { void shareCircle(); }} className="btn-primary result-action">
                   <Md3Icon name="share" className="h-4 w-4" />
                   <span>{t("common.share")}</span>
+                </button>
+                <button type="button" onClick={async () => {
+                  const pageUrl = circleId
+                    ? getShareUrl(`/${locale}/circle/${circleId}`, window.location.origin)
+                    : getShareUrl(`/${locale}/yahoo/${encodeURIComponent(username)}`, window.location.origin);
+                  try {
+                    await copyTextToClipboard(pageUrl);
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 1800);
+                  } catch { /* Browser clipboard is unavailable. */ }
+                }} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10">
+                  <Md3Icon name="share" className="h-4 w-4" />
+                  <span>{linkCopied ? t("common.linkCopied") : t("common.copyLink")}</span>
                 </button>
                 <button type="button" onClick={() => { void downloadCanvas(); }} className="result-action bg-white/[0.055] text-slate-200 hover:bg-white/10">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4" /><path d="M5 19h14" /></svg>
@@ -392,41 +335,6 @@ export default function YahooCirclePage() {
             </div>
           )}
 
-          {displayedResult && xkitFeatureEnabled && (
-            <section className="mt-3 flex flex-col gap-3 rounded-2xl border border-[#bec2ff]/15 bg-[#3c4278]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <Md3Icon name="sparkle" className="mt-0.5 h-5 w-5 shrink-0 text-[#bec2ff]" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-100">{t("yahoo.xkitBetaTitle")}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                    {!xkitBindAvailable
-                      ? t("yahoo.xkitBeta.localOnly")
-                      : xkitBoundAccount
-                        ? t(`yahoo.xkitBeta.${xkitBetaState}`)
-                        : t("yahoo.xkitBeta.bindRequired")}
-                  </p>
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {xkitBindAvailable && !xkitBoundAccount && (
-                  <Link href={`/${locale}/xkit/bind/${encodeURIComponent(username.replace(/^@+/, ""))}`} className="result-action border-[#bec2ff]/20 bg-[#3c4278]/35 text-[#dfe0ff] hover:bg-[#3c4278]/60">
-                    <Md3Icon name="key" className="h-4 w-4" />
-                    <span>{t("yahoo.xkitBeta.bindButton")}</span>
-                  </Link>
-                )}
-                {xkitBoundAccount && <>
-                  <button type="button" onClick={() => { void tryXKitBeta(); }} disabled={xkitBetaState === "loading"} className="result-action border-[#bec2ff]/20 bg-[#3c4278]/35 text-[#dfe0ff] hover:bg-[#3c4278]/60 disabled:cursor-wait disabled:opacity-60">
-                    <Md3Icon name="sparkle" className={`h-4 w-4 ${xkitBetaState === "loading" ? "animate-spin" : ""}`} />
-                    <span>{xkitBetaState === "loading" ? t("yahoo.xkitBeta.loadingButton") : t("yahoo.xkitBeta.button")}</span>
-                  </button>
-                  <button type="button" onClick={() => { void unbindXKit(); }} className="result-action bg-white/[0.055] text-slate-300 hover:bg-white/10">
-                    <Md3Icon name="close" className="h-4 w-4" />
-                    <span>{t("yahoo.xkitBeta.unbindButton")}</span>
-                  </button>
-                </>}
-              </div>
-            </section>
-          )}
         </header>
 
         {/* Loading */}

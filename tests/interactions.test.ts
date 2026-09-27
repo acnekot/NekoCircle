@@ -14,6 +14,8 @@ import { fetchProvidersSafely } from "../lib/providers/types";
 import { fxStatusesToInteractionEvents } from "../lib/providers/fxtwitter";
 import { yahooEntriesToInteractionEvents } from "../lib/providers/yahoo";
 import { interactionScoresToCircleUsers } from "../lib/yahoo-to-circle";
+import { yahooToAnalysisResult } from "../lib/circle-convert";
+import { getShareUrl } from "../lib/share-link";
 import type { InteractionEvent } from "../types/interaction";
 
 test("用户名会去除 @、空白并统一为小写", () => {
@@ -253,4 +255,50 @@ test("圈子转换会保留全部评分用户而不是只取前 50 名", async (
 
   assert.equal(users.length, 120);
   assert.equal(users[119]?.screenName, "user_119");
+});
+
+test("圈图把最高加权分排入内圈，并显示加权分而非互动次数", () => {
+  const result = yahooToAnalysisResult(
+    { screenName: "self", displayName: "self" },
+    [
+      {
+        id: "low",
+        screenName: "low",
+        displayName: "low",
+        avatarUrl: "https://pbs.twimg.com/profile_images/low_400x400.jpg",
+        avatarUrlPreview: "https://pbs.twimg.com/profile_images/low_normal.jpg",
+        interactionScore: 35,
+        interactionCount: 99,
+      },
+      {
+        id: "high",
+        screenName: "high",
+        displayName: "high",
+        avatarUrl: "https://pbs.twimg.com/profile_images/high_400x400.jpg",
+        avatarUrlPreview: "https://pbs.twimg.com/profile_images/high_normal.jpg",
+        interactionScore: 92,
+        interactionCount: 12,
+      },
+    ],
+    { toYou: 0, fromYou: 0 },
+  );
+
+  assert.equal(result.topUsers[0]?.user.userName, "high");
+  assert.equal(result.topUsers[0]?.score, 92);
+  assert.equal(result.topUsers[0]?.mentions, 12);
+  assert.deepEqual(result.topUsers[0]?.user.profilePictureFallbacks, [
+    "https://pbs.twimg.com/profile_images/high_normal.jpg",
+    "/api/avatar?username=high",
+  ]);
+});
+
+test("分享链接在本地预览时仍使用可公开访问的站点域名", () => {
+  assert.equal(
+    getShareUrl("/zh/circle/abc123", "http://localhost:3000"),
+    "https://circle.catsuki.cc/zh/circle/abc123",
+  );
+  assert.equal(
+    getShareUrl("/en/circle/abc123", "https://preview.example.com"),
+    "https://preview.example.com/en/circle/abc123",
+  );
 });

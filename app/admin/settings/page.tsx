@@ -21,9 +21,27 @@ type Item = {
   source: "db" | "env" | "default";
   override: boolean;
   defaultValue: string;
+  secret?: boolean;
+  hasValue?: boolean;
 };
 
 type Runtime = Record<string, string | number | boolean>;
+
+type BackupStatus = {
+  configured: boolean;
+  automatic: boolean;
+  running: boolean;
+  lastResult: null | {
+    exportedAt: string;
+    circleCount: number;
+    compressedBytes: number;
+    commitUrl: string;
+    repository: string;
+    branch: string;
+    path: string;
+  };
+  lastError: string | null;
+};
 
 const SOURCE_BADGE: Record<Item["source"], { text: string; cls: string }> = {
   db: { text: "已自定义", cls: "bg-[#1d9bf0]/15 text-[#1d9bf0] border-[#1d9bf0]/30" },
@@ -46,6 +64,18 @@ export default function AdminSettingsPage() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
+  const [syncingBackup, setSyncingBackup] = useState(false);
+  const [backupMessage, setBackupMessage] = useState("");
+
+  const loadBackupStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/github-backup", { cache: "no-store" });
+      if (res.ok) setBackupStatus(await res.json());
+    } catch {
+      // 参数设置本身仍可正常使用，备份状态失败单独显示即可。
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,7 +102,8 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadBackupStatus();
+  }, [load, loadBackupStatus]);
 
   const dirty = useMemo(
     () => items.filter((i) => draft[i.key] !== i.value).map((i) => i.key),
@@ -108,6 +139,7 @@ export default function AdminSettingsPage() {
       }
       if (data.runtime) setRuntime(data.runtime);
       await load();
+      await loadBackupStatus();
     } catch {
       setFlash("保存失败");
     } finally {
@@ -128,6 +160,7 @@ export default function AdminSettingsPage() {
       if (data.runtime) setRuntime(data.runtime);
       setFlash("已恢复默认");
       await load();
+      await loadBackupStatus();
     } catch {
       setFlash("重置失败");
     } finally {
@@ -173,6 +206,23 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const syncBackup = async () => {
+    setSyncingBackup(true);
+    setBackupMessage("");
+    try {
+      const res = await fetch("/api/admin/github-backup", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "同步失败");
+      setBackupStatus(data.status || null);
+      setBackupMessage(`已备份 ${data.result?.circleCount ?? 0} 个长期保存圈子`);
+    } catch (error) {
+      setBackupMessage(error instanceof Error ? error.message : "同步失败");
+      await loadBackupStatus();
+    } finally {
+      setSyncingBackup(false);
+    }
+  };
+
   return (
     <div className="gradient-bg min-h-screen py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
@@ -202,7 +252,7 @@ export default function AdminSettingsPage() {
               <div className="space-y-5">
                 {groupItems.map((item) => {
                   const badge = SOURCE_BADGE[item.source];
-                  const masked = item.value.includes("***@");
+                  const masked = item.value.includes("***@") || (item.secret && item.hasValue);
                   const isDirty = draft[item.key] !== item.value;
                   return (
                     <div key={item.key}>
@@ -252,7 +302,7 @@ export default function AdminSettingsPage() {
                       ) : (
                         <div className="flex items-center gap-2">
                           <input
-                            type={item.type === "number" ? "number" : "text"}
+                            type={item.type === "number" ? "number" : item.secret ? "password" : "text"}
                             value={draft[item.key] ?? ""}
                             min={item.min}
                             max={item.max}
@@ -317,6 +367,44 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         )}
+
+        <div className="card rounded-2xl p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white">GitHub 长期数据备份</h3>
+              <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-gray-600">
+                只打包用户已授权长期保存的圈子。备份为可恢复的 JSON gzip 文件，并附带校验信息；建议目标仓库设为私有。
+              </p>
+            </div>
+            <button
+              onClick={syncBackup}
+              disabled={syncingBackup || !backupStatus?.configured || dirty.length > 0}
+              className="rounded-full bg-[#bec2ff] px-5 py-2 text-xs font-semibold text-[#252a60] disabled:opacity-40"
+            >
+              {syncingBackup ? "同步中…" : "立即同步"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-2 text-[11px] sm:grid-cols-2">
+            <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2 text-gray-400">
+              配置状态：{backupStatus?.configured ? "完整" : "请填写仓库信息与令牌"}
+            </div>
+            <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2 text-gray-400">
+              自动同步：{backupStatus?.automatic ? "已开启" : "未开启"}
+            </div>
+          </div>
+          {dirty.length > 0 && (
+            <p className="mt-2 text-[10px] text-amber-300">请先保存上方参数，再执行立即同步。</p>
+          )}
+          {backupStatus?.lastResult && (
+            <p className="mt-3 text-[11px] text-emerald-300">
+              最近成功：{new Date(backupStatus.lastResult.exportedAt).toLocaleString()} · {backupStatus.lastResult.circleCount} 个圈子 ·{" "}
+              <a href={backupStatus.lastResult.commitUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">查看提交</a>
+            </p>
+          )}
+          {(backupMessage || backupStatus?.lastError) && (
+            <p className="mt-2 text-[11px] text-gray-400">{backupMessage || backupStatus?.lastError}</p>
+          )}
+        </div>
 
         <div className="card rounded-2xl p-5">
           <div className="mb-4 flex items-start gap-3">
