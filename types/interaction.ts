@@ -7,6 +7,8 @@ export type InteractionEvent = {
   tweetId: string;
   author: string;
   target: string;
+  authorId?: string;
+  targetId?: string;
   type: InteractionType;
   /** 公开正文的短摘要；进入持久化载荷前已清理并截断。 */
   text?: string;

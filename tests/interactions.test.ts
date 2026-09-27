@@ -302,3 +302,60 @@ test("分享链接在本地预览时仍使用可公开访问的站点域名", ()
     "https://preview.example.com/en/circle/abc123",
   );
 });
+
+test("stable IDs join a Yahoo historical handle to the FxTwitter handle before scoring", () => {
+  const yahoo = yahooEntriesToInteractionEvents([
+    { id: "in", userId: "42", screenName: "old_name", mentions: [{ id: "1", screenName: "self" }] },
+  ], [
+    { id: "out", userId: "1", mentions: [{ id: "42", screenName: "old_name" }] },
+  ], "self");
+  const fx = fxStatusesToInteractionEvents([{
+    id: "out", author: { id: "1", screen_name: "self" },
+    replying_to: { screen_name: "new_name" },
+    raw_text: { facets: [{ type: "mention", original: "new_name", id: "42" }] },
+  }], "self", "outbound");
+  for (const groups of [[yahoo, fx], [fx, yahoo]]) {
+    const merged = mergeInteractionEvents(groups);
+    assert.equal(merged.length, 3);
+    assert.equal(scoreInteractions(merged, "self").length, 1);
+    const reply = merged.find((e) => e.tweetId === "out" && e.source === "fxtwitter")!;
+    assert.equal(reply.type, "reply");
+    assert.equal(reply.targetId, "42");
+    assert.deepEqual(new Set(reply.sources), new Set(["fxtwitter"]));
+    const scores = scoreInteractions(merged, "self");
+    assert.equal(scores.length, 1);
+    assert.equal(scores[0].screenName, "new_name");
+    assert.equal(scores[0].interactionCount, 3);
+  }
+});
+
+test("different account IDs and unverified names remain separate", () => {
+  const rows: InteractionEvent[] = [
+    { tweetId: "1", author: "old_name", authorId: "42", target: "self", type: "reply", source: "yahoo" },
+    { tweetId: "2", author: "new_name", authorId: "99", target: "self", type: "reply", source: "fxtwitter" },
+    { tweetId: "3", author: "unknown", target: "self", type: "reply", source: "yahoo" },
+  ];
+  assert.equal(scoreInteractions(mergeInteractionEvents([rows]), "self").length, 3);
+});
+
+test("a recycled handle with conflicting IDs is not used to infer identity", () => {
+  const rows: InteractionEvent[] = [
+    { tweetId: "1", author: "same", authorId: "42", target: "self", type: "reply", source: "yahoo" },
+    { tweetId: "2", author: "same", authorId: "99", target: "self", type: "reply", source: "fxtwitter" },
+    { tweetId: "3", author: "same", target: "self", type: "reply", source: "yahoo" },
+  ];
+  const merged = mergeInteractionEvents([rows]);
+  assert.equal(merged[2].authorId, undefined);
+  assert.equal(scoreInteractions(merged, "self").length, 3);
+});
+
+test("different accounts sharing one avatar are both retained", async () => {
+  const rows: InteractionEvent[] = [
+    { tweetId: "a", author: "alice", authorId: "42", target: "self", type: "mention", source: "yahoo" },
+    { tweetId: "b", author: "bob", authorId: "99", target: "self", type: "mention", source: "fxtwitter" },
+  ];
+  const scores = scoreInteractions(mergeInteractionEvents([rows]), "self");
+  const avatar = "https://pbs.twimg.com/profile_images/shared/avatar_400x400.jpg";
+  const users = await interactionScoresToCircleUsers(scores, { alice: avatar, bob: avatar });
+  assert.deepEqual(new Set(users.map((u) => u.screenName)), new Set(["alice", "bob"]));
+});

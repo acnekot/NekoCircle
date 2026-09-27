@@ -35,7 +35,7 @@ import {
 import type {
   InteractionEvent,
 } from "@/types/interaction";
-export const CIRCLE_PAYLOAD_VERSION = 10;
+export const CIRCLE_PAYLOAD_VERSION = 11;
 
 /**
  * 共有の取得パイプライン。
@@ -226,7 +226,7 @@ export function getCachedYahooPayload(name: string, buildCircle: boolean) {
   return unstable_cache(
     () => buildYahooPayload(name, buildCircle),
     [
-      "yahoo-mentions-v8",
+      `yahoo-mentions-v${CIRCLE_PAYLOAD_VERSION}`,
       name.toLowerCase(),
       buildCircle ? "circle" : "counts",
     ],

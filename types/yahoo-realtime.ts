@@ -4,10 +4,11 @@ export type YahooRealtimeEntry = {
   displayText?: string;
   displayTextBody?: string;
   createdAt?: number;
+  userId?: string;
   screenName?: string;
   name?: string;
   profileImage?: string;
-  mentions?: { screenName?: string; indices?: number[] }[];
+  mentions?: { id?: string; screenName?: string; indices?: number[] }[];
   replyMentions?: Array<
     | string
     | { screenName?: string; indices?: number[] }

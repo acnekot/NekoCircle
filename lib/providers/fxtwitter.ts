@@ -14,15 +14,18 @@ const FX_TIMEOUT_MS = 12_000;
 const PAGE_SIZE = 100;
 
 type FxProfile = {
+  id?: string;
   screen_name?: string;
   avatar_url?: string;
 };
 
 type FxReplyTarget = {
+  id?: string;
   screen_name?: string;
 };
 
 type FxFacet = {
+  id?: string;
   type?: string;
   original?: string;
   replacement?: string;
@@ -75,6 +78,14 @@ function mentionTargets(status: FxStatus): string[] {
   return [...targets];
 }
 
+function profileId(status: FxStatus, name: string): string | undefined {
+  const profiles = [status.author, status.reposted_by, status.quote?.author, status.replying_to];
+  const profile = profiles.find((p) => normalizeUsername(p?.screen_name ?? "") === name && p?.id);
+  return profile?.id ?? status.raw_text?.facets?.find((f) =>
+    f.type === "mention" && normalizeUsername(f.original ?? f.replacement ?? f.display ?? "") === name,
+  )?.id;
+}
+
 function addEvent(
   out: InteractionEvent[],
   status: FxStatus,
@@ -84,10 +95,14 @@ function addEvent(
 ) {
   if (!status.id || !author || !target || author === target) return;
   const text = normalizeInteractionText(status.raw_text?.text ?? status.text);
+  const authorId = profileId(status, author);
+  const targetId = profileId(status, target);
   out.push({
     tweetId: status.id,
     author,
     target,
+    ...(authorId ? { authorId } : {}),
+    ...(targetId ? { targetId } : {}),
     type,
     ...(text ? { text } : {}),
     createdAt: createdAt(status),
