@@ -30,6 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh">
       <body className={`${aldrich.variable} min-h-screen bg-gray-950 text-white antialiased`}>
         {children}
+        <footer className="border-t border-white/5 px-4 py-4 text-center text-[11px] text-[#8f8e98]">
+          <span>NekoCircle · Build {process.env.NEXT_PUBLIC_BUILD_VERSION ?? "development"}</span>
+        </footer>
       </body>
     </html>
   );
