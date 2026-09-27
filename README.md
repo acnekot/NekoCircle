@@ -1,80 +1,100 @@
 # NekoCircle
 
-通过 Yahoo 日本实时搜索获取公开 @提及数据，以同心圆图谱展示过去 30 天内与你互动最频繁的用户的 Web 应用。免费、无需登录、无需 API Key。
+**中文** · [日本語](README.ja.md) · [English](README.en.md)
+
+通过 FxTwitter、Yahoo 日本实时搜索和 Bing 的公开数据生成推特互动圈。支持中文、日文、英文，基础生成无需登录或 API Key。
 
 ## 功能
 
-- **Yahoo 搜索**：实时搜索过去 30 天内的公开 @提及 数据
-- **Mention 统计**：按提及次数排名展示互动圈
-- **可视化图谱**：Canvas 渲染同心圆轨道，自动布局，真实头像
-- **一键下载**：导出高清 PNG，带 NekoCircle 水印和圈子 ID
-- **分享功能**：分享到 X，或通过 8 位短 ID 分享圈子链接
-- **自定义样式**：背景色 / 渐变模式、节点大小、显示人数（10~50）、标签 / 分数 / 排名徽章开关
-- **公告系统**：管理员可发布 / 编辑 / 删除公告，支持 info / warning / success 三类与置顶
-- **管理后台**：`/admin` 路由，JWT 登录保护，公告 CRUD
-- **查找自我**：在互动圈中搜索自己或他人
-- **统计页面**：Yahoo 搜索生成次数、活跃用户等数据
-- **OG 图片**：分享链接自动生成预览图
-- **上游扩展玩法**：关系树、AI 诊断提示词与娱乐性账号估值
-- **代理回退**：支持 `YAHOO_PROXY` 中继地址及标准 HTTP / SOCKS 代理
+- 回复、引用、提及与转推统一评分，结合互动方向、时间衰减和双向交流。
+- 按稳定账号 ID 合并改名前后的账号，避免跨数据源重复计算同一回复。
+- MD3 风格界面、头像回退、查找高亮与放大、完整用户名及标签层级设置。
+- 自定义颜色、人数、布局、分数、用户名、水印和圈子 ID；支持显示全部已采集用户。
+- PNG 下载、公开分享链接、圈子 ID 查询及分享预览图。
+- 可选长期保存与临时数据清理；后台提供统计、参数、公告、反馈和数据导入/导出。
+- 将已授权长期保存的圈子备份到 GitHub；设置历史统计基数补回丢失的累计数量。
+- “今日”按 UTC+8 零点计算；网页底部显示构建版本。
+- Windows / 宝塔双版本更新与回滚；Linux 进程守护。
 
-## 技术栈
+## 快速开始
 
-| 层级 | 技术 |
-|------|------|
-| 框架 | Next.js 15（App Router） |
-| 语言 | TypeScript |
-| 样式 | Tailwind CSS 4 |
-| 数据库 | SQLite（better-sqlite3） |
-| 认证 | JWT（jose）+ bcryptjs（仅管理员） |
-| 绘图 | HTML5 Canvas API |
-| OG 图片 | @vercel/og |
-| 数据源 | Yahoo 日本实时搜索 |
+建议使用 Node.js 22 或 24 和 npm，在项目根目录执行：
 
-## 目录结构
-
-```
-neko-circle/
-├── app/
-│   ├── page.tsx                 # 首页（搜索 + Demo 圈 + 公告）
-│   ├── yahoo/[username]/        # Yahoo 搜索结果页
-│   ├── circle/[id]/             # 圈子详情页（短 ID 访问）
-│   ├── stats/                   # 数据统计页
-│   ├── admin/                   # 管理后台（登录 + 公告管理）
-│   └── api/                     # yahoo-mentions / circle / announcements / auth / og 等
-├── components/
-│   ├── CircleChart.tsx          # 互动圈 Canvas 渲染
-│   ├── DemoCircle.tsx           # 首页动画 Canvas
-│   ├── StylePanel.tsx           # 样式自定义面板
-│   └── FindYourself.tsx         # 查找自我
-├── lib/                         # yahoo 获取 / 转换 / db / auth / 导出 / 头像代理
-├── types/                       # circle / yahoo-realtime 类型定义
-├── middleware.ts                # 管理后台路由 JWT 保护
-├── data/circle.db               # SQLite（自动创建）
-└── .env.local                   # JWT_SECRET / HTTPS_PROXY
+```powershell
+npm ci
+Copy-Item .env.example .env.local
 ```
 
-## 备注
+编辑 `.env.local`，将 `JWT_SECRET` 改为随机长字符串。已有配置请保留，不要覆盖。
 
-- 计分仅统计 @提及次数，不区分互动方向，不含时间衰减
-- Yahoo 仅索引过去约 30 天的公开推文，私密账号或已删推文无法获取
-- 头像通过代理加载（白名单 `pbs.twimg.com` / `abs.twimg.com`），需配置 `HTTPS_PROXY`
-- 管理员密码：首次打开 `/admin/login` 时设置（无预设默认值），存为 bcrypt 哈希；生产环境务必修改 `JWT_SECRET`
-- `data/circle.db` 需持久化挂载，否则重启数据丢失
-- 许可证：AGPL-3.0-or-later
-- 项目基于 [maebahesioru/nareaitter](https://github.com/maebahesioru/nareaitter)，并持续选择性同步适合 NekoCircle 架构的上游功能
+开发模式：
 
-## 生产进程守护
+```powershell
+npm run dev -- -p 3001
+```
 
-完成 `npm ci && npm run build` 后，可使用仓库根目录的 `serve.sh` 启动生产服务。脚本通过
-`/api/health/live` 进行三次存活确认，只在全部失败后重启；停止时会终止完整进程组并回收
-子进程，避免慢页面触发误杀或累积僵尸 `next-server`。
+访问 [http://localhost:3001/zh](http://localhost:3001/zh)、`/ja` 或 `/en`。
 
-常用配置均以环境变量提供：
+生产模式，每一步成功后再执行下一步：
 
-- `NEKOCIRCLE_PORT`：监听端口，默认 `3000`
-- `NEKOCIRCLE_BIND`：监听地址，默认 `127.0.0.1`
-- `NEKOCIRCLE_STARTUP_GRACE_SECONDS`：启动宽限，默认 `60`
-- `NEKOCIRCLE_CHECK_INTERVAL_SECONDS`：检查间隔，默认 `20`
-- `NEKOCIRCLE_HEALTH_ATTEMPTS`：连续失败阈值，默认 `3`
-- `NEKOCIRCLE_SHUTDOWN_GRACE_SECONDS`：优雅退出等待时间，默认 `15`
+```powershell
+npm ci
+npm run build
+npm start -- -H 127.0.0.1 -p 3001
+```
+
+宝塔 / Nginx 在域名的 80/443 端口接收请求，代理到 `http://127.0.0.1:3001`。数据库和配置需要持久保存，不要用新源码覆盖运行中的 `.next`。
+
+## 配置与数据
+
+| 配置 | 用途 |
+| --- | --- |
+| `JWT_SECRET` | 管理员会话签名；各版本保持一致 |
+| `DB_PATH` | SQLite 路径；默认 `data/circle.db` |
+| `SITE_URL` | 分享及预览图的公开网址，如 `https://circle.example.com` |
+| `HTTPS_PROXY` | 可选 HTTP / SOCKS 出网代理 |
+| `YAHOO_PROXY` | 可选 Yahoo 专用代理或中继 |
+| `BUILD_VERSION` | 可选构建版本号；Git 部署自动取提交号，ZIP 部署使用构建时间 |
+
+首次访问 `/admin/login` 时设置管理员密码，无预设密码，以 bcrypt 哈希保存。恢复原数据库也会保留原密码。
+
+GitHub 备份在后台参数设置中填写仓库所有者、仓库、已存在的分支、文件路径和令牌。令牌需要目标仓库的 Contents 读写权限，界面不会返回明文。备份只含已授权长期保存的圈子，不含临时圈子、管理员密码或配置令牌。解压 `.json.gz` 后，可通过后台导入恢复。
+
+累计生成数和独立用户数可设置历史基数；今日和趋势仍按实际记录计算。历史用户名丢失后，独立用户基数无法自动排除后来再次出现的老用户。
+
+## 不停服更新与守护
+
+见 [Windows / 宝塔双版本部署指南](docs/windows-rolling-update.md)。工具在新目录构建并检查候选版本，平滑重载 Nginx，保留旧程序用于回滚。新旧程序共用现有数据库，静态资源同时保留。初次使用需登记当前版本和代理配置。
+
+Linux 构建后运行 `bash serve.sh`。守护使用 `/api/health/live`，连续三次检查失败才重启；部署使用 `/api/health/ready`，额外检查数据库。
+
+常用环境变量：`NEKOCIRCLE_PORT`（3000）、`NEKOCIRCLE_BIND`（127.0.0.1）、`NEKOCIRCLE_STARTUP_GRACE_SECONDS`（60）、`NEKOCIRCLE_CHECK_INTERVAL_SECONDS`（20）、`NEKOCIRCLE_HEALTH_ATTEMPTS`（3）、`NEKOCIRCLE_SHUTDOWN_GRACE_SECONDS`（15）。
+
+## 评分与数据限制
+
+类型权重：回复 `1`、引用 `0.8`、提及 `0.6`、转推 `0.4`。方向系数：入站 `1.5`、出站 `0.5`。时间权重：0–2 天 `1`，3–5 天 `0.95`，超过 5 天后连续指数衰减。
+
+```text
+total = inbound × 1.5 + outbound × 0.5
+balance = 2 × min(inbound, outbound) / (inbound + outbound)
+score = ln(1 + total) × (0.75 + 0.25 × balance)
+```
+
+无互动时 balance 为 0。圈子按加权分排序，互动次数单独保留。Bing 在主要来源数据较少时作为兜底；单个来源失败时使用其他可用数据。
+
+公开搜索不保证完整覆盖。Yahoo 通常覆盖最近约 30 天，私密、已删除或未索引的推文无法获取；头像及外部服务的可用性也会影响结果。
+
+## 开发
+
+```powershell
+npm test
+npm run build
+```
+
+构建包括 lint 和 TypeScript 检查。技术栈：Next.js 15、React 19、TypeScript、Tailwind CSS 4、SQLite、Canvas、`@vercel/og`。
+
+`app/`：页面与 API；`components/`：圈图与交互；`lib/`：数据源、合并、评分、数据库与备份；`messages/`：三语翻译；`scripts/`：部署；`tests/`：回归测试；`data/`：默认数据库目录。
+
+## 许可证与致谢
+
+[AGPL-3.0-or-later](LICENSE)。灵感来自 [maebahesioru/nareaitter](https://github.com/maebahesioru/nareaitter)。
