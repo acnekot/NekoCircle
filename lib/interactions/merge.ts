@@ -22,8 +22,24 @@ export function mergeInteractionEvents(
     InteractionEvent & { sources: InteractionSource[] }
   >();
 
+  // Yahoo emits generic mentions for outbound replies. Match the same tweet
+  // and account pair, while preserving other targets and ambiguous types.
+  const pairKey = (event: InteractionEvent) => eventKey({ ...event, type: "mention" });
+  const fxTypes = new Map<string, Set<InteractionEvent["type"]>>();
+  for (const event of groups.flatMap((group) => [...group])) {
+    if (event.source !== "fxtwitter") continue;
+    const key = pairKey(event);
+    const types = fxTypes.get(key) ?? new Set<InteractionEvent["type"]>();
+    types.add(event.type);
+    fxTypes.set(key, types);
+  }
+
   for (const group of groups) {
-    for (const raw of group) {
+    for (const event of group) {
+      const types = fxTypes.get(pairKey(event));
+      const raw = event.source === "yahoo" && event.type === "mention" && types?.size === 1
+        ? { ...event, type: [...types][0] }
+        : event;
       const tweetId = raw.tweetId.trim();
       const author = normalizeUsername(raw.author);
       const target = normalizeUsername(raw.target);

@@ -254,3 +254,33 @@ test("圈子转换会保留全部评分用户而不是只取前 50 名", async (
   assert.equal(users.length, 120);
   assert.equal(users[119]?.screenName, "user_119");
 });
+
+test("Yahoo mention and FxTwitter reply for one tweet and pair count once", () => {
+  const reply: InteractionEvent = { tweetId: "1", author: "self", target: "friend", type: "reply", source: "fxtwitter" };
+  const mention: InteractionEvent = { ...reply, type: "mention", source: "yahoo" };
+  for (const groups of [[[reply], [mention]], [[mention], [reply]]]) {
+    const merged = mergeInteractionEvents(groups);
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].type, "reply");
+    assert.deepEqual(new Set(merged[0].sources), new Set(["yahoo", "fxtwitter"]));
+    assert.equal(scoreInteractions(merged, "self")[0].interactionCount, 1);
+  }
+});
+
+test("other targets and multiple explicit relationship types remain separate", () => {
+  const base: InteractionEvent = { tweetId: "1", author: "self", target: "friend", type: "reply", source: "fxtwitter" };
+  const merged = mergeInteractionEvents([
+    [base, { ...base, type: "quote" }],
+    [{ ...base, type: "mention", source: "yahoo" }, { ...base, target: "other", type: "mention", source: "yahoo" }],
+  ]);
+  assert.equal(merged.length, 4);
+});
+
+test("unrelated tweets, reversed pairs and Yahoo-only mentions are preserved", () => {
+  const base: InteractionEvent = { tweetId: "1", author: "self", target: "friend", type: "reply", source: "fxtwitter" };
+  const merged = mergeInteractionEvents([[base], [
+    { ...base, tweetId: "2", type: "mention", source: "yahoo" },
+    { ...base, author: "friend", target: "self", type: "mention", source: "yahoo" },
+  ]]);
+  assert.equal(merged.length, 3);
+});
