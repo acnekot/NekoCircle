@@ -1,7 +1,7 @@
 import type { CircleUser } from "@/types/circle";
 import type { InteractionDiagnostics } from "@/types/interaction";
 
-const KEY_PREFIX = "nekocircle-yahoo-v8:";
+const KEY_PREFIX = "nekocircle-yahoo-v9:";
 const TTL_MS = 8 * 60 * 1000;
 
 export type YahooCircleClientCache = InteractionDiagnostics & {

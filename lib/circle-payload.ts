@@ -35,7 +35,7 @@ import {
 import type {
   InteractionEvent,
 } from "@/types/interaction";
-export const CIRCLE_PAYLOAD_VERSION = 11;
+export const CIRCLE_PAYLOAD_VERSION = 12;
 
 /**
  * 共有の取得パイプライン。
@@ -91,7 +91,13 @@ export async function buildYahooPayload(
     }
     bingElapsed = Date.now() - bingStartedAt;
     const secondMergeStartedAt = Date.now();
-    mergedEvents = mergeInteractionEvents([mergedEvents, bingEvents]);
+    // 保留原始用户名与稳定 ID 的对应关系：已合并事件只含规范名字，
+    // 无法单独帮助 Bing 的旧用户名记录找到同一账号。
+    mergedEvents = mergeInteractionEvents([
+      fx?.events ?? [],
+      yahoo?.events ?? [],
+      bingEvents,
+    ]);
     mergeElapsed += Date.now() - secondMergeStartedAt;
   }
 

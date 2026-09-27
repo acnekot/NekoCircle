@@ -3,17 +3,27 @@ import { normalizeUsername } from "./normalize";
 
 /** Prefer current structured profiles over search-index names, using stable IDs only. */
 export function reconcileIdentities(events: readonly InteractionEvent[]): InteractionEvent[] {
-  const names = new Map<string, { name: string; priority: number }>();
+  const names = new Map<string, { name: string; priority: number; observedAt: number }>();
   const idsByName = new Map<string, Set<string>>();
   for (const event of events) {
     for (const [rawName, id] of [[event.author, event.authorId], [event.target, event.targetId]]) {
       if (!rawName || !id) continue;
       const name = normalizeUsername(rawName);
+      if (!name) continue;
       const ids = idsByName.get(name) ?? new Set<string>();
       ids.add(id);
       idsByName.set(name, ids);
-      const priority = event.source === "fxtwitter" ? 2 : 1;
-      if (!names.has(id) || names.get(id)!.priority < priority) names.set(id, { name, priority });
+      const priority = event.source === "fxtwitter" || event.sources?.includes("fxtwitter") ? 2 : 1;
+      // 同一来源的名字冲突时，取最近事件中的名字；无时间或时间相同则
+      // 固定按名字排序，避免请求完成顺序改变展示结果。
+      const observedAt = Number.isFinite(event.createdAt) ? event.createdAt! : 0;
+      const previous = names.get(id);
+      if (!previous || priority > previous.priority ||
+        (priority === previous.priority &&
+          (observedAt > previous.observedAt ||
+            (observedAt === previous.observedAt && name < previous.name)))) {
+        names.set(id, { name, priority, observedAt });
+      }
     }
   }
   const resolve = (raw: string, suppliedId?: string): { name: string; id?: string } => {

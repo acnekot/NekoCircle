@@ -316,16 +316,16 @@ test("stable IDs join a Yahoo historical handle to the FxTwitter handle before s
   }], "self", "outbound");
   for (const groups of [[yahoo, fx], [fx, yahoo]]) {
     const merged = mergeInteractionEvents(groups);
-    assert.equal(merged.length, 3);
+    assert.equal(merged.length, 2);
     assert.equal(scoreInteractions(merged, "self").length, 1);
-    const reply = merged.find((e) => e.tweetId === "out" && e.source === "fxtwitter")!;
+    const reply = merged.find((e) => e.tweetId === "out" && e.type === "reply")!;
     assert.equal(reply.type, "reply");
     assert.equal(reply.targetId, "42");
-    assert.deepEqual(new Set(reply.sources), new Set(["fxtwitter"]));
+    assert.deepEqual(new Set(reply.sources), new Set(["fxtwitter", "yahoo"]));
     const scores = scoreInteractions(merged, "self");
     assert.equal(scores.length, 1);
     assert.equal(scores[0].screenName, "new_name");
-    assert.equal(scores[0].interactionCount, 3);
+    assert.equal(scores[0].interactionCount, 2);
   }
 });
 
@@ -358,4 +358,89 @@ test("different accounts sharing one avatar are both retained", async () => {
   const avatar = "https://pbs.twimg.com/profile_images/shared/avatar_400x400.jpg";
   const users = await interactionScoresToCircleUsers(scores, { alice: avatar, bob: avatar });
   assert.deepEqual(new Set(users.map((u) => u.screenName)), new Set(["alice", "bob"]));
+});
+
+test("Yahoo mention and FxTwitter reply for one tweet and pair count once", () => {
+  const reply: InteractionEvent = { tweetId: "1", author: "self", target: "friend", type: "reply", source: "fxtwitter" };
+  const mention: InteractionEvent = { ...reply, type: "mention", source: "yahoo" };
+  for (const groups of [[[reply], [mention]], [[mention], [reply]]]) {
+    const merged = mergeInteractionEvents(groups);
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].type, "reply");
+    assert.deepEqual(new Set(merged[0].sources), new Set(["yahoo", "fxtwitter"]));
+    assert.equal(scoreInteractions(merged, "self")[0].interactionCount, 1);
+  }
+});
+
+test("other targets and multiple explicit relationship types remain separate", () => {
+  const base: InteractionEvent = { tweetId: "1", author: "self", target: "friend", type: "reply", source: "fxtwitter" };
+  const merged = mergeInteractionEvents([
+    [base, { ...base, type: "quote" }],
+    [{ ...base, type: "mention", source: "yahoo" }, { ...base, target: "other", type: "mention", source: "yahoo" }],
+  ]);
+  assert.equal(merged.length, 4);
+});
+
+test("unrelated tweets, reversed pairs and Yahoo-only mentions are preserved", () => {
+  const base: InteractionEvent = { tweetId: "1", author: "self", target: "friend", type: "reply", source: "fxtwitter" };
+  const merged = mergeInteractionEvents([[base], [
+    { ...base, tweetId: "2", type: "mention", source: "yahoo" },
+    { ...base, author: "friend", target: "self", type: "mention", source: "yahoo" },
+  ]]);
+  assert.equal(merged.length, 3);
+});
+
+test("Yahoo mentions are not collapsed into unrelated quote or repost types", () => {
+  for (const type of ["quote", "repost"] as const) {
+    const fx: InteractionEvent = {
+      tweetId: "1", author: "self", target: "friend", type, source: "fxtwitter",
+    };
+    const yahoo: InteractionEvent = { ...fx, type: "mention", source: "yahoo" };
+    for (const groups of [[[fx], [yahoo]], [[yahoo], [fx]]]) {
+      assert.deepEqual(
+        new Set(mergeInteractionEvents(groups).map((event) => event.type)),
+        new Set([type, "mention"]),
+      );
+    }
+  }
+});
+
+test("same-source conflicting handles resolve consistently across response order", () => {
+  const older: InteractionEvent = {
+    tweetId: "1", author: "old_name", authorId: "42", target: "self",
+    type: "reply", source: "fxtwitter", createdAt: 1_000,
+  };
+  const newer: InteractionEvent = { ...older, tweetId: "2", author: "new_name", createdAt: 2_000 };
+  for (const rows of [[older, newer], [newer, older]]) {
+    const scores = scoreInteractions(mergeInteractionEvents([rows]), "self");
+    assert.equal(scores.length, 1);
+    assert.equal(scores[0].screenName, "new_name");
+    assert.equal(scores[0].interactionCount, 2);
+  }
+
+  const tied = { ...older, createdAt: newer.createdAt };
+  const forward = mergeInteractionEvents([[tied, newer]]);
+  const reversed = mergeInteractionEvents([[newer, tied]]);
+  assert.equal(forward[0].author, reversed[0].author);
+});
+
+test("fallback merge keeps original identity evidence alongside reply deduplication", () => {
+  const fx: InteractionEvent = {
+    tweetId: "1", author: "self", authorId: "1", target: "new_name", targetId: "42",
+    type: "reply", source: "fxtwitter",
+  };
+  const yahoo: InteractionEvent = { ...fx, target: "old_name", type: "mention", source: "yahoo" };
+  const bing: InteractionEvent = {
+    tweetId: "2", author: "old_name", target: "self", type: "mention", source: "bing",
+  };
+  for (const groups of [[[fx], [yahoo]], [[yahoo], [fx]]]) {
+    const initial = mergeInteractionEvents(groups);
+    assert.equal(initial.length, 1);
+    const merged = mergeInteractionEvents([...groups, [bing]]);
+    const scores = scoreInteractions(merged, "self");
+    assert.equal(scores.length, 1);
+    assert.equal(scores[0].screenName, "new_name");
+    assert.equal(scores[0].interactionCount, 2);
+    assert.deepEqual(new Set(scores[0].sources), new Set(["fxtwitter", "yahoo", "bing"]));
+  }
 });
