@@ -1,0 +1,161 @@
+import assert from "node:assert/strict";
+import test, { mock } from "node:test";
+import {
+  BraveApiError,
+  buildBraveQuery,
+  buildBraveUrl,
+  fetchBraveMentionsSafe,
+  fetchBraveMentionsToYou,
+  parseBraveResults,
+} from "../lib/brave-search";
+
+/** 全部测试都注入假 fetch，不会请求真实的 Brave 接口。 */
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function fakeBrave(responses: Response[]) {
+  const calls: { url: string; init?: RequestInit }[] = [];
+  const fetchImpl = async (url: string, init?: RequestInit): Promise<Response> => {
+    calls.push({ url, init });
+    const next = responses[calls.length - 1];
+    if (!next) throw new Error("unexpected extra request");
+    return next;
+  };
+  return { calls, fetchImpl };
+}
+
+test("查询串只包含 @用户名 与 site 限定，地址里不出现 key", () => {
+  assert.equal(buildBraveQuery("@AcNeKoT"), '"@acnekot" (site:x.com OR site:twitter.com)');
+
+  const url = new URL(buildBraveUrl("acnekot", { offset: 2 }));
+  assert.equal(`${url.origin}${url.pathname}`, "https://api.search.brave.com/res/v1/web/search");
+  assert.equal(url.searchParams.get("q"), buildBraveQuery("acnekot"));
+  assert.equal(url.searchParams.get("count"), "20");
+  assert.equal(url.searchParams.get("offset"), "2");
+  assert.equal(url.searchParams.get("freshness"), "pw");
+  assert.equal(url.searchParams.has("key"), false);
+  assert.equal(url.searchParams.has("X-Subscription-Token"), false);
+});
+
+test("解析时从 URL、标题和摘要中提取推文，去重并排除自己", () => {
+  const entries = parseBraveResults(
+    {
+      web: {
+        results: [
+          { url: "https://x.com/Alice/status/1234567890", title: "Alice" },
+          { url: "https://mobile.twitter.com/bob/status/2345678901", title: "" },
+          {
+            url: "https://example.com/post",
+            description:
+              "reply https://x.com/carol/statuses/3456789012 and https://x.com/acnekot/status/9999999999",
+          },
+          { url: "https://x.com/alice/status/1234567890" },
+        ],
+      },
+    },
+    "acnekot",
+  );
+
+  assert.deepEqual(
+    entries.map((entry) => entry.tweetId),
+    ["1234567890", "2345678901", "3456789012"],
+  );
+  assert.equal(entries[0]?.screenName, "alice");
+  assert.equal(entries[0]?.url, "https://x.com/alice/status/1234567890");
+});
+
+test("请求带上 X-Subscription-Token，且没有新增时停止翻页", async () => {
+  const page = { web: { results: [{ url: "https://x.com/alice/status/1234567890" }] } };
+  const { calls, fetchImpl } = fakeBrave([jsonResponse(page), jsonResponse(page), jsonResponse(page)]);
+
+  const entries = await fetchBraveMentionsToYou("acnekot", {
+    apiKey: "test-key",
+    delayMs: 0,
+    maxPages: 5,
+    fetchImpl,
+  });
+
+  assert.equal(entries.length, 1);
+  assert.equal(calls.length, 2, "第二页没有新增，第三页不应该被请求");
+  assert.equal(new Headers(calls[0]?.init?.headers).get("X-Subscription-Token"), "test-key");
+  assert.equal(calls[0]?.url.includes("test-key"), false);
+});
+
+test("maxPages 限制请求页数", async () => {
+  const { calls, fetchImpl } = fakeBrave([
+    jsonResponse({ web: { results: [{ url: "https://x.com/a1/status/10000" }] } }),
+    jsonResponse({ web: { results: [{ url: "https://x.com/a2/status/20000" }] } }),
+    jsonResponse({ web: { results: [{ url: "https://x.com/a3/status/30000" }] } }),
+  ]);
+
+  const entries = await fetchBraveMentionsToYou("acnekot", {
+    apiKey: "k",
+    delayMs: 0,
+    maxPages: 2,
+    fetchImpl,
+  });
+
+  assert.equal(entries.length, 2);
+  assert.equal(calls.length, 2);
+});
+
+test("后续页面被限流（429）时保留已拿到的结果", async () => {
+  const { calls, fetchImpl } = fakeBrave([
+    jsonResponse({ web: { results: [{ url: "https://x.com/alice/status/1234567890" }] } }),
+    jsonResponse({ error: "rate limited" }, 429),
+  ]);
+
+  const entries = await fetchBraveMentionsToYou("acnekot", {
+    apiKey: "k",
+    delayMs: 0,
+    maxPages: 3,
+    fetchImpl,
+  });
+
+  assert.deepEqual(entries.map((entry) => entry.tweetId), ["1234567890"]);
+  assert.equal(calls.length, 2);
+});
+
+test("首页鉴权失败时 fetchBraveMentionsToYou 抛出 BraveApiError，安全版本返回空数组", async () => {
+  const warn = mock.method(console, "warn", () => {});
+  try {
+    const first = fakeBrave([jsonResponse({ error: "invalid key" }, 401)]);
+    await assert.rejects(
+      fetchBraveMentionsToYou("acnekot", { apiKey: "bad", delayMs: 0, fetchImpl: first.fetchImpl }),
+      (error: unknown) => error instanceof BraveApiError && error.status === 401,
+    );
+
+    const second = fakeBrave([jsonResponse({ error: "invalid key" }, 401)]);
+    const entries = await fetchBraveMentionsSafe("acnekot", {
+      apiKey: "bad",
+      delayMs: 0,
+      fetchImpl: second.fetchImpl,
+    });
+    assert.deepEqual(entries, []);
+    assert.equal(second.calls.length, 1);
+    assert.equal(warn.mock.callCount(), 1);
+  } finally {
+    mock.restoreAll();
+  }
+});
+
+test("没有 key 时不发任何请求", async () => {
+  const { calls, fetchImpl } = fakeBrave([]);
+  const entries = await fetchBraveMentionsSafe("acnekot", { apiKey: "", fetchImpl });
+  assert.deepEqual(entries, []);
+  assert.equal(calls.length, 0);
+});
+
+test("用户名含非法字符时直接返回空数组，不拼进查询", async () => {
+  const { calls, fetchImpl } = fakeBrave([]);
+  const entries = await fetchBraveMentionsToYou('bad" OR site:evil.example', {
+    apiKey: "k",
+    fetchImpl,
+  });
+  assert.deepEqual(entries, []);
+  assert.equal(calls.length, 0);
+});
