@@ -5,6 +5,10 @@
  * 核对情况：参数与响应字段依据第三方整理的文档摘要。官方文档站在核对环境被拦截，
  * 接入前需要用真实 key 确认 count、offset、freshness 的上限，以及 site: 与 OR 语法是否生效。
  * query.more_results_available 字段来自代码审查意见，同样未能在本环境核对；字段缺失时停止条件不变。
+ *
+ * 取舍：解析偏向精确率。只采纳结果 URL 本身是 `/用户名/status/ID` 的 X 推文，并默认要求标题或摘要里
+ * 出现 `@自己`。摘要被截断时可能漏掉真实提及，用真实 key 评估召回时可以设置 requireMention: false 对比。
+ * `/i/web/status/ID` 这种不带用户名的地址无法确定作者，不能计入互动，所以有意忽略。
  */
 
 const BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search";
@@ -30,6 +34,7 @@ const X_HOSTS = new Set([
   "mobile.twitter.com",
   "m.twitter.com",
 ]);
+/** 路径必须是 /用户名/status/ID。/i/web/status/ID 不带用户名，无法确定作者，有意不识别。 */
 const STATUS_PATH_RE = /^\/([A-Za-z0-9_]{1,15})\/status(?:es)?\/(\d{5,25})(?:\/|$)/i;
 
 export type BraveMentionEntry = {
@@ -67,6 +72,11 @@ export type BraveSearchOptions = {
   maxPages?: number;
   freshness?: string;
   delayMs?: number;
+  /**
+   * 是否要求标题或摘要里出现 `@自己`，默认要求（宁可漏掉也不误报）。
+   * 摘要被截断时可能漏掉真实提及，评估召回时可以关闭后对比。
+   */
+  requireMention?: boolean;
   /** 测试时注入；默认使用全局 fetch。 */
   fetchImpl?: FetchLike;
 };
@@ -119,19 +129,21 @@ function tweetRefFromUrl(raw: string): { screenName: string; tweetId: string } |
 
 /**
  * 解析一页结果，按 tweetId 去重，自己的推文不计入。
- * 只采纳结果的 URL 本身是 X 推文的条目，并要求标题或摘要里出现 `@自己`：
+ * 只采纳结果的 URL 本身是 X 推文的条目；默认还要求标题或摘要里出现 `@自己`（requireMention）：
  * 摘要里引用的别人的推文、第三方页面里的链接都不会被当成提及。
  */
 export function parseBraveResults(
   response: BraveWebResponse,
   screenName: string,
+  options: { requireMention?: boolean } = {},
 ): BraveMentionEntry[] {
   const self = normalizeName(screenName);
   if (!isValidScreenName(self)) return [];
+  const requireMention = options.requireMention ?? true;
   const mention = new RegExp(`@${self}(?![A-Za-z0-9_])`, "i");
   const seen = new Map<string, BraveMentionEntry>();
   for (const result of response.web?.results ?? []) {
-    if (!mention.test(`${result.title ?? ""} ${result.description ?? ""}`)) continue;
+    if (requireMention && !mention.test(`${result.title ?? ""} ${result.description ?? ""}`)) continue;
     const ref = tweetRefFromUrl(result.url ?? "");
     if (!ref || !ref.tweetId || ref.screenName === self || seen.has(ref.tweetId)) continue;
     seen.set(ref.tweetId, {
@@ -196,7 +208,7 @@ export async function fetchBraveMentionsToYou(
     if ((response.web?.results ?? []).length === 0) break;
 
     const before = merged.size;
-    for (const entry of parseBraveResults(response, sn)) {
+    for (const entry of parseBraveResults(response, sn, { requireMention: options.requireMention })) {
       if (!merged.has(entry.tweetId)) merged.set(entry.tweetId, entry);
     }
     emptyPages = merged.size === before ? emptyPages + 1 : 0;

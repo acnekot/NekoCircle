@@ -83,6 +83,71 @@ test("解析只采纳 X 站内的推文地址，且标题或摘要里要提到�
   assert.equal(entries[0]?.url, "https://x.com/alice/status/1234567890");
 });
 
+test("没有用户名的 i/web/status 地址无法确定作者，会被忽略", () => {
+  const entries = parseBraveResults(
+    {
+      web: {
+        results: [
+          { url: "https://x.com/i/web/status/6789012345", title: '"@acnekot" hello' },
+          { url: "https://x.com/alice", title: '"@acnekot" profile page' },
+        ],
+      },
+    },
+    "acnekot",
+  );
+
+  assert.deepEqual(entries, []);
+});
+
+test("requireMention 为 false 时，标题和摘要里没有 @目标用户 的 X 推文也会采纳", () => {
+  const response = {
+    web: {
+      results: [
+        { url: "https://x.com/dave/status/4567890123", title: 'Dave: "hello" / X' },
+        {
+          url: "https://example.com/post",
+          title: "@acnekot",
+          description: "https://x.com/carol/status/3456789012",
+        },
+        { url: "https://x.com/acnekot/status/9999999999", title: "self" },
+      ],
+    },
+  };
+
+  assert.deepEqual(parseBraveResults(response, "acnekot"), []);
+  assert.deepEqual(
+    parseBraveResults(response, "acnekot", { requireMention: false }).map((entry) => entry.tweetId),
+    ["4567890123"],
+  );
+});
+
+test("requireMention 选项会传给分页抓取", async () => {
+  const page = {
+    web: { results: [{ url: "https://x.com/dave/status/4567890123", title: 'Dave: "hello" / X' }] },
+  };
+
+  const strict = fakeBrave([jsonResponse(page), jsonResponse(page)]);
+  assert.deepEqual(
+    await fetchBraveMentionsToYou("acnekot", {
+      apiKey: "k",
+      delayMs: 0,
+      maxPages: 2,
+      fetchImpl: strict.fetchImpl,
+    }),
+    [],
+  );
+
+  const relaxed = fakeBrave([jsonResponse(page), jsonResponse(page)]);
+  const entries = await fetchBraveMentionsToYou("acnekot", {
+    apiKey: "k",
+    delayMs: 0,
+    maxPages: 2,
+    requireMention: false,
+    fetchImpl: relaxed.fetchImpl,
+  });
+  assert.deepEqual(entries.map((entry) => entry.tweetId), ["4567890123"]);
+});
+
 test("请求带上 X-Subscription-Token，连续两页没有新增时停止翻页", async () => {
   const page = onePost("1234567890", "alice");
   const { calls, fetchImpl } = fakeBrave([jsonResponse(page), jsonResponse(page), jsonResponse(page)]);
