@@ -4,6 +4,7 @@
  * 状态：只提供请求构造、分页和解析，尚未接入 lib/circle-payload.ts，生产流程不变。
  * 核对情况：参数与响应字段依据第三方整理的文档摘要。官方文档站在核对环境被拦截，
  * 接入前需要用真实 key 确认 count、offset、freshness 的上限，以及 site: 与 OR 语法是否生效。
+ * query.more_results_available 字段来自代码审查意见，同样未能在本环境核对；字段缺失时停止条件不变。
  */
 
 const BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search";
@@ -15,11 +16,21 @@ const BRAVE_TIMEOUT_MS = 10_000;
 /** 免费档每秒请求数未核实，页与页之间保守等待 1 秒。 */
 const BRAVE_DEFAULT_DELAY_MS = 1_000;
 const BRAVE_DEFAULT_MAX_PAGES = 5;
+/** 连续这么多页没有新增推文就停止。分页结果可能重叠，所以允许中间夹一页重复内容。 */
+const BRAVE_MAX_EMPTY_PAGES = 2;
 /** pw = 过去一周，与 Bing 版本的 freshness=Week 对齐。 */
 const BRAVE_DEFAULT_FRESHNESS = "pw";
 
-const TWEET_URL_RE =
-  /https?:\/\/(?:mobile\.|m\.)?(?:twitter\.com|x\.com)\/([A-Za-z0-9_]{1,15})\/status(?:es)?\/(\d{5,25})/gi;
+/** 只认 X 站内的域名；把 X 链接放在参数里的跳转页不算。 */
+const X_HOSTS = new Set([
+  "x.com",
+  "www.x.com",
+  "twitter.com",
+  "www.twitter.com",
+  "mobile.twitter.com",
+  "m.twitter.com",
+]);
+const STATUS_PATH_RE = /^\/([A-Za-z0-9_]{1,15})\/status(?:es)?\/(\d{5,25})(?:\/|$)/i;
 
 export type BraveMentionEntry = {
   tweetId: string;
@@ -29,6 +40,7 @@ export type BraveMentionEntry = {
 
 /** Brave 网页搜索响应中本模块用到的字段。 */
 export type BraveWebResponse = {
+  query?: { more_results_available?: boolean };
   web?: {
     results?: Array<{
       url?: string;
@@ -91,30 +103,42 @@ export function buildBraveUrl(
   return `${BRAVE_SEARCH_URL}?${params.toString()}`;
 }
 
+/** 从结果的 URL 里取出 X 推文的作者和 ID；不是 X 站内的推文地址返回 undefined。 */
+function tweetRefFromUrl(raw: string): { screenName: string; tweetId: string } | undefined {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "https:" || !X_HOSTS.has(url.hostname.toLowerCase())) return undefined;
+  const match = STATUS_PATH_RE.exec(url.pathname);
+  if (!match) return undefined;
+  return { screenName: (match[1] ?? "").toLowerCase(), tweetId: match[2] ?? "" };
+}
+
 /**
- * 从每条结果的 URL、标题和摘要里提取 X 推文链接，并按 tweetId 去重。
- * 正则与 Bing 版本一致；自己的推文不计入。
+ * 解析一页结果，按 tweetId 去重，自己的推文不计入。
+ * 只采纳结果的 URL 本身是 X 推文的条目，并要求标题或摘要里出现 `@自己`：
+ * 摘要里引用的别人的推文、第三方页面里的链接都不会被当成提及。
  */
 export function parseBraveResults(
   response: BraveWebResponse,
   screenName: string,
 ): BraveMentionEntry[] {
   const self = normalizeName(screenName);
+  if (!isValidScreenName(self)) return [];
+  const mention = new RegExp(`@${self}(?![A-Za-z0-9_])`, "i");
   const seen = new Map<string, BraveMentionEntry>();
   for (const result of response.web?.results ?? []) {
-    for (const text of [result.url, result.title, result.description]) {
-      if (!text) continue;
-      for (const match of text.matchAll(TWEET_URL_RE)) {
-        const screen = (match[1] ?? "").toLowerCase();
-        const tweetId = match[2] ?? "";
-        if (!screen || !tweetId || screen === self || seen.has(tweetId)) continue;
-        seen.set(tweetId, {
-          tweetId,
-          screenName: screen,
-          url: `https://x.com/${screen}/status/${tweetId}`,
-        });
-      }
-    }
+    if (!mention.test(`${result.title ?? ""} ${result.description ?? ""}`)) continue;
+    const ref = tweetRefFromUrl(result.url ?? "");
+    if (!ref || !ref.tweetId || ref.screenName === self || seen.has(ref.tweetId)) continue;
+    seen.set(ref.tweetId, {
+      tweetId: ref.tweetId,
+      screenName: ref.screenName,
+      url: `https://x.com/${ref.screenName}/status/${ref.tweetId}`,
+    });
   }
   return [...seen.values()];
 }
@@ -135,7 +159,7 @@ async function fetchBravePage(
 
 /**
  * 逐页抓取 `@name` 的提及。
- * - 某一页没有新增推文就停止，避免在 offset 语义不符合预期时空转。
+ * - 结果为空、响应表示没有更多结果，或连续两页没有新增推文时停止。
  * - 第一页失败直接抛出；之后的页面失败（例如限流 429）则保留已经拿到的结果。
  */
 export async function fetchBraveMentionsToYou(
@@ -152,6 +176,7 @@ export async function fetchBraveMentionsToYou(
     options.fetchImpl ?? ((url, init) => fetch(url, init));
   const delayMs = options.delayMs ?? BRAVE_DEFAULT_DELAY_MS;
   const merged = new Map<string, BraveMentionEntry>();
+  let emptyPages = 0;
 
   for (let page = 0; page < maxPages; page++) {
     if (page > 0) await sleep(delayMs);
@@ -167,13 +192,16 @@ export async function fetchBraveMentionsToYou(
       break;
     }
 
-    let added = 0;
+    // 没有结果，说明已经到末尾。
+    if ((response.web?.results ?? []).length === 0) break;
+
+    const before = merged.size;
     for (const entry of parseBraveResults(response, sn)) {
-      if (merged.has(entry.tweetId)) continue;
-      merged.set(entry.tweetId, entry);
-      added += 1;
+      if (!merged.has(entry.tweetId)) merged.set(entry.tweetId, entry);
     }
-    if (added === 0) break;
+    emptyPages = merged.size === before ? emptyPages + 1 : 0;
+    if (emptyPages >= BRAVE_MAX_EMPTY_PAGES) break;
+    if (response.query?.more_results_available === false) break;
   }
   return [...merged.values()];
 }

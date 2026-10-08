@@ -26,6 +26,17 @@ function fakeX(responses: Response[]) {
   return { calls, fetchImpl };
 }
 
+/** 每次都返回一条新帖子和一个新的 next_token，用来测试硬上限。 */
+function endlessX() {
+  const calls: { url: string; init?: RequestInit }[] = [];
+  const fetchImpl = async (url: string, init?: RequestInit): Promise<Response> => {
+    calls.push({ url, init });
+    const n = calls.length;
+    return jsonResponse(xPage([{ id: String(n), text: "t", author_id: "u1" }], [], `token-${n}`));
+  };
+  return { calls, fetchImpl };
+}
+
 function xPage(
   tweets: { id: string; text: string; author_id: string; created_at?: string }[],
   users: { id: string; username: string }[],
@@ -50,6 +61,14 @@ test("mentions 地址使用数字 ID，并带上展开字段、分页与 since �
 
   assert.throws(() => buildMentionsUrl("acnekot"), /数字 ID/);
   assert.throws(() => buildMentionsUrl("123456", { sinceId: "abc" }), /数字 ID/);
+});
+
+test("max_results 被限制在 5 到 100 之间", () => {
+  const limit = (maxResults: number) =>
+    new URL(buildMentionsUrl("123456", { maxResults })).searchParams.get("max_results");
+  assert.equal(limit(1), "5");
+  assert.equal(limit(20), "20");
+  assert.equal(limit(500), "100");
 });
 
 test("用户名解析为数字 ID，Bearer token 只出现在请求头里", async () => {
@@ -133,6 +152,43 @@ test("maxPages 与 maxMentions 限制请求量", async () => {
   });
   assert.deepEqual(cappedEntries.map((entry) => entry.tweetId), ["5", "6"]);
   assert.equal(capped.calls.length, 1, "达到条数上限后不再请求下一页");
+  assert.equal(new URL(capped.calls[0]?.url ?? "").searchParams.get("max_results"), "5");
+});
+
+test("maxPages 即使传入更大的数字也不超过 8 页", async () => {
+  const { calls, fetchImpl } = endlessX();
+  const entries = await fetchXMentionsOfficial("123456", { bearerToken: "t", fetchImpl, maxPages: 100 });
+  assert.equal(calls.length, 8);
+  assert.equal(entries.length, 8);
+});
+
+test("next_token 重复时停止翻页，避免服务端循环导致持续计费", async () => {
+  const { calls, fetchImpl } = fakeX([
+    jsonResponse(xPage([{ id: "1", text: "a", author_id: "u1" }], [], "same")),
+    jsonResponse(xPage([{ id: "2", text: "b", author_id: "u1" }], [], "same")),
+    jsonResponse(xPage([{ id: "3", text: "c", author_id: "u1" }], [])),
+  ]);
+
+  const entries = await fetchXMentionsOfficial("123456", { bearerToken: "t", fetchImpl, maxPages: 8 });
+
+  assert.deepEqual(entries.map((entry) => entry.tweetId), ["1", "2"]);
+  assert.equal(calls.length, 2);
+});
+
+test("每页的 max_results 按剩余预算设置，预算按返回的帖子数扣减", async () => {
+  const first = Array.from({ length: 100 }, (_, i) => ({ id: String(i + 1), text: "x", author_id: "u1" }));
+  const second = Array.from({ length: 20 }, (_, i) => ({ id: String(i + 101), text: "y", author_id: "u1" }));
+  const { calls, fetchImpl } = fakeX([
+    jsonResponse(xPage(first, [], "t2")),
+    jsonResponse(xPage(second, [])),
+  ]);
+
+  const entries = await fetchXMentionsOfficial("123456", { bearerToken: "t", fetchImpl, maxMentions: 120 });
+
+  assert.equal(entries.length, 120);
+  assert.equal(calls.length, 2);
+  assert.equal(new URL(calls[0]?.url ?? "").searchParams.get("max_results"), "100");
+  assert.equal(new URL(calls[1]?.url ?? "").searchParams.get("max_results"), "20");
 });
 
 test("首页鉴权失败抛出 XApiError；中途限流时保留已拿到的结果", async () => {
